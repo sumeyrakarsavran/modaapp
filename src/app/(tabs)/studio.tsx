@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -18,8 +18,7 @@ import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
 import { Button, Chip, EmptyState } from '@/components/UI';
 import { useStore } from '@/store/useStore';
-import { colors, radius, spacing, type } from '@/theme';
-import { BETTA_ARCHETYPES } from '@/theme';
+import { BETTA_ARCHETYPES, colors, radius, spacing, type } from '@/theme';
 import type { Category, WardrobeItem } from '@/types';
 
 type Mode = 'dressme' | 'outfits' | 'ai';
@@ -145,7 +144,8 @@ export default function Studio() {
           style={[styles.segmentBtn, mode === 'outfits' && styles.segmentActive]}
         >
           <Text style={[styles.segmentText, mode === 'outfits' && { color: '#fff' }]}>
-            Kombinlerim ({outfits.length})
+            Kombinlerim{"\n"}
+            ({outfits.length})
           </Text>
         </Pressable>
         <Pressable

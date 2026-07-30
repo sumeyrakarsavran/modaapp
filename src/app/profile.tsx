@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -22,6 +21,8 @@ import { BettaAvatar } from '@/components/BettaAvatar';
 import { Wave } from '@/components/BettaFish';
 import { FluidSpecCollage } from '@/components/Community';
 import { Button, Card, Chip, SectionTitle } from '@/components/UI';
+import { resizeForProcessing } from '@/services/imageResize';
+import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
 import { persistGarmentPhoto } from '@/services/photoStore';
 import { useStore } from '@/store/useStore';
 import { colors, getArchetype, radius, spacing, type } from '@/theme';
@@ -30,6 +31,7 @@ export default function Profile() {
   const { profile, items, outfits, selfies, lookbooks, posts, followedIds, pro, setProfile } =
     useStore();
   const { width } = useWindowDimensions();
+  const params = useLocalSearchParams();
   const myPosts = posts.filter((p) => p.userId === 'me');
   const arch = getArchetype(profile.bettaArchetypeId);
   const ringColor = arch?.color ?? colors.aqua;
@@ -38,30 +40,28 @@ export default function Profile() {
   const [editName, setEditName] = useState(profile.name);
   const [editBio, setEditBio] = useState(profile.bio ?? '');
 
-  const pickAvatar = async (fromCamera: boolean) => {
-    // allowsEditing YOK — Android kamerada düşük bellekli cihazlarda çökmeye/
-    // uygulama sıfırlanmasına yol açıyor. Avatar zaten dairede kırpılıp gösteriliyor.
-    const opts: ImagePicker.ImagePickerOptions = {
-      mediaTypes: ['images'],
-      quality: 0.7,
-      base64: Platform.OS === 'web',
-    };
-    const res = fromCamera
-      ? await (async () => {
-          const perm = await ImagePicker.requestCameraPermissionsAsync();
-          if (!perm.granted) {
-            Alert.alert('Kamera izni gerekli');
-            return null;
-          }
-          return ImagePicker.launchCameraAsync(opts);
-        })()
-      : await ImagePicker.launchImageLibraryAsync(opts);
-    if (!res || res.canceled || !res.assets?.[0]) return;
-    const a = res.assets[0];
-    const raw = Platform.OS === 'web' && a.base64 ? `data:image/jpeg;base64,${a.base64}` : a.uri;
-    const saved = await persistGarmentPhoto(raw).catch(() => raw);
+  /** Avatarı kaydet — kırpma açık (kare kadraj), küçültülüp kalıcı saklanır. */
+  const saveAvatarPhoto = async (photo: PickedPhoto) => {
+    const small = await resizeForProcessing(photo.uri, photo.width, photo.height, 800);
+    const saved = await persistGarmentPhoto(small).catch(() => small);
     setProfile({ avatarUri: saved });
   };
+
+  const pickAvatar = async (fromCamera: boolean) => {
+    const photo = await pickPhoto({ fromCamera, aspect: [1, 1], quality: 0.7, purpose: 'avatar' });
+    if (photo) await saveAvatarPhoto(photo);
+  };
+
+  // Android'de süreç öldüyse kök layout avatarı parametreyle buraya yollar
+  const recoveredRef = useRef(false);
+  useEffect(() => {
+    if (recoveredRef.current) return;
+    const photo = photoFromParams(params);
+    if (!photo) return;
+    recoveredRef.current = true;
+    saveAvatarPhoto(photo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
 
   const changeAvatar = () => {
     const remove = () => setProfile({ avatarUri: undefined });

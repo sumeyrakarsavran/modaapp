@@ -33,6 +33,20 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
 - Gerçek kıyafet fotoğrafları (arka planı silinmiş, şeffaf) HER ZAMAN `contentFit="contain"`
   ile gösterilir — `"cover"` uzun/dar parçaları (elbise, palto) kırpar. Selfie/avatar/model
   gibi gerçek insan fotoğrafları `"cover"` kalabilir.
+- **Fotoğraf akışı tek yerden**: tüm ekranlar `src/services/photoPicker.ts` kullanır
+  (kırpma açık). Android'de kamera/kırpma ayrı bir activity açar; uygulama cached'e
+  düşünce Samsung'un bellek yöneticisi onu ÖLDÜRÜR — logcat kanıtı:
+  `am_proc_died ... 700,15` + `am_kill ... kill background`, ardından süreç yalnızca
+  `ImagePickerFileProvider` için yeniden doğar. Çökme DEĞİLDİR (crash log'da iz yoktur),
+  bu yüzden dönüşte uygulama sıfırlanır ("donup çıkıyor").
+  Çözüm kırpmayı kaldırmak DEĞİL, `getPendingResultAsync()` ile kurtarmaktır — ve bu
+  **KÖKTE** (`src/app/_layout.tsx`) yapılmalıdır: süreç ölünce router en baştan
+  (`/` → today) başlar, bu yüzden ekranların kendi içindeki kurtarma HİÇ ÇALIŞMAZ.
+  Kök, fotoğrafı amacına göre (`garment/selfie/avatar/model`) doğru ekrana `rcUri`
+  parametresiyle yollar; amaç, süreç ölümünden sağ çıksın diye AsyncStorage'a yazılır. Ağır adımlar (arka plan silme, ML Kit, PNG piksel çözümü) **küçültülmüş**
+  kopya üzerinde ve SIRAYLA çalışır: kaydedilecek kopya ~1200px, analiz kopyası ~512px PNG
+  (`imageResize.ts`). Tam boy fotoğrafı bu adımlara sokmak belleği taşırıp çökertir.
+  Native çağrılar `withTimeout` ile sarılır (`services/async.ts`) — yoksa ekran donuk kalır.
 - Native modüller (`@six33/react-native-bg-removal`, `@react-native-ml-kit/image-labeling`,
   `react-native-image-colors`, `expo-image-manipulator`) dinamik `import()` ile ve try/catch
   içinde çağrılır; yoksa özellik sessizce atlanır. Ama Metro yine de paketleme anında bu

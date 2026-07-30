@@ -4,12 +4,25 @@
  * Native modül yoksa (örn. Expo Go) veya desteklenmiyorsa null döner; akış bozulmaz.
  */
 
+import { withTimeout } from '@/services/async';
+
 export async function removeBackgroundLocal(imageUri: string): Promise<string | null> {
   try {
     const mod = await import('@six33/react-native-bg-removal');
-    const supported = await mod.isNativeBackgroundRemovalSupported().catch(() => false);
+    const supported = await withTimeout(
+      mod.isNativeBackgroundRemovalSupported().catch(() => false),
+      4000,
+      false,
+      'bg-removal destek kontrolü',
+    );
     if (!supported) return null;
-    const out = await mod.removeBackground(imageUri, { trim: true });
+    // Bazı cihazlarda native çağrı hiç dönmüyor — 25 sn sonra vazgeç
+    const out = await withTimeout(
+      mod.removeBackground(imageUri, { trim: true }),
+      25000,
+      null as string | null,
+      'arka plan silme',
+    );
     return out || null;
   } catch {
     // Native modül yüklü değil (Expo Go) ya da işleme hatası — sessizce vazgeç

@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemThumb } from '@/components/ItemThumb';
 import { Button, Card, SectionTitle } from '@/components/UI';
+import { photoFromParams, pickPhoto } from '@/services/photoPicker';
 import { runTryOn } from '@/services/tryon';
 import { useStore } from '@/store/useStore';
 import { colors, radius, spacing, type } from '@/theme';
@@ -30,7 +30,8 @@ async function toDataUri(uri: string): Promise<string> {
 }
 
 export default function TryOn() {
-  const { itemId } = useLocalSearchParams<{ itemId?: string }>();
+  const params = useLocalSearchParams<{ itemId?: string }>();
+  const { itemId } = params;
   const { items, api, pro } = useStore();
 
   const garments = useMemo(
@@ -46,16 +47,24 @@ export default function TryOn() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const pickModel = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.9,
-    });
-    if (!res.canceled && res.assets?.[0]) {
-      setModelUri(res.assets[0].uri);
-      setResultUrl(undefined);
-    }
+  /** Model fotoğrafı — kırpma açık (dikey kadraj), boydan duruş en iyi sonucu verir. */
+  const pickModel = async (fromCamera = false) => {
+    const photo = await pickPhoto({ fromCamera, aspect: [3, 4], quality: 0.9, purpose: 'model' });
+    if (!photo) return;
+    setModelUri(photo.uri);
+    setResultUrl(undefined);
   };
+
+  // Android'de süreç öldüyse kök layout model fotoğrafını parametreyle buraya yollar
+  const recoveredRef = useRef(false);
+  useEffect(() => {
+    if (recoveredRef.current) return;
+    const photo = photoFromParams(params);
+    if (!photo) return;
+    recoveredRef.current = true;
+    setModelUri(photo.uri);
+    setResultUrl(undefined);
+  }, [params]);
 
   const garment = garments.find((g) => g.id === selectedGarment);
 

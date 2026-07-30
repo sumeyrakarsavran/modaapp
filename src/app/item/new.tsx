@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -24,8 +23,9 @@ import {
 } from '@/services/autotag';
 import { processGarmentPhoto } from '@/services/bgremove';
 import { detectPhotoColor } from '@/services/colorDetect';
-import { resizeForProcessing } from '@/services/imageResize';
+import { resizeForAnalysis, resizeForProcessing } from '@/services/imageResize';
 import { classifyPhotoLabels } from '@/services/photoClassify';
+import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
 import { useStore } from '@/store/useStore';
 import { colors, radius, spacing, type } from '@/theme';
 import {
@@ -39,7 +39,8 @@ import {
 } from '@/types';
 
 export default function NewItem() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string }>();
+  const { id } = params;
   const { items, addItem, updateItem, api } = useStore();
   const editing = useMemo(() => items.find((i) => i.id === id), [items, id]);
 
@@ -100,53 +101,35 @@ export default function NewItem() {
     applyAutoTags(rulesFromName(text));
   };
 
-  const pickImage = async (fromCamera: boolean) => {
-    // allowsEditing YOK: Android'de çekimden sonra açılan kırpma ekranı ayrı bir
-    // activity açar; düşük bellekli/dolu cihazlarda ana activity öldürülüp
-    // kameradan dönünce uygulama sıfırlanıyordu ("donup geri gidiyor").
-    // Fotoğrafı zaten kodda küçültüp işliyoruz, sistem kırpmasına gerek yok.
-    const opts: ImagePicker.ImagePickerOptions = {
-      mediaTypes: ['images'],
-      quality: 0.7,
-    };
-    const result = fromCamera
-      ? await (async () => {
-          const perm = await ImagePicker.requestCameraPermissionsAsync();
-          if (!perm.granted) {
-            Alert.alert('Kamera izni gerekli');
-            return null;
-          }
-          return ImagePicker.launchCameraAsync(opts);
-        })()
-      : await ImagePicker.launchImageLibraryAsync(opts);
-    if (!result || result.canceled || !result.assets?.[0]) return;
-
-    const asset = result.assets[0];
+  /** Çekilen/seçilen fotoğrafı işler: küçült → arka plan sil → kaydet → otomatik etiketle. */
+  const handlePickedPhoto = async (photo: PickedPhoto) => {
     setProcessing(true);
     setBgNote('🫧 Arka plan siliniyor…');
     try {
       // 1) ÖNCE küçült — ham 12MP fotoğrafı ağır adımlara sokmak belleği taşırıp
       //    uygulamayı çökertiyordu. Küçük kopya ile çalış.
-      const working = await resizeForProcessing(asset.uri, asset.width, asset.height, 1200);
+      const working = await resizeForProcessing(photo.uri, photo.width, photo.height, 1200);
 
       // 2) Arka plan silme + kalıcı kayıt
       const { uri, removed } = await processGarmentPhoto(working, api.removeBgKey);
       setImageUri(uri);
 
-      // 3) Otomatik tespit — ağır adımları SIRAYLA çalıştır (paralel bellek zirvesi
-      //    çökme sebebiydi). Claude varsa onu, yoksa cihaz-içi sınıflandırma + renk.
+      // 3) Otomatik tespit — ağır adımları SIRAYLA ve KÜÇÜK kopya üzerinde çalıştır.
+      //    (Tam boy PNG'yi JS'te piksel piksel çözmek bellek zirvesi yapıp
+      //     uygulamayı öldürüyordu.)
       setBgNote(
         (removed ? '✨ Arka plan silindi ve fotoğraf kaydedildi.' : 'Fotoğraf kaydedildi.') +
           ' 🔍 Özellikler tespit ediliyor…',
       );
+      const small = await resizeForAnalysis(uri, 512);
       let applied: string[] = [];
       if (api.anthropicKey) {
-        const auto = await classifyWithClaude(api.anthropicKey, uri).catch(() => null);
+        const auto = await classifyWithClaude(api.anthropicKey, small).catch(() => null);
         if (auto) applied = applyAutoTags(auto);
       }
       if (!applied.length) {
-        const labels = await classifyPhotoLabels(uri).catch(() => null);
-        const colorId = await detectPhotoColor(uri).catch(() => null);
+        const labels = await classifyPhotoLabels(small).catch(() => null);
+        const colorId = await detectPhotoColor(small).catch(() => null);
         const auto: AutoTags = labels ? tagsFromLabels(labels) : {};
         if (colorId) auto.colorId = colorId;
         applied = applyAutoTags(auto);
@@ -157,14 +140,32 @@ export default function NewItem() {
             ? ` Otomatik işaretlendi: ${applied.join(', ')} — istersen değiştir.`
             : ''),
       );
-    } catch (e: any) {
+    } catch {
       // Bir adım hata verirse en azından ham fotoğrafı göster, akışı kilitleme
-      setImageUri((prev) => prev ?? asset.uri);
+      setImageUri((prev) => prev ?? photo.uri);
       setBgNote('Fotoğraf eklendi (işleme sırasında bir sorun oldu). Bilgileri elle seçebilirsin.');
     } finally {
       setProcessing(false);
     }
   };
+
+  const pickImage = async (fromCamera: boolean) => {
+    // Kırpma açık: kullanıcı kadrajı kendisi seçer (kare).
+    const photo = await pickPhoto({ fromCamera, aspect: [1, 1], quality: 0.7, purpose: 'garment' });
+    if (photo) await handlePickedPhoto(photo);
+  };
+
+  // Android'de kamera/kırpma sırasında sistem uygulamayı öldürdüyse, kök layout
+  // fotoğrafı kurtarıp bu ekrana parametreyle yollar — burada devralıyoruz.
+  const recoveredRef = useRef(false);
+  useEffect(() => {
+    if (recoveredRef.current) return;
+    const photo = photoFromParams(params);
+    if (!photo) return;
+    recoveredRef.current = true;
+    handlePickedPhoto(photo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
 
   const save = () => {
     if (!name.trim()) {

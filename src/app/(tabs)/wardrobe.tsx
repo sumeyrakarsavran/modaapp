@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -23,6 +22,9 @@ import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
 import { ShareModal } from '@/components/ShareModal';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
+import { resizeForProcessing } from '@/services/imageResize';
+import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
+import { persistGarmentPhoto } from '@/services/photoStore';
 import { useStore } from '@/store/useStore';
 import { colors, radius, spacing, type } from '@/theme';
 import { CATEGORIES, todayISO, type Category, type Selfie, type WardrobeItem } from '@/types';
@@ -37,6 +39,7 @@ export default function Wardrobe() {
     addSelfie, deleteSelfie, addLookbook, sharePost,
   } = useStore();
   const { width } = useWindowDimensions();
+  const params = useLocalSearchParams();
   const [section, setSection] = useState<Section>('parcalar');
 
   // Parçalar filtreleri
@@ -71,25 +74,29 @@ export default function Wardrobe() {
     });
   }, [items, category, query, onlyFav, showArchived]);
 
-  const takeSelfie = async (fromCamera: boolean) => {
-    const opts: ImagePicker.ImagePickerOptions = {
-      mediaTypes: ['images'],
-      quality: 0.6,
-      base64: Platform.OS === 'web', // web'de blob URI kalıcı değil, data URI kullan
-    };
-    const res = fromCamera
-      ? await (async () => {
-          const perm = await ImagePicker.requestCameraPermissionsAsync();
-          if (!perm.granted) return null;
-          return ImagePicker.launchCameraAsync(opts);
-        })()
-      : await ImagePicker.launchImageLibraryAsync(opts);
-    if (!res || res.canceled || !res.assets?.[0]) return;
-    const a = res.assets[0];
-    const uri =
-      Platform.OS === 'web' && a.base64 ? `data:image/jpeg;base64,${a.base64}` : a.uri;
-    addSelfie({ imageUri: uri, date: todayISO() });
+  /** Selfie ekle — kırpma açık (dikey kadraj), kalıcı kopya saklanır. */
+  const saveSelfiePhoto = async (photo: PickedPhoto) => {
+    const small = await resizeForProcessing(photo.uri, photo.width, photo.height, 1400);
+    const saved = await persistGarmentPhoto(small).catch(() => small);
+    addSelfie({ imageUri: saved, date: todayISO() });
   };
+
+  const takeSelfie = async (fromCamera: boolean) => {
+    const photo = await pickPhoto({ fromCamera, aspect: [3, 4], quality: 0.6, purpose: 'selfie' });
+    if (photo) await saveSelfiePhoto(photo);
+  };
+
+  // Android'de süreç öldüyse kök layout selfie'yi parametreyle buraya yollar
+  const recoveredRef = useRef(false);
+  useEffect(() => {
+    if (recoveredRef.current) return;
+    const photo = photoFromParams(params);
+    if (!photo) return;
+    recoveredRef.current = true;
+    setSection('selfiler');
+    saveSelfiePhoto(photo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
 
   const confirmDeleteSelfie = (s: Selfie) => {
     const doDelete = () => {
