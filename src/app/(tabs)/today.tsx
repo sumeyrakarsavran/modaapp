@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -13,8 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BettaFish, Wave } from '@/components/BettaFish';
 import { ItemThumb } from '@/components/ItemThumb';
-import { ProfileButton } from '@/components/ProfileButton';
 import { OutfitCollage } from '@/components/OutfitCollage';
+import { ProfileButton } from '@/components/ProfileButton';
 import { Button, Card, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { useWeather } from '@/hooks/useWeather';
 import { localSuggest, type SuggestedOutfit } from '@/services/stylist';
@@ -314,7 +314,7 @@ export default function Today() {
             </ScrollView>
             <Text style={[type.caption, { marginTop: spacing.md }]}>{suggestion.reason}</Text>
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, flexWrap: 'wrap' }}>
-              <Button small title="Bu güne planla" onPress={saveSuggestionAsOutfit} />
+              <Button small title="Bugüne planla" onPress={saveSuggestionAsOutfit} />
               <Button small variant="secondary" title="🎲 Başka öner" onPress={shuffle} />
               <Button small variant="ghost" title="Vazgeç" onPress={() => setSuggestion(null)} />
             </View>

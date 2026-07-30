@@ -154,8 +154,12 @@ export default function Stylist() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}
-          style={{ flexGrow: 0 }}
+          contentContainerStyle={{
+            gap: spacing.sm,
+            paddingHorizontal: spacing.lg,
+            alignItems: 'center',
+          }}
+          style={styles.quickBar}
         >
           {QUICK.map((q) => (
             <Chip key={q} label={q} onPress={() => send(q)} />
@@ -217,6 +221,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderBottomLeftRadius: 4,
+  },
+  /**
+   * Hızlı öneri şeridi: sabit yükseklik + flexShrink 0.
+   * Aksi halde sohbet uzadıkça esnek sütun bu şeridi dikeyde eziyor
+   * ve çipler küçülüp kırpılıyordu.
+   */
+  quickBar: {
+    flexGrow: 0,
+    flexShrink: 0,
+    height: 48,
+    paddingBottom: spacing.sm,
   },
   inputRow: {
     flexDirection: 'row',
