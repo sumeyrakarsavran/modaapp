@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { GarmentArt } from '@/components/GarmentArt';
 import { colors, radius } from '@/theme';
@@ -8,6 +8,11 @@ import type { Outfit, WardrobeItem } from '@/types';
 
 /** Canvas'taki yerleştirme taban boyutu (canvas.tsx ile aynı olmalı). */
 export const CANVAS_BASE = 110;
+
+/** Izgara kolaj ölçüleri — kare hesabı bunlara dayanır (styles.box ile aynı olmalı). */
+const PAD = 4; // kutunun iç boşluğu
+const GAP = 4; // kareler arası boşluk
+const BORDER = 1; // styles.box borderWidth
 
 /**
  * Kombin görseli.
@@ -112,11 +117,16 @@ export function OutfitCollage({
     );
   }
 
-  // Izgara kolaj (Giydir beni / layoutsuz kombinler)
+  // Izgara kolaj (Giydir beni / öneri / layoutsuz kombinler) — 2x2 kare
   const shown = items.slice(0, 4);
-  const cell = size / 2 - 6;
+  const extra = items.length - shown.length;
+  // Kare boyutu GERÇEK iç genişlikten hesaplanır: React Native'de `width`
+  // kenarlık ve iç boşluğu da kapsar. Bunlar düşülmezse satır birkaç piksel
+  // taşar, flexWrap kareleri alt alta atar ve bir kısmı görünmez olur.
+  const inner = size - BORDER * 2 - PAD * 2;
+  const cell = Math.max(1, Math.floor((inner - GAP) / 2));
   return (
-    <View style={[styles.box, { width: size, height: size, padding: 4 }]}>
+    <View style={[styles.box, { width: size, height: size, padding: PAD }]}>
       <View style={styles.grid}>
         {shown.map((item) => (
           <View key={item.id} style={[styles.cell, { width: cell, height: cell }]}>
@@ -128,6 +138,12 @@ export function OutfitCollage({
           </View>
         ))}
       </View>
+      {/* 4'ten fazla parça varsa kalanı say (küçük önizlemelerde gizli) */}
+      {extra > 0 && size >= 120 ? (
+        <View style={styles.moreBadge}>
+          <Text style={styles.moreText}>+{extra}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -144,10 +160,20 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
+    gap: GAP,
     alignContent: 'center',
     justifyContent: 'center',
   },
+  moreBadge: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
+    backgroundColor: colors.overlay,
+    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  moreText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   cell: {
     alignItems: 'center',
     justifyContent: 'center',
