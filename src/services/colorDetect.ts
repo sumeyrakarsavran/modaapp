@@ -1,10 +1,13 @@
 /**
  * Fotoğraftan baskın renk tespiti — iOS/Android.
  * Arka planı silinmiş PNG'lerde şeffaf pikseller SIYAH/BEYAZ sayılmasın diye
- * PNG dosyayı JS'te çözüp (fast-png) web ile AYNI algoritmayı kullanırız:
+ * PNG dosyayı JS'te çözüp (upng-js) web ile AYNI algoritmayı kullanırız:
  * şeffaf pikseller atlanır, desen tespiti yapılır.
  * PNG çözülemezse (örn. JPEG) react-native-image-colors'a düşülür.
  */
+
+import { toByteArray } from 'base64-js';
+import UPNG from 'upng-js';
 
 import { colorIdFromPixels, nearestColorId } from '@/services/autotag';
 
@@ -61,35 +64,31 @@ interface PixelAnalysis {
 async function decodePngAndAnalyze(imageUri: string): Promise<PixelAnalysis | null> {
   const FileSystem = await import('expo-file-system/legacy');
   const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: 'base64' as any });
-  // ~9MB üstü dosyalarda tam çözümden kaçın (bellek) — yedek yönteme düş
+  // ~9MB üstü dosyalarda tam çözümden kaçma (bellek) — yedek yönteme düş
   if (base64.length > 12_000_000) return null;
-  const { toByteArray } = await import('base64-js');
-  const bytes = toByteArray(base64);
+
+  const bytes: Uint8Array = toByteArray(base64);
 
   // PNG imzası kontrolü
   if (bytes.length < 8 || bytes[0] !== 0x89 || bytes[1] !== 0x50) return null;
 
-  let decode;
+  // ⚠️ upng-js STATİK import edilir (dosyanın başında), dinamik `import()` DEĞİL.
+  // Cihazda kanıtlandı: bu CommonJS/ESM paketleri `await import()` ile
+  // yüklendiğinde Metro'nun interop'u ad alanını boş veriyor —
+  // `fast-png` → `keys=[default] default=[]`, `upng-js` → decode undefined.
+  // Statik default import'ta Babel'in CJS interop'u doğru çalışıyor.
+  const ab = (bytes.buffer as ArrayBuffer).slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  );
+  const img = UPNG.decode(ab);
+  // toRGBA8 her zaman 8-bit RGBA verir: palet/16-bit/gri tonlama farkları biter
+  // ve ŞEFFAFLIK korunur (silinen arka planı ayırt edebilmek için şart).
+  const frames = UPNG.toRGBA8(img);
+  if (!frames?.length) return null;
+  const data = new Uint8Array(frames[0]);
 
-  try {
-    ({ decode } = await import("fast-png"));
-  } catch (e) {
-    console.warn(e);
-    return null;
-  }
-  
-  const png = decode(bytes);
-  const channels = png.channels === 4 ? 4 : 3;
-  let data: Uint8Array;
-  if (png.data instanceof Uint8Array) {
-    data = png.data;
-  } else {
-    // 16-bit PNG → 8-bit'e ölçekle
-    const src = png.data as Uint16Array;
-    data = new Uint8Array(src.length);
-    for (let i = 0; i < src.length; i++) data[i] = src[i] >> 8;
-  }
   const stats = { hadTransparent: false };
-  const colorId = colorIdFromPixels(data, channels as 3 | 4, stats);
+  const colorId = colorIdFromPixels(data, 4, stats);
   return { colorId, hadTransparent: stats.hadTransparent };
 }

@@ -51,12 +51,25 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
   `react-native-image-colors`, `expo-image-manipulator`) dinamik `import()` ile ve try/catch
   içinde çağrılır; yoksa özellik sessizce atlanır. Ama Metro yine de paketleme anında bu
   modülleri **çözebilmek zorunda** — package.json'dan silinmemeliler.
-- **Renk tespiti küçültülmüş kopyadan YAPILMAZ.** `detectPhotoColor` her zaman arka planı
-  silinmiş PNG'nin KENDİSİNİ alır (`processGarmentPhoto` çıktısı). Analiz kopyası
-  (`resizeForAnalysis`) Glide + ImageManipulator round-trip'inden geçer ve şeffaflığın
-  korunduğu garanti değildir; şeffaflık kaybolunca silinen arka plan ortalamaya karışır ve
-  her şey "siyah" çıkar. Küçük kopya yalnızca ML Kit etiketleme + Claude için kullanılır
-  (onlar alfaya bakmaz). Kaydedilen fotoğraf zaten ≤1200px, bellek sorun değil.
+- **JS kütüphanelerini dinamik `import()` ile YÜKLEME — statik import kullan.**
+  Cihazda kanıtlandı (2026-08-01): `await import('fast-png')` → `keys=[default]
+  default=[]`, `await import('upng-js')` → `decode` undefined. Metro'nun ESM/CJS
+  interop'u bu paketlerde ad alanını boş veriyor ve hata ancak ÇAĞRI anında
+  "undefined is not a function" olarak patlıyor — üstelik `catch` ile yutulduğu için
+  özellik sessizce kayboluyor. Dosya başında `import UPNG from 'upng-js'` çalışır.
+  (Dinamik import yalnızca NATIVE modüller için: onlar yoksa özellik atlanmalı.)
+- **PNG piksel çözme: `upng-js`** (CommonJS). `fast-png` saf ESM olduğu için React
+  Native'de KULLANILAMAZ — kaldırıldı, geri ekleme. `UPNG.toRGBA8()` her zaman 8-bit
+  RGBA verir: palet/16-bit farkları biter ve ŞEFFAFLIK korunur (silinmiş arka planı
+  ayırt etmek için şart).
+- **Renk tespiti küçük kopyadan yapılır** (`resizeForAnalysis`, 512px) — tam boy PNG'yi
+  JS'te çözmek Hermes'te onlarca saniye sürüyor. Emniyet: arka plan silindiyse şeffaf
+  piksel BEKLENİR; küçük kopyada hiç yoksa küçültme alfayı düşürmüş demektir ve tam boy
+  ile bir kez daha denenir (`detectPhotoColor(small, fullSizeUri)`).
+- ⚠️ **Yeni paket kurunca Metro'yu `-c` ile yeniden başlat.** Metro çalışırken paket
+  kurulunca bayat/boş modül servis ediyor: kod paketin içinde göründüğü hâlde çalışma
+  anında `undefined` geliyor. Teşhis: `npx expo export` ile üretilen temiz pakette kod
+  VARSA ama cihazda yoksa, sorun önbellektir → `npx expo start -c`.
 - **Kamera UYGULAMA İÇİNDE açılır — harici kamera uygulaması kullanma.**
   `launchCameraAsync` harici kamera uygulamasını açar; BETTA arka plana düşer ve
   Samsung'un bellek yöneticisi süreci öldürür (logcat: `am_proc_died` + `am_kill`).

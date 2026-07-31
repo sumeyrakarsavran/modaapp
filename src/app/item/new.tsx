@@ -129,7 +129,7 @@ export default function NewItem() {
       }
       if (!applied.length) {
         const labels = await classifyPhotoLabels(small).catch(() => null);
-        // Renk HIZ için küçük kopyadan okunur: PNG'yi saf JS'te (fast-png, zlib
+        // Renk HIZ için küçük kopyadan okunur: PNG'yi saf JS'te (upng-js, zlib
         // dahil) çözüyoruz — 1200px'te 1.44M piksel, Hermes'te onlarca saniye
         // sürüyordu. 512px'te ~20 kat daha ucuz.
         // Emniyet: arka plan silindiyse şeffaf piksel BEKLENİR; küçük kopyada
