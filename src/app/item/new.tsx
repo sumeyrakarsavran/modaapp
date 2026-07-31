@@ -129,12 +129,12 @@ export default function NewItem() {
       }
       if (!applied.length) {
         const labels = await classifyPhotoLabels(small).catch(() => null);
-        // Renk tespiti KÜÇÜLTÜLMÜŞ kopyadan DEĞİL, arka planı silinmiş PNG'nin
-        // kendisinden yapılır: analiz kopyası Glide + ImageManipulator
-        // round-trip'inden geçiyor ve şeffaflığın korunduğu garanti değil.
-        // Şeffaflık kaybolursa silinen arka plan renge karışır ve tespit bozulur.
-        // Kaydedilen fotoğraf zaten ≤1200px (resizeForProcessing), bellek sorun değil.
-        const colorId = await detectPhotoColor(uri).catch(() => null);
+        // Renk HIZ için küçük kopyadan okunur: PNG'yi saf JS'te (fast-png, zlib
+        // dahil) çözüyoruz — 1200px'te 1.44M piksel, Hermes'te onlarca saniye
+        // sürüyordu. 512px'te ~20 kat daha ucuz.
+        // Emniyet: arka plan silindiyse şeffaf piksel BEKLENİR; küçük kopyada
+        // hiç yoksa küçültme alfayı düşürmüş demektir, o zaman tam boy denenir.
+        const colorId = await detectPhotoColor(small, removed ? uri : undefined).catch(() => null);
         const auto: AutoTags = labels ? tagsFromLabels(labels) : {};
         if (colorId) auto.colorId = colorId;
         applied = applyAutoTags(auto);

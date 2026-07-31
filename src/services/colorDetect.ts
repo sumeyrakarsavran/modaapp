@@ -8,16 +8,33 @@
 
 import { colorIdFromPixels, nearestColorId } from '@/services/autotag';
 
-export async function detectPhotoColor(imageUri: string): Promise<string | null> {
+/**
+ * @param imageUri  Analiz edilecek (küçük) PNG — hız için bu kullanılır.
+ * @param fullSizeUri  Arka planı silinmiş TAM BOY PNG. Yalnızca emniyet için:
+ *   küçük kopyada HİÇ şeffaf piksel çıkmazsa küçültme adımı alfayı düşürmüş
+ *   olabilir (o zaman silinen arka plan ortalamaya karışır ve her şey siyah
+ *   çıkar) — bu durumda tam boy ile bir kez daha denenir. Normal akışta
+ *   çalışmaz; JS'te tam boy PNG çözmek çok yavaştır.
+ */
+export async function detectPhotoColor(
+  imageUri: string,
+  fullSizeUri?: string,
+): Promise<string | null> {
   // Bazı native modüller çıplak yol döndürür ("/data/...") — file:// garanti et
-  const uri = imageUri.startsWith('/') ? `file://${imageUri}` : imageUri;
+  const norm = (u: string) => (u.startsWith('/') ? `file://${u}` : u);
+  const uri = norm(imageUri);
 
   // 1) PNG'yi piksel piksel çöz — şeffaflık doğru ele alınır
-  const fromPixels = await decodePngAndAnalyze(uri).catch((e) => {
+  const first = await decodePngAndAnalyze(uri).catch((e) => {
     if ((globalThis as any).__DEV__) console.warn('[colorDetect] png decode:', e);
     return null;
   });
-  if (fromPixels) return fromPixels;
+
+  if (first && !first.hadTransparent && fullSizeUri && fullSizeUri !== imageUri) {
+    const retry = await decodePngAndAnalyze(norm(fullSizeUri)).catch(() => null);
+    if (retry?.colorId) return retry.colorId;
+  }
+  if (first?.colorId) return first.colorId;
 
   // 2) Yedek: react-native-image-colors (JPEG vb. — şeffaflık yok, sorun değil)
   try {
@@ -36,7 +53,12 @@ export async function detectPhotoColor(imageUri: string): Promise<string | null>
   }
 }
 
-async function decodePngAndAnalyze(imageUri: string): Promise<string | null> {
+interface PixelAnalysis {
+  colorId: string | null;
+  hadTransparent: boolean;
+}
+
+async function decodePngAndAnalyze(imageUri: string): Promise<PixelAnalysis | null> {
   const FileSystem = await import('expo-file-system/legacy');
   const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: 'base64' as any });
   // ~9MB üstü dosyalarda tam çözümden kaçın (bellek) — yedek yönteme düş
@@ -67,5 +89,7 @@ async function decodePngAndAnalyze(imageUri: string): Promise<string | null> {
     data = new Uint8Array(src.length);
     for (let i = 0; i < src.length; i++) data[i] = src[i] >> 8;
   }
-  return colorIdFromPixels(data, channels as 3 | 4);
+  const stats = { hadTransparent: false };
+  const colorId = colorIdFromPixels(data, channels as 3 | 4, stats);
+  return { colorId, hadTransparent: stats.hadTransparent };
 }

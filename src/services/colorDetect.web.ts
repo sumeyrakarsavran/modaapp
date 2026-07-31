@@ -6,7 +6,14 @@
 
 import { colorIdFromPixels } from '@/services/autotag';
 
-export async function detectPhotoColor(imageUri: string): Promise<string | null> {
+/**
+ * İkinci parametre (tam boy PNG) native sürümün alfa-kaybı emniyeti içindir;
+ * web'de canvas alfayı zaten korur, bu yüzden yok sayılır — imza ortak kalsın.
+ */
+export async function detectPhotoColor(
+  imageUri: string,
+  _fullSizeUri?: string,
+): Promise<string | null> {
   try {
     const img = await loadImage(imageUri);
     const size = 64;

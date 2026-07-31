@@ -62,6 +62,8 @@ export function nearestColorId(hex: string): string | null {
 export function colorIdFromPixels(
   data: Uint8Array | Uint8ClampedArray,
   channels: 3 | 4,
+  /** Çağıran isterse: görselde hiç şeffaf piksel görüldü mü (alfa kaybı teşhisi) */
+  stats?: { hadTransparent: boolean },
 ): string | null {
   let r = 0, g = 0, b = 0, n = 0;
   const hueBuckets = new Map<number, number>();
@@ -69,7 +71,10 @@ export function colorIdFromPixels(
   const totalPx = Math.floor(data.length / channels);
   const stride = Math.max(1, Math.floor(totalPx / 40000)) * channels;
   for (let i = 0; i + channels - 1 < data.length; i += stride) {
-    if (channels === 4 && data[i + 3] < 128) continue; // şeffaf → arka plan
+    if (channels === 4 && data[i + 3] < 128) {
+      if (stats) stats.hadTransparent = true;
+      continue; // şeffaf → arka plan
+    }
     const pr = data[i], pg = data[i + 1], pb = data[i + 2];
     r += pr; g += pg; b += pb; n++;
     const { h, s, l } = rgbToHsl(pr, pg, pb);

@@ -49,6 +49,7 @@ export async function cropToAspect(
   width: number,
   height: number,
   aspect: [number, number],
+  maxDim = 1200,
 ): Promise<{ uri: string; width?: number; height?: number }> {
   const original = { uri, width: width || undefined, height: height || undefined };
   try {
@@ -68,8 +69,14 @@ export async function cropToAspect(
     ch = Math.max(1, Math.min(ch, height));
     const originX = Math.max(0, Math.round((width - cw) / 2));
     const originY = Math.max(0, Math.round((height - ch) / 2));
-    // Zaten hedef orandaysa dokunma
-    if (cw === width && ch === height) return original;
+    // Küçültmeyi AYNI geçişte yap: her manipulate() çağrısı fotoğrafı Glide ile
+    // TAM çözünürlükte yeniden decode eder (12MP ≈ 48MB). Kırpma ve küçültmeyi
+    // ayrı ayrı çağırmak bu pahalı decode'u iki kez yaptırıyordu.
+    const scale = Math.max(cw, ch) > maxDim ? maxDim / Math.max(cw, ch) : 1;
+    const outW = Math.max(1, Math.round(cw * scale));
+    const outH = Math.max(1, Math.round(ch * scale));
+    const needsCrop = cw !== width || ch !== height;
+    if (!needsCrop && scale === 1) return original;
 
     const Manip = await import('expo-image-manipulator');
     const anyManip = Manip as any;
@@ -77,20 +84,22 @@ export async function cropToAspect(
     const saveFormat = anyManip.SaveFormat?.JPEG ?? 'jpeg';
     const done = (out: any) =>
       out?.uri
-        ? { uri: out.uri as string, width: out.width ?? cw, height: out.height ?? ch }
+        ? { uri: out.uri as string, width: out.width ?? outW, height: out.height ?? outH }
         : original;
 
     if (anyManip.ImageManipulator?.manipulate) {
-      const ctx = anyManip.ImageManipulator.manipulate(uri).crop(rect);
+      let ctx = anyManip.ImageManipulator.manipulate(uri);
+      if (needsCrop) ctx = ctx.crop(rect);
+      if (scale !== 1) ctx = ctx.resize({ width: outW });
       const rendered = await ctx.renderAsync();
       return done(await rendered.saveAsync({ compress: 0.9, format: saveFormat }));
     }
     if (anyManip.manipulateAsync) {
+      const actions: any[] = [];
+      if (needsCrop) actions.push({ crop: rect });
+      if (scale !== 1) actions.push({ resize: { width: outW } });
       return done(
-        await anyManip.manipulateAsync(uri, [{ crop: rect }], {
-          compress: 0.9,
-          format: saveFormat,
-        }),
+        await anyManip.manipulateAsync(uri, actions, { compress: 0.9, format: saveFormat }),
       );
     }
     return original;
