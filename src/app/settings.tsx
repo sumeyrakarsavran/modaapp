@@ -110,7 +110,7 @@ export default function Settings() {
         <Text style={type.subtitle}>Ayarlar</Text>
         <View style={{ width: 36 }} />
       </View>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
           {/* Profil bilgileri */}
           <Label>Adın</Label>

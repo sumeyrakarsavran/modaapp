@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -49,7 +48,7 @@ export default function Onboarding() {
     <LinearGradient colors={[colors.deep, colors.deepSoft, '#0E6E86']} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior="padding"
           style={{ flex: 1 }}
         >
           <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">

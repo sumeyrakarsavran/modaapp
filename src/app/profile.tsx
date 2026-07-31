@@ -271,7 +271,7 @@ export default function Profile() {
       <Modal visible={editOpen} animationType="slide" transparent onRequestClose={() => setEditOpen(false)}>
         <KeyboardAvoidingView
           style={styles.modalWrap}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior="padding"
         >
           <View style={styles.modalCard}>
             <SectionTitle

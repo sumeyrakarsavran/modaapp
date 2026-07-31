@@ -117,10 +117,16 @@ export default function Stylist() {
         <View style={{ width: 36 }} />
       </View>
 
+      {/*
+        behavior Android'de de "padding" OLMALI. `edgeToEdgeEnabled=true` iken
+        sistem pencereyi klavye için yeniden boyutlandırmaz (uygulama sistem
+        çubuklarının ARKASINA çizer), yani manifest'teki `adjustResize` tek
+        başına yetmez: yazı alanı klavyenin altında kalıp görünmez oluyordu.
+      */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={10}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
         <ScrollView
           ref={scrollRef}

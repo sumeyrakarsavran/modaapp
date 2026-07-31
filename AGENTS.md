@@ -95,5 +95,15 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
   yetmez, aynı değişikliği `android/app/src/main/AndroidManifest.xml`'e de elle yaz.
   Doğrulama: `adb shell dumpsys package com.sumeyrakarsavran.betta | grep flags`
   → `LARGE_HEAP`. Native değişiklik → `npx expo run:android` şart, reload yetmez.
+- **Klavye: `behavior="padding"` HER İKİ platformda da şart.** `edgeToEdgeEnabled=true`
+  iken sistem pencereyi klavye için yeniden boyutlandırmaz (uygulama sistem çubuklarının
+  arkasına çizer), yani manifest'teki `adjustResize` tek başına YETMEZ. Eski
+  `behavior={Platform.OS === 'ios' ? 'padding' : undefined}` kalıbı Android'de
+  KeyboardAvoidingView'i tamamen devre dışı bırakıyordu: yazı alanı klavyenin altında
+  kalıp görünmüyor ve tıklanamıyordu. Modal içindeki girişler için de KAV gerekir
+  (`Modal` + `statusBarTranslucent`/`navigationBarTranslucent`).
+  Alt boşluk: klavye AÇIKKEN `insets.bottom` EKLEME — KAV'ın eklediği klavye yüksekliği
+  alt çubuğu zaten kapsıyor, yoksa çift sayılıp arada boşluk kalır (`Keyboard`
+  dinleyicisiyle `keyboardUp` durumu tutulur).
 - Android: `android/gradle.properties` içinde `reactNativeArchitectures=arm64-v8a`
   (APK'yı küçük tutar, "not enough space" kurulum hatasını önler).

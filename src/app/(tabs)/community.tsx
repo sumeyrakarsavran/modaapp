@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -13,7 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar, PostCard, resolveUser, timeAgo } from '@/components/Community';
 import { ProfileButton } from '@/components/ProfileButton';
@@ -34,6 +36,20 @@ export default function Community() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [userQuery, setUserQuery] = useState('');
+  // Yorum modalı alt sistem çubuğunun altında kalmasın
+  const insets = useSafeAreaInsets();
+  // Klavye açıkken KeyboardAvoidingView zaten klavye yüksekliği kadar boşluk
+  // ekliyor ve bu yükseklik alt çubuğu KAPSIYOR — üstüne insets.bottom da
+  // eklenirse çift sayılıp arada boşluk kalıyor.
+  const [keyboardUp, setKeyboardUp] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardUp(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardUp(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const me = profile;
   const inviteCode = `BETTA-${(profile.username || 'BETTA').toUpperCase().slice(0, 12)}`;
@@ -270,10 +286,24 @@ export default function Community() {
         )}
       />
 
-      {/* Yorumlar modalı */}
-      <Modal visible={!!commentsFor} animationType="slide" transparent onRequestClose={() => setCommentsFor(null)}>
-        <View style={styles.modalWrap}>
-          <View style={styles.modalCard}>
+      {/*
+        Yorumlar modalı.
+        `edgeToEdgeEnabled=true` iken sistem pencereyi klavye için yeniden
+        boyutlandırmaz; modal içindeki yazı alanı klavyenin altında kalıp
+        tıklanamıyordu. Çözüm: KeyboardAvoidingView (Android'de de "padding")
+        + alt güvenli alan boşluğu. `statusBarTranslucent`/`navigationBarTranslucent`
+        modalın tam ekranı kaplayıp yüksekliği doğru ölçmesi için gerekli.
+      */}
+      <Modal
+        visible={!!commentsFor}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setCommentsFor(null)}
+      >
+        <KeyboardAvoidingView style={styles.modalWrap} behavior="padding">
+          <View style={[styles.modalCard, { paddingBottom: spacing.lg + (keyboardUp ? 0 : insets.bottom) }]}>
             <SectionTitle
               title={`Yorumlar (${commentPost?.comments.length ?? 0})`}
               right={<Chip label="Kapat" onPress={() => setCommentsFor(null)} />}
@@ -315,7 +345,7 @@ export default function Community() {
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Davet modalı */}
