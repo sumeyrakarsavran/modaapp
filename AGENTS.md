@@ -51,5 +51,21 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
   `react-native-image-colors`, `expo-image-manipulator`) dinamik `import()` ile ve try/catch
   içinde çağrılır; yoksa özellik sessizce atlanır. Ama Metro yine de paketleme anında bu
   modülleri **çözebilmek zorunda** — package.json'dan silinmemeliler.
+- **Renk tespiti küçültülmüş kopyadan YAPILMAZ.** `detectPhotoColor` her zaman arka planı
+  silinmiş PNG'nin KENDİSİNİ alır (`processGarmentPhoto` çıktısı). Analiz kopyası
+  (`resizeForAnalysis`) Glide + ImageManipulator round-trip'inden geçer ve şeffaflığın
+  korunduğu garanti değildir; şeffaflık kaybolunca silinen arka plan ortalamaya karışır ve
+  her şey "siyah" çıkar. Küçük kopya yalnızca ML Kit etiketleme + Claude için kullanılır
+  (onlar alfaya bakmaz). Kaydedilen fotoğraf zaten ≤1200px, bellek sorun değil.
+- **Arka kamera = büyük bitmap.** Arka kamera fotoğrafı ön kameradan kat kat büyüktür
+  (Samsung 50MP+ → 8160×6120 ≈ 200MB bitmap; ön kamera ~12MP ≈ 48MB). Kırpma ekranı ve
+  `expo-image-manipulator` (Glide ile TAM çözünürlükte decode eder, override yok) bu
+  bitmap'i BİZİM sürecimizde açar → standart heap'te OOM. Kurtarma sonrası aynı fotoğraf
+  yeniden işlendiği için döngüye girer: "arka kamera çalışmıyor, ön kamera çalışıyor".
+  Çözüm `android:largeHeap="true"`. `android/` klasörü **git'te izlenmiyor** (prebuild
+  üretir), bu yüzden ayar `plugins/withLargeHeap.js` config plugin'inde tutulur —
+  yalnızca `AndroidManifest.xml`'e yazmak prebuild'de kaybolur. Doğrulama:
+  `npx expo config --type introspect | grep largeHeap`. Native değişiklik →
+  `npx expo run:android` ile YENİDEN DERLEME şart, Metro reload yetmez.
 - Android: `android/gradle.properties` içinde `reactNativeArchitectures=arm64-v8a`
   (APK'yı küçük tutar, "not enough space" kurulum hatasını önler).

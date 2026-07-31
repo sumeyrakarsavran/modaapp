@@ -129,7 +129,12 @@ export default function NewItem() {
       }
       if (!applied.length) {
         const labels = await classifyPhotoLabels(small).catch(() => null);
-        const colorId = await detectPhotoColor(small).catch(() => null);
+        // Renk tespiti KÜÇÜLTÜLMÜŞ kopyadan DEĞİL, arka planı silinmiş PNG'nin
+        // kendisinden yapılır: analiz kopyası Glide + ImageManipulator
+        // round-trip'inden geçiyor ve şeffaflığın korunduğu garanti değil.
+        // Şeffaflık kaybolursa silinen arka plan renge karışır ve tespit bozulur.
+        // Kaydedilen fotoğraf zaten ≤1200px (resizeForProcessing), bellek sorun değil.
+        const colorId = await detectPhotoColor(uri).catch(() => null);
         const auto: AutoTags = labels ? tagsFromLabels(labels) : {};
         if (colorId) auto.colorId = colorId;
         applied = applyAutoTags(auto);
