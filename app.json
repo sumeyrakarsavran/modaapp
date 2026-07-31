@@ -56,7 +56,14 @@
           "locationWhenInUsePermission": "Hava durumuna göre kombin önermek için konum erişimi gerekiyor."
         }
       ],
-      "./plugins/withLargeHeap"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kıyafetlerini fotoğraflamak için kamera erişimi gerekiyor.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "./plugins/withAndroidManifestFixes"
     ],
     "experiments": {
       "typedRoutes": true,

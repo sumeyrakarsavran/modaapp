@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
 import { Alert, Platform } from 'react-native';
 
 /**
@@ -12,11 +13,18 @@ import { Alert, Platform } from 'react-native';
  * fotoğraf artık var olmayan sürece döner; uygulama sıfırdan başlar ve fotoğraf
  * kaybolur. Çökme değildir — bu yüzden crash log'da hiçbir iz yoktur.
  *
- * Çözüm (Expo'nun resmî yolu): `getPendingResultAsync()`. Ancak bu çağrının
- * uygulama YENİDEN BAŞLADIĞINDA açılan ekranda yapılması gerekir. Süreç
- * öldükten sonra router en baştan (`/` → today) başladığı için, kurtarmayı
- * kökte (`src/app/_layout.tsx`) yapıp fotoğrafı ilgili ekrana yönlendiriyoruz.
- * Fotoğrafın NE İÇİN çekildiği süreç ölümünden sağ çıksın diye diske yazılır.
+ * `getPendingResultAsync()` bunu KURTARMAZ: Expo'nun Android kaynağında
+ * `pendingMediaPickingResult` sıradan bir BELLEK İÇİ alandır (SharedPreferences
+ * ya da savedInstanceState yok). Expo'nun kendi dokümanı da bunu "MainActivity
+ * öldüğünde" diye tarif eder — yani süreç yaşarken activity ölmesi. Süreç
+ * komple ölünce o alan da yok olur ve çağrı hep `null` döner.
+ *
+ * GERÇEK ÇÖZÜM: kameradan uygulamadan HİÇ ÇIKMAMAK. Native'de kamera artık
+ * uygulama içi `/camera` ekranında (expo-camera) açılır; uygulama ön planda
+ * kaldığı için sistem onu öldürmez. Kırpmayı da kendimiz yapıyoruz
+ * (`cropToAspect`) — sistem kırpma ekranı da ayrı bir activity'dir.
+ * Galeri yolu harici seçici kullanmaya devam eder: hafiftir, sorunsuz çalışır.
+ * Kök kurtarma (`_layout.tsx`) yine de emniyet ağı olarak duruyor.
  */
 
 export type PickPurpose = 'garment' | 'selfie' | 'avatar' | 'model';
@@ -62,6 +70,12 @@ export async function pickPhoto({
   }
 
   try {
+    // Native'de kamera UYGULAMA İÇİNDE açılır (aşağıdaki açıklamaya bak) —
+    // harici kamera uygulaması bizim süreci öldürtüyor.
+    if (fromCamera && Platform.OS !== 'web') {
+      return await captureInApp(aspect);
+    }
+
     let result: ImagePicker.ImagePickerResult | null = null;
     if (fromCamera) {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -80,6 +94,34 @@ export async function pickPhoto({
       await AsyncStorage.removeItem(PURPOSE_KEY).catch(() => {});
     }
   }
+}
+
+/* ————— Uygulama içi kamera ————— */
+
+let cameraResolver: ((photo: PickedPhoto | null) => void) | null = null;
+
+/**
+ * Kamera ekranı sonucu buraya bildirir (fotoğraf ya da iptal için null).
+ * Ekran kapanırken de çağrılmalı, yoksa bekleyen söz asla çözülmez ve
+ * çağıran ekran "işleniyor" durumunda takılı kalır.
+ */
+export function resolveCameraPhoto(photo: PickedPhoto | null): void {
+  const resolve = cameraResolver;
+  cameraResolver = null;
+  resolve?.(photo);
+}
+
+/** Uygulama içi kamera ekranını açar ve sonucu bekler. */
+function captureInApp(aspect: [number, number]): Promise<PickedPhoto | null> {
+  // Bekleyen eski bir istek varsa iptal et (ekran üst üste açılmasın)
+  resolveCameraPhoto(null);
+  return new Promise<PickedPhoto | null>((resolve) => {
+    cameraResolver = resolve;
+    router.push({
+      pathname: '/camera',
+      params: { aw: String(aspect[0]), ah: String(aspect[1]) },
+    } as never);
+  });
 }
 
 export interface RecoveredPhoto {

@@ -67,6 +67,8 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="item/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="canvas" options={{ presentation: 'fullScreenModal' }} />
+        {/* Uygulama içi kamera — harici kamera uygulaması süreci öldürtüyor */}
+        <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="quiz" options={{ presentation: 'modal' }} />
         <Stack.Screen name="stylist" options={{ presentation: 'modal' }} />
         <Stack.Screen name="tryon" options={{ presentation: 'modal' }} />

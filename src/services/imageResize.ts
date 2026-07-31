@@ -37,6 +37,69 @@ async function resizeTo(uri: string, targetWidth: number, format: Format): Promi
   return uri;
 }
 
+/**
+ * Fotoğrafı istenen orana ORTADAN kırpar (uygulama içi kamera için).
+ *
+ * Sistem kırpma ekranı ayrı bir activity açtığı ve süreç ölümüne yol açtığı
+ * için kırpmayı kendimiz yapıyoruz — kamera ekranındaki çerçeve rehberi ile
+ * aynı mantık: hedef orandaki EN BÜYÜK ortalanmış dikdörtgen.
+ */
+export async function cropToAspect(
+  uri: string,
+  width: number,
+  height: number,
+  aspect: [number, number],
+): Promise<{ uri: string; width?: number; height?: number }> {
+  const original = { uri, width: width || undefined, height: height || undefined };
+  try {
+    if (!(width > 0) || !(height > 0)) return original;
+    const target = aspect[0] / aspect[1];
+    const current = width / height;
+    let cw: number;
+    let ch: number;
+    if (current > target) {
+      ch = height;
+      cw = Math.round(height * target);
+    } else {
+      cw = width;
+      ch = Math.round(width / target);
+    }
+    cw = Math.max(1, Math.min(cw, width));
+    ch = Math.max(1, Math.min(ch, height));
+    const originX = Math.max(0, Math.round((width - cw) / 2));
+    const originY = Math.max(0, Math.round((height - ch) / 2));
+    // Zaten hedef orandaysa dokunma
+    if (cw === width && ch === height) return original;
+
+    const Manip = await import('expo-image-manipulator');
+    const anyManip = Manip as any;
+    const rect = { originX, originY, width: cw, height: ch };
+    const saveFormat = anyManip.SaveFormat?.JPEG ?? 'jpeg';
+    const done = (out: any) =>
+      out?.uri
+        ? { uri: out.uri as string, width: out.width ?? cw, height: out.height ?? ch }
+        : original;
+
+    if (anyManip.ImageManipulator?.manipulate) {
+      const ctx = anyManip.ImageManipulator.manipulate(uri).crop(rect);
+      const rendered = await ctx.renderAsync();
+      return done(await rendered.saveAsync({ compress: 0.9, format: saveFormat }));
+    }
+    if (anyManip.manipulateAsync) {
+      return done(
+        await anyManip.manipulateAsync(uri, [{ crop: rect }], {
+          compress: 0.9,
+          format: saveFormat,
+        }),
+      );
+    }
+    return original;
+  } catch {
+    // Kırpma başarısızsa ham fotoğrafı kullan — akış bozulmasın
+    return original;
+  }
+}
+
 /** Kaydedilecek/işlenecek ana kopya — ~1200px JPEG. */
 export async function resizeForProcessing(
   uri: string,

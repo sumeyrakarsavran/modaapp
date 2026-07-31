@@ -57,15 +57,30 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
   korunduğu garanti değildir; şeffaflık kaybolunca silinen arka plan ortalamaya karışır ve
   her şey "siyah" çıkar. Küçük kopya yalnızca ML Kit etiketleme + Claude için kullanılır
   (onlar alfaya bakmaz). Kaydedilen fotoğraf zaten ≤1200px, bellek sorun değil.
-- **Arka kamera = büyük bitmap.** Arka kamera fotoğrafı ön kameradan kat kat büyüktür
-  (Samsung 50MP+ → 8160×6120 ≈ 200MB bitmap; ön kamera ~12MP ≈ 48MB). Kırpma ekranı ve
-  `expo-image-manipulator` (Glide ile TAM çözünürlükte decode eder, override yok) bu
-  bitmap'i BİZİM sürecimizde açar → standart heap'te OOM. Kurtarma sonrası aynı fotoğraf
-  yeniden işlendiği için döngüye girer: "arka kamera çalışmıyor, ön kamera çalışıyor".
-  Çözüm `android:largeHeap="true"`. `android/` klasörü **git'te izlenmiyor** (prebuild
-  üretir), bu yüzden ayar `plugins/withLargeHeap.js` config plugin'inde tutulur —
-  yalnızca `AndroidManifest.xml`'e yazmak prebuild'de kaybolur. Doğrulama:
-  `npx expo config --type introspect | grep largeHeap`. Native değişiklik →
-  `npx expo run:android` ile YENİDEN DERLEME şart, Metro reload yetmez.
+- **Kamera UYGULAMA İÇİNDE açılır — harici kamera uygulaması kullanma.**
+  `launchCameraAsync` harici kamera uygulamasını açar; BETTA arka plana düşer ve
+  Samsung'un bellek yöneticisi süreci öldürür (logcat: `am_proc_died` + `am_kill`).
+  Cihaz Galaxy S20 FE / Android 13, boş RAM ~144MB — kamera uygulaması açılınca biz
+  eleniyoruz. Galeri yolu HAFİF olduğu için sorunsuz çalışır; teşhis buradan gelir:
+  "galeriden ekleyebiliyorum ama kamerayla çekemiyorum".
+  `getPendingResultAsync()` bunu KURTARAMAZ — Expo'nun Android kaynağında
+  `pendingMediaPickingResult` sıradan bir **bellek içi alandır** (SharedPreferences /
+  savedInstanceState YOK); doküman da bunu "MainActivity öldüğünde" diye tarif eder,
+  yani süreç yaşarken. Süreç ölünce alan da gider, çağrı hep `null` döner.
+  Çözüm: `src/app/camera.tsx` (expo-camera) — ön planda kaldığımız için sistem bizi
+  öldürmez. Kırpma da kendimiz yapılır (`cropToAspect`), çünkü sistem kırpma ekranı da
+  ayrı bir activity'dir. `photoPicker.ts` native'de kamerayı bu ekrana yönlendirir ve
+  sonucu `resolveCameraPhoto` ile söz olarak döndürür — çağıran ekranlar değişmedi.
+  ⚠️ Kamera ekranı kapanırken sözü MUTLAKA çözmeli, yoksa çağıran ekran "işleniyor"da
+  takılı kalır (unmount cleanup'ta `deliver(null)`).
+- **Android manifest düzeltmeleri `plugins/withAndroidManifestFixes.js` içindedir**
+  (`android/` git'te izlenmiyor, prebuild üretir → sadece manifest'e yazmak kaybolur):
+  `largeHeap` ve MLKit `DEPENDENCIES` çakışması. `@six33/react-native-bg-removal`
+  `subject_segment`, `expo-camera` `barcode_ui` tanımlar; manifest merger patlar,
+  `tools:replace` ile `subject_segment,barcode_ui` yazılır.
+  ⚠️ `expo run:android`, `android/` VARSA prebuild ÇALIŞTIRMAZ — plugin'i eklemek
+  yetmez, aynı değişikliği `android/app/src/main/AndroidManifest.xml`'e de elle yaz.
+  Doğrulama: `adb shell dumpsys package com.sumeyrakarsavran.betta | grep flags`
+  → `LARGE_HEAP`. Native değişiklik → `npx expo run:android` şart, reload yetmez.
 - Android: `android/gradle.properties` içinde `reactNativeArchitectures=arm64-v8a`
   (APK'yı küçük tutar, "not enough space" kurulum hatasını önler).
