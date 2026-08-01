@@ -1,4 +1,25 @@
-const { withAndroidManifest } = require('expo/config-plugins');
+const { withAndroidManifest, withGradleProperties } = require('expo/config-plugins');
+
+/**
+ * Yalnızca arm64-v8a derle.
+ *
+ * ⚠️ ONNX Runtime geldikten sonra bu ayar KRİTİK: `libonnxruntime.so` tek başına
+ * arm64 için 27MB, dört ABI birden 112MB. `expo.useLegacyPackaging=false`
+ * olduğu için native kütüphaneler APK'ya SIKIŞTIRILMADAN giriyor, yani bu
+ * doğrudan APK boyutu demek. Daha önce "not enough space" kurulum hatası aldık.
+ *
+ * gradle.properties'i prebuild yeniden ürettiği için elle yazmak yetmez.
+ */
+function withArm64Only(config) {
+  return withGradleProperties(config, (cfg) => {
+    const KEY = 'reactNativeArchitectures';
+    cfg.modResults = cfg.modResults.filter(
+      (item) => !(item.type === 'property' && item.key === KEY),
+    );
+    cfg.modResults.push({ type: 'property', key: KEY, value: 'arm64-v8a' });
+    return cfg;
+  });
+}
 
 /**
  * BETTA — Android manifest düzeltmeleri.
@@ -19,6 +40,7 @@ const { withAndroidManifest } = require('expo/config-plugins');
  *    Çözüm: iki değeri birleştirip tools:replace ile üzerine yaz.
  */
 module.exports = function withAndroidManifestFixes(config) {
+  config = withArm64Only(config);
   return withAndroidManifest(config, (cfg) => {
     const manifest = cfg.modResults?.manifest;
     const application = manifest?.application?.[0];
@@ -27,6 +49,10 @@ module.exports = function withAndroidManifestFixes(config) {
     // tools: ad alanı tools:replace için şart
     manifest.$ = manifest.$ || {};
     manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
+    // Cihaz depolaması dolduğunda sistem APK'yı taşıyabilsin. ONNX Runtime'ın
+    // 27MB'lık native kütüphanesinden sonra daha da önemli — daha önce
+    // "not enough space" kurulum hatası almıştık.
+    manifest.$['android:installLocation'] = 'auto';
 
     application.$['android:largeHeap'] = 'true';
 

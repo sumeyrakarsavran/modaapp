@@ -34,7 +34,7 @@ export function ItemThumb({
         {item.imageUri ? (
           <Image source={{ uri: item.imageUri }} style={styles.img} contentFit="contain" />
         ) : (
-          <GarmentArt category={item.category} colorId={item.colorId} size={size * 0.68} />
+          <GarmentArt category={item.category} subcategory={item.subcategory} colorId={item.colorId} size={size * 0.68} />
         )}
         {item.favorite ? <Text style={styles.fav}>❤️</Text> : null}
         {item.archived ? (

@@ -291,7 +291,7 @@ function DraggableGarment({
       {item.imageUri ? (
         <Image source={{ uri: item.imageUri }} style={{ width: '100%', height: '100%', borderRadius: radius.sm }} contentFit="contain" />
       ) : (
-        <GarmentArt category={item.category} colorId={item.colorId} size={size * 0.94} />
+        <GarmentArt category={item.category} subcategory={item.subcategory} colorId={item.colorId} size={size * 0.94} />
       )}
     </Animated.View>
   );

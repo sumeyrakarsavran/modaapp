@@ -28,7 +28,14 @@ import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPi
 import { persistGarmentPhoto } from '@/services/photoStore';
 import { useStore } from '@/store/useStore';
 import { colors, radius, spacing, type } from '@/theme';
-import { CATEGORIES, todayISO, type Category, type Selfie, type WardrobeItem } from '@/types';
+import {
+  CATEGORIES,
+  subcategoriesOf,
+  todayISO,
+  type Category,
+  type Selfie,
+  type WardrobeItem,
+} from '@/types';
 
 type Section = 'parcalar' | 'kombinler' | 'selfiler' | 'lookbooklar';
 
@@ -47,6 +54,8 @@ export default function Wardrobe() {
 
   // Parçalar filtreleri
   const [category, setCategory] = useState<Category | 'hepsi'>('hepsi');
+  /** Alt tür filtresi — çoklu seçim, boşsa o kategorinin hepsi gösterilir. */
+  const [subcats, setSubcats] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [onlyFav, setOnlyFav] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -68,6 +77,7 @@ export default function Wardrobe() {
     return items.filter((i) => {
       if (i.archived !== showArchived) return false;
       if (category !== 'hepsi' && i.category !== category) return false;
+      if (subcats.length && (!i.subcategory || !subcats.includes(i.subcategory))) return false;
       if (onlyFav && !i.favorite) return false;
       if (q) {
         const hay = `${i.name} ${i.brand ?? ''} ${i.tags.join(' ')}`.toLocaleLowerCase('tr');
@@ -75,7 +85,7 @@ export default function Wardrobe() {
       }
       return true;
     });
-  }, [items, category, query, onlyFav, showArchived]);
+  }, [items, category, subcats, query, onlyFav, showArchived]);
 
   /** Selfie ekle — kırpma açık (dikey kadraj), kalıcı kopya saklanır. */
   const saveSelfiePhoto = async (photo: PickedPhoto) => {
@@ -234,18 +244,54 @@ export default function Wardrobe() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chipRow}
             >
-              <Chip label="Hepsi" emoji="🌊" active={category === 'hepsi'} onPress={() => setCategory('hepsi')} />
+              <Chip
+                label="Hepsi"
+                emoji="🌊"
+                active={category === 'hepsi'}
+                onPress={() => {
+                  setCategory('hepsi');
+                  setSubcats([]);
+                }}
+              />
               {CATEGORIES.map((c) => (
                 <Chip
                   key={c.id}
                   label={c.label}
                   emoji={c.emoji}
                   active={category === c.id}
-                  onPress={() => setCategory(c.id)}
+                  onPress={() => {
+                    setCategory(c.id);
+                    // Kategori değişince eski alt tür seçimi anlamsız kalır
+                    setSubcats([]);
+                  }}
                 />
               ))}
             </ScrollView>
           </View>
+
+          {/* Alt tür filtresi — çoklu seçim, yalnızca bir kategori seçiliyken */}
+          {category !== 'hepsi' && subcategoriesOf(category).length > 0 ? (
+            <View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipRow}
+              >
+                {subcategoriesOf(category).map((s) => (
+                  <Chip
+                    key={s.id}
+                    label={s.label}
+                    active={subcats.includes(s.id)}
+                    onPress={() =>
+                      setSubcats((prev) =>
+                        prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id],
+                      )
+                    }
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
           {filtered.length === 0 ? (
             <EmptyState
               emoji={showArchived ? '🗄️' : '🐟'}

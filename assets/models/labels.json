@@ -1,0 +1,131 @@
+{
+  "imageSize": 160,
+  "margin": 0.08,
+  "validationAccuracy": 0.8394,
+  "sources": [
+    "benitomartin/fashion-product-images-small-384x512",
+    "wargoninnovation/clothingdatasetsecondhand"
+  ],
+  "classes": [
+    {
+      "id": "tshirt",
+      "label": "Tişört",
+      "group": "Üst giyim",
+      "accuracy": 0.9229
+    },
+    {
+      "id": "shirt",
+      "label": "Gömlek",
+      "group": "Üst giyim",
+      "accuracy": 0.8404
+    },
+    {
+      "id": "top",
+      "label": "Bluz",
+      "group": "Üst giyim",
+      "accuracy": 0.7355
+    },
+    {
+      "id": "sweater",
+      "label": "Kazak",
+      "group": "Üst giyim",
+      "accuracy": 0.768
+    },
+    {
+      "id": "sweatshirt",
+      "label": "Sweatshirt",
+      "group": "Üst giyim",
+      "accuracy": 0.8639
+    },
+    {
+      "id": "jacket",
+      "label": "Ceket / Mont",
+      "group": "Üst giyim",
+      "accuracy": 0.7327
+    },
+    {
+      "id": "jeans",
+      "label": "Kot pantolon",
+      "group": "Alt giyim",
+      "accuracy": 0.878
+    },
+    {
+      "id": "trousers",
+      "label": "Pantolon",
+      "group": "Alt giyim",
+      "accuracy": 0.8426
+    },
+    {
+      "id": "leggings",
+      "label": "Tayt",
+      "group": "Alt giyim",
+      "accuracy": 0.7861
+    },
+    {
+      "id": "shorts",
+      "label": "Şort",
+      "group": "Alt giyim",
+      "accuracy": 0.9277
+    },
+    {
+      "id": "skirt",
+      "label": "Etek",
+      "group": "Alt giyim",
+      "accuracy": 0.9095
+    },
+    {
+      "id": "dress",
+      "label": "Elbise",
+      "group": "Elbise",
+      "accuracy": 0.7926
+    },
+    {
+      "id": "bra",
+      "label": "Sütyen",
+      "group": "İç giyim",
+      "accuracy": 1.0
+    },
+    {
+      "id": "briefs",
+      "label": "Külot / Boxer",
+      "group": "İç giyim",
+      "accuracy": 1.0
+    },
+    {
+      "id": "undershirt",
+      "label": "Atlet",
+      "group": "İç giyim",
+      "accuracy": 0.9444
+    },
+    {
+      "id": "sneakers",
+      "label": "Spor / günlük ayakkabı",
+      "group": "Ayakkabı",
+      "accuracy": 0.9129
+    },
+    {
+      "id": "formal_shoes",
+      "label": "Klasik ayakkabı",
+      "group": "Ayakkabı",
+      "accuracy": 0.9062
+    },
+    {
+      "id": "heels",
+      "label": "Topuklu ayakkabı",
+      "group": "Ayakkabı",
+      "accuracy": 0.8687
+    },
+    {
+      "id": "sandals",
+      "label": "Sandalet",
+      "group": "Ayakkabı",
+      "accuracy": 0.806
+    },
+    {
+      "id": "flip_flops",
+      "label": "Terlik",
+      "group": "Ayakkabı",
+      "accuracy": 0.9343
+    }
+  ]
+}

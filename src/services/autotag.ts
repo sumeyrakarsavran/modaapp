@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 import type { Category, Season } from '@/types';
-import { CATEGORIES, ITEM_COLORS, SEASONS } from '@/types';
+import { CATEGORIES, ITEM_COLORS, SEASONS, SUBCATEGORIES, subcategoryById } from '@/types';
 
 /**
  * Otomatik etiketleme:
@@ -13,6 +13,8 @@ import { CATEGORIES, ITEM_COLORS, SEASONS } from '@/types';
 export interface AutoTags {
   name?: string;
   category?: Category;
+  /** SUBCATEGORIES id'si. Verilirse kategori bundan türetilir. */
+  subcategory?: string;
   colorId?: string;
   seasons?: Season[];
   tags?: string[];
@@ -109,13 +111,39 @@ function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: n
 
 /* ————— 2) İsimden kurallar ————— */
 
+/**
+ * İsimden ALT TÜR — kategori bundan türetilir (`subcategoryById`).
+ * Id'ler sınıflandırma modelinin sınıflarıyla aynı, böylece isim kuralı ile
+ * model aynı dili konuşuyor. Sıra önemli: önce daha spesifik olanlar.
+ */
+const SUBCATEGORY_WORDS: [string, string[]][] = [
+  ['dress', ['elbise', 'tulum', 'abiye']],
+  ['jacket', ['ceket', 'mont', 'kaban', 'palto', 'trençkot', 'trenckot', 'trench', 'parka', 'blazer', 'hırka', 'hirka', 'yelek', 'rüzgarlık', 'ruzgarlik']],
+  ['jeans', ['jean', 'kot pantolon', 'denim pantolon']],
+  ['leggings', ['tayt']],
+  ['shorts', ['şort', 'sort']],
+  ['skirt', ['etek']],
+  ['trousers', ['pantolon', 'jogger', 'eşofman', 'esofman', 'paça', 'paca', 'chino']],
+  ['tshirt', ['tişört', 'tisort', 't-shirt', 'tshirt']],
+  ['shirt', ['gömlek', 'gomlek']],
+  ['sweatshirt', ['sweat', 'hoodie', 'kapüşonlu', 'kapusonlu']],
+  ['sweater', ['kazak', 'triko', 'süveter', 'suveter']],
+  ['top', ['bluz', 'body', 'crop', 'tunik', 'büstiyer', 'bustiyer']],
+  ['undershirt', ['atlet', 'fanila']],
+  ['bra', ['sütyen', 'sutyen', 'büstiyer sütyen']],
+  ['briefs', ['külot', 'kulot', 'boxer', 'slip']],
+  ['heels', ['topuklu', 'stiletto']],
+  ['sandals', ['sandalet']],
+  ['flip_flops', ['terlik', 'parmak arası', 'parmak arasi']],
+  ['formal_shoes', ['klasik ayakkabı', 'klasik ayakkabi', 'loafer', 'babet', 'oxford']],
+  ['sneakers', ['sneaker', 'spor ayakkabı', 'spor ayakkabi']],
+];
+
+/** Alt tür bulunamazsa kategori düzeyinde kaba eşleşme (ör. "bot" bir alt tür değil). */
 const CATEGORY_WORDS: [Category, string[]][] = [
-  ['elbise', ['elbise', 'tulum', 'abiye']],
-  ['dis', ['ceket', 'mont', 'kaban', 'palto', 'trençkot', 'trençkot', 'trench', 'yelek', 'parka', 'blazer', 'hırka', 'hirka']],
-  ['ayakkabi', ['ayakkabı', 'ayakkabi', 'sneaker', 'bot', 'çizme', 'cizme', 'topuklu', 'sandalet', 'babet', 'loafer', 'terlik', 'stiletto']],
+  ['ayakkabi', ['ayakkabı', 'ayakkabi', 'bot', 'çizme', 'cizme']],
   ['aksesuar', ['çanta', 'canta', 'kolye', 'küpe', 'kupe', 'bileklik', 'yüzük', 'yuzuk', 'şapka', 'sapka', 'bere', 'atkı', 'atki', 'fular', 'şal', 'sal', 'kemer', 'gözlük', 'gozluk', 'saat', 'toka', 'eldiven', 'çorap', 'corap']],
-  ['alt', ['pantolon', 'jean', 'kot', 'etek', 'şort', 'sort', 'tayt', 'jogger', 'eşofman', 'esofman', 'paça', 'paca']],
-  ['ust', ['tişört', 'tisort', 't-shirt', 'gömlek', 'gomlek', 'bluz', 'kazak', 'sweat', 'hoodie', 'body', 'crop', 'top', 'atlet', 'triko', 'süveter', 'suveter', 'tunik']],
+  ['ic', ['iç giyim', 'ic giyim', 'pijama', 'gecelik']],
 ];
 
 const COLOR_WORDS: [string, string[]][] = [
@@ -157,10 +185,20 @@ export function rulesFromName(name: string): AutoTags {
   const t = ` ${name.toLocaleLowerCase('tr')} `;
   const out: AutoTags = {};
 
-  for (const [cat, words] of CATEGORY_WORDS) {
+  // Önce alt tür: bulunursa kategori ondan türetilir (daha isabetli)
+  for (const [subId, words] of SUBCATEGORY_WORDS) {
     if (words.some((w) => t.includes(w))) {
-      out.category = cat;
+      out.subcategory = subId;
+      out.category = subcategoryById(subId)?.category;
       break;
+    }
+  }
+  if (!out.category) {
+    for (const [cat, words] of CATEGORY_WORDS) {
+      if (words.some((w) => t.includes(w))) {
+        out.category = cat;
+        break;
+      }
     }
   }
   for (const [colorId, words] of COLOR_WORDS) {
@@ -187,13 +225,40 @@ export function rulesFromName(name: string): AutoTags {
 /* ————— 3) Görsel etiketlerinden tespit (MLKit / ImageNet, ücretsiz) ————— */
 
 /** İngilizce görsel etiketlerini kategori/sezon/tarza eşler (alt-dize eşleşmesi). */
+/**
+ * ML Kit etiketlerinden ALT TÜR. Kıyafet sınıflandırma modeli (ONNX) bu işi
+ * çok daha iyi yapıyor; bu yol yalnızca model yoksa (web) ya da yüklenemezse
+ * devreye giren yedek. Sıra önemli: spesifikten genele.
+ */
+const LABEL_SUBCATEGORY: [string, string[]][] = [
+  ['dress', ['dress', 'gown', 'kimono', 'abaya', 'overskirt', 'hoopskirt', 'vestment', 'robe']],
+  ['jacket', ['coat', 'jacket', 'outerwear', 'blazer', 'parka', 'cloak', 'poncho', 'cape', 'cardigan']],
+  ['jeans', ['jean', 'denim']],
+  ['leggings', ['legging']],
+  ['shorts', ['short', 'swimming trunks']],
+  ['skirt', ['skirt', 'sarong']],
+  ['trousers', ['trouser', 'pant']],
+  ['heels', ['heel', 'stiletto', 'pump']],
+  ['sandals', ['sandal']],
+  ['flip_flops', ['flip-flop', 'slipper', 'clog']],
+  ['formal_shoes', ['loafer', 'moccasin', 'oxford', 'brogue']],
+  ['sneakers', ['sneaker', 'running shoe', 'trainer']],
+  ['sweatshirt', ['sweatshirt', 'hoodie']],
+  ['sweater', ['sweater', 'jersey', 'pullover', 'knit']],
+  ['shirt', ['shirt']],
+  ['tshirt', ['tee', 't-shirt']],
+  ['undershirt', ['tank', 'undershirt']],
+  ['bra', ['brassiere', 'bra ']],
+  ['briefs', ['brief', 'underpants', 'boxer']],
+  ['top', ['blouse', 'top']],
+];
+
+/** Alt türe oturmayan etiketler için kategori düzeyinde yedek. */
 const LABEL_CATEGORY: [Category, string[]][] = [
-  ['ayakkabi', ['shoe', 'sneaker', 'boot', 'sandal', 'heel', 'footwear', 'loafer', 'clog', 'slipper', 'moccasin']],
-  ['elbise', ['dress', 'gown', 'kimono', 'abaya', 'overskirt', 'hoopskirt', 'vestment', 'robe']],
-  ['dis', ['coat', 'jacket', 'outerwear', 'blazer', 'parka', 'cloak', 'poncho', 'cape']],
-  ['alt', ['jean', 'denim', 'trouser', 'pant', 'short', 'skirt', 'legging', 'sarong', 'swimming trunks', 'pajama']],
-  ['ust', ['shirt', 'jersey', 'tee', 'sweater', 'sweatshirt', 'hoodie', 'cardigan', 'blouse', 'top', 'suit', 'tank', 'bib']],
+  ['ayakkabi', ['shoe', 'boot', 'footwear']],
+  ['ic', ['pajama', 'nightgown', 'lingerie']],
   ['aksesuar', ['bag', 'backpack', 'purse', 'handbag', 'wallet', 'hat', 'cap', 'bonnet', 'sombrero', 'scarf', 'stole', 'muffler', 'glasses', 'sunglass', 'watch', 'necklace', 'jewelry', 'earring', 'bracelet', 'belt', 'buckle', 'sock', 'stocking', 'glove', 'mitten', 'tie', 'bow', 'umbrella', 'helmet']],
+  ['ust', ['suit', 'bib']],
 ];
 
 const LABEL_TAGS: [string[], string[]][] = [
@@ -213,10 +278,19 @@ export function tagsFromLabels(labels: string[]): AutoTags {
   const t = labels.join(' | ').toLowerCase();
   const out: AutoTags = {};
 
-  for (const [cat, words] of LABEL_CATEGORY) {
+  for (const [subId, words] of LABEL_SUBCATEGORY) {
     if (words.some((w) => t.includes(w))) {
-      out.category = cat;
+      out.subcategory = subId;
+      out.category = subcategoryById(subId)?.category;
       break;
+    }
+  }
+  if (!out.category) {
+    for (const [cat, words] of LABEL_CATEGORY) {
+      if (words.some((w) => t.includes(w))) {
+        out.category = cat;
+        break;
+      }
     }
   }
   const tags = new Set<string>();
@@ -245,6 +319,9 @@ export async function classifyWithClaude(
     const catIds = CATEGORIES.map((c) => c.id).join('|');
     const colorIds = ITEM_COLORS.map((c) => c.id).join('|');
     const seasonIds = SEASONS.map((s) => s.id).join('|');
+    // Alt türü de isteyelim: kategori zaten alt türden türetilebiliyor ve
+    // "Ceket / Mont" gibi ayrımlar (dış giyim katmanı) buna bağlı.
+    const subIds = SUBCATEGORIES.map((s) => s.id).join('|');
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -269,8 +346,9 @@ export async function classifyWithClaude(
                 type: 'text',
                 text:
                   `Bu bir kıyafet/aksesuar fotoğrafı. SADECE şu JSON'u döndür, başka hiçbir şey yazma:\n` +
-                  `{"name":"Türkçe kısa ürün adı (örn. Siyah Deri Ceket)","category":"${catIds}","colorId":"${colorIds}","seasons":["${seasonIds}"],"tags":["stil etiketleri, küçük harf, en fazla 4"]}\n` +
-                  `category, colorId ve seasons alanları yalnızca verilen değerlerden olmalı.`,
+                  `{"name":"Türkçe kısa ürün adı (örn. Siyah Deri Ceket)","category":"${catIds}","subcategory":"${subIds}","colorId":"${colorIds}","seasons":["${seasonIds}"],"tags":["stil etiketleri, küçük harf, en fazla 4"]}\n` +
+                  `category, subcategory, colorId ve seasons alanları yalnızca verilen değerlerden olmalı. ` +
+                  `Parça bu alt türlerin hiçbirine uymuyorsa (ör. çanta, şapka) subcategory alanını boş bırak.`,
               },
             ],
           },
@@ -287,6 +365,12 @@ export async function classifyWithClaude(
     const out: AutoTags = {};
     if (typeof parsed.name === 'string' && parsed.name.trim()) out.name = parsed.name.trim();
     if (CATEGORIES.some((c) => c.id === parsed.category)) out.category = parsed.category;
+    // Alt tür geçerliyse kategoriyi ondan türet — ikisi çelişirse alt tür kazanır
+    const sub = subcategoryById(parsed.subcategory);
+    if (sub) {
+      out.subcategory = sub.id;
+      out.category = sub.category;
+    }
     if (ITEM_COLORS.some((c) => c.id === parsed.colorId)) out.colorId = parsed.colorId;
     if (Array.isArray(parsed.seasons)) {
       const seas = parsed.seasons.filter((s: string) => SEASONS.some((x) => x.id === s));

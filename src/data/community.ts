@@ -71,7 +71,7 @@ export function isUsernameTaken(username: string): boolean {
 
 /** Personaların herkese açık gardırop vitrini. */
 export interface PersonaShowcase {
-  items: { name: string; category: Category; colorId: string }[];
+  items: { name: string; category: Category; subcategory?: string; colorId: string }[];
   lookbooks: { name: string; emoji: string; outfits: GarmentSpec[][] }[];
 }
 
@@ -80,7 +80,7 @@ export const PERSONA_SHOWCASE: Record<string, PersonaShowcase> = {
     items: [
       { name: 'İpek Beyaz Gömlek', category: 'ust', colorId: 'beyaz' },
       { name: 'Lacivert Kalem Etek', category: 'alt', colorId: 'lacivert' },
-      { name: 'Kaşmir Bej Palto', category: 'dis', colorId: 'bej' },
+      { name: 'Kaşmir Bej Palto', category: 'ust', subcategory: 'jacket', colorId: 'bej' },
       { name: 'Siyah Topuklu', category: 'ayakkabi', colorId: 'siyah' },
       { name: 'Deri Tote Çanta', category: 'aksesuar', colorId: 'kahve' },
       { name: 'Midi Siyah Elbise', category: 'elbise', colorId: 'siyah' },
@@ -97,7 +97,7 @@ export const PERSONA_SHOWCASE: Record<string, PersonaShowcase> = {
           ],
           [
             { category: 'elbise', colorId: 'siyah' },
-            { category: 'dis', colorId: 'bej' },
+            { category: 'ust', subcategory: 'jacket', colorId: 'bej' },
             { category: 'aksesuar', colorId: 'kahve' },
           ],
         ],
@@ -106,7 +106,7 @@ export const PERSONA_SHOWCASE: Record<string, PersonaShowcase> = {
   },
   ateş: {
     items: [
-      { name: 'Biker Deri Ceket', category: 'dis', colorId: 'siyah' },
+      { name: 'Biker Deri Ceket', category: 'ust', subcategory: 'jacket', colorId: 'siyah' },
       { name: 'Yırtık Skinny Jean', category: 'alt', colorId: 'siyah' },
       { name: 'Grafik Band Tişört', category: 'ust', colorId: 'gri' },
       { name: 'Platform Kombat Bot', category: 'ayakkabi', colorId: 'siyah' },
@@ -118,7 +118,7 @@ export const PERSONA_SHOWCASE: Record<string, PersonaShowcase> = {
         emoji: '🔥',
         outfits: [
           [
-            { category: 'dis', colorId: 'siyah' },
+            { category: 'ust', subcategory: 'jacket', colorId: 'siyah' },
             { category: 'ust', colorId: 'gri' },
             { category: 'alt', colorId: 'siyah' },
             { category: 'ayakkabi', colorId: 'siyah' },
@@ -134,7 +134,7 @@ export const PERSONA_SHOWCASE: Record<string, PersonaShowcase> = {
       { name: 'Pileli Pembe Etek', category: 'alt', colorId: 'pembe' },
       { name: 'Beyaz Babet', category: 'ayakkabi', colorId: 'beyaz' },
       { name: 'İnci Toka', category: 'aksesuar', colorId: 'beyaz' },
-      { name: 'Lila Hırka', category: 'dis', colorId: 'mor' },
+      { name: 'Lila Hırka', category: 'ust', subcategory: 'jacket', colorId: 'mor' },
     ],
     lookbooks: [
       {
@@ -143,7 +143,7 @@ export const PERSONA_SHOWCASE: Record<string, PersonaShowcase> = {
         outfits: [
           [
             { category: 'elbise', colorId: 'pembe' },
-            { category: 'dis', colorId: 'beyaz' },
+            { category: 'ust', subcategory: 'jacket', colorId: 'beyaz' },
             { category: 'ayakkabi', colorId: 'beyaz' },
           ],
           [
@@ -160,7 +160,7 @@ export const PERSONA_SHOWCASE: Record<string, PersonaShowcase> = {
       { name: 'Turkuaz Crop Sweat', category: 'ust', colorId: 'turkuaz' },
       { name: 'Gri Jogger', category: 'alt', colorId: 'gri' },
       { name: 'Retro Sneaker', category: 'ayakkabi', colorId: 'beyaz' },
-      { name: 'Rüzgarlık', category: 'dis', colorId: 'mavi' },
+      { name: 'Rüzgarlık', category: 'ust', subcategory: 'jacket', colorId: 'mavi' },
       { name: 'Spor Çanta', category: 'aksesuar', colorId: 'siyah' },
     ],
     lookbooks: [
@@ -183,7 +183,7 @@ export const PERSONA_SHOWCASE: Record<string, PersonaShowcase> = {
       { name: 'Kadife Kahve Pantolon', category: 'alt', colorId: 'kahve' },
       { name: 'Sarı Vintage Çanta', category: 'aksesuar', colorId: 'sari' },
       { name: 'Kırmızı Retro Bot', category: 'ayakkabi', colorId: 'kirmizi' },
-      { name: 'Patchwork Ceket', category: 'dis', colorId: 'desenli' },
+      { name: 'Patchwork Ceket', category: 'ust', subcategory: 'jacket', colorId: 'desenli' },
       { name: 'Turuncu Midi Elbise', category: 'elbise', colorId: 'turuncu' },
     ],
     lookbooks: [
@@ -205,7 +205,7 @@ export const PERSONA_SHOWCASE: Record<string, PersonaShowcase> = {
         outfits: [
           [
             { category: 'elbise', colorId: 'turuncu' },
-            { category: 'dis', colorId: 'desenli' },
+            { category: 'ust', subcategory: 'jacket', colorId: 'desenli' },
           ],
         ],
       },
@@ -216,7 +216,7 @@ export const PERSONA_SHOWCASE: Record<string, PersonaShowcase> = {
       { name: 'Oversize Bej Triko', category: 'ust', colorId: 'bej' },
       { name: 'Keten Beyaz Pantolon', category: 'alt', colorId: 'beyaz' },
       { name: 'Süet Loafer', category: 'ayakkabi', colorId: 'bej' },
-      { name: 'Yün Uzun Hırka', category: 'dis', colorId: 'gri' },
+      { name: 'Yün Uzun Hırka', category: 'ust', subcategory: 'jacket', colorId: 'gri' },
       { name: 'Hasır Çanta', category: 'aksesuar', colorId: 'bej' },
     ],
     lookbooks: [
@@ -267,7 +267,7 @@ export const SEED_POSTS: CommunityPost[] = [
     kind: 'kombin',
     caption: 'Konser gecesi. Deri üstüne deri, kim tutar beni 🔥',
     garments: [
-      { category: 'dis', colorId: 'siyah' },
+      { category: 'ust', subcategory: 'jacket', colorId: 'siyah' },
       { category: 'ust', colorId: 'gri' },
       { category: 'alt', colorId: 'siyah' },
       { category: 'ayakkabi', colorId: 'siyah' },
@@ -288,7 +288,7 @@ export const SEED_POSTS: CommunityPost[] = [
     caption: 'Bahar geldi sandım, şifon giydim, üşüdüm, değdi 🌸',
     garments: [
       { category: 'elbise', colorId: 'pembe' },
-      { category: 'dis', colorId: 'beyaz' },
+      { category: 'ust', subcategory: 'jacket', colorId: 'beyaz' },
       { category: 'ayakkabi', colorId: 'beyaz' },
       { category: 'aksesuar', colorId: 'pembe' },
     ],
@@ -374,7 +374,7 @@ export const SEED_POSTS: CommunityPost[] = [
     kind: 'lookbook',
     caption: '"Kapsül gardırop: 12 parça 30 kombin" lookbook\'umu güncelledim 🌙',
     garments: [
-      { category: 'dis', colorId: 'kahve' },
+      { category: 'ust', subcategory: 'jacket', colorId: 'kahve' },
       { category: 'ust', colorId: 'beyaz' },
       { category: 'alt', colorId: 'lacivert' },
       { category: 'ayakkabi', colorId: 'siyah' },

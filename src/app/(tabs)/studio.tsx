@@ -20,6 +20,7 @@ import { Button, Chip, EmptyState } from '@/components/UI';
 import { useStore } from '@/store/useStore';
 import { BETTA_ARCHETYPES, colors, radius, spacing, type } from '@/theme';
 import type { Category, WardrobeItem } from '@/types';
+import { OUTER_SUBCATEGORY } from '@/types';
 
 type Mode = 'dressme' | 'outfits' | 'ai';
 
@@ -27,18 +28,38 @@ interface Slot {
   key: string;
   label: string;
   categories: Category[];
+  /** Yalnızca bu alt türler (dış giyim katmanı böyle ayrışıyor) */
+  onlySubcategories?: string[];
+  /** Bu alt türleri dışla (ceket "Üst" sütununda ikinci kez çıkmasın) */
+  excludeSubcategories?: string[];
   /** göz simgesiyle gizlenebilir (varsayılan görünür) */
   hideable?: boolean;
   /** varsayılan kapalı — kullanıcı açar (ör. dış giyim) */
   defaultOff?: boolean;
 }
 
-/** Dress me sütunları: çekirdek (üst/alt/ayakkabı) + opsiyonel katmanlar. */
+/**
+ * Dress me sütunları: çekirdek (üst/alt/ayakkabı) + opsiyonel katmanlar.
+ * Dış giyim artık ayrı bir kategori değil (kategoriler modelin grup listesiyle
+ * hizalandı); "Üst giyim" içindeki `jacket` alt türü kendi katmanını oluşturuyor.
+ */
 const SLOTS: Slot[] = [
-  { key: 'ust', label: 'Üst / Elbise', categories: ['ust', 'elbise'] },
+  {
+    key: 'ust',
+    label: 'Üst / Elbise',
+    categories: ['ust', 'elbise'],
+    excludeSubcategories: [OUTER_SUBCATEGORY],
+  },
   { key: 'alt', label: 'Alt', categories: ['alt'], hideable: true },
   { key: 'ayakkabi', label: 'Ayakkabı', categories: ['ayakkabi'] },
-  { key: 'dis', label: 'Dış Giyim', categories: ['dis'], hideable: true, defaultOff: true },
+  {
+    key: 'dis',
+    label: 'Dış Giyim',
+    categories: ['ust'],
+    onlySubcategories: [OUTER_SUBCATEGORY],
+    hideable: true,
+    defaultOff: true,
+  },
   { key: 'aksesuar', label: 'Aksesuar', categories: ['aksesuar'], hideable: true },
 ];
 
@@ -59,7 +80,16 @@ export default function Studio() {
   const pools = useMemo(() => {
     const map: Record<string, WardrobeItem[]> = {};
     for (const slot of SLOTS) {
-      map[slot.key] = active.filter((i) => slot.categories.includes(i.category));
+      map[slot.key] = active.filter((i) => {
+        if (!slot.categories.includes(i.category)) return false;
+        if (slot.onlySubcategories) {
+          return !!i.subcategory && slot.onlySubcategories.includes(i.subcategory);
+        }
+        if (slot.excludeSubcategories && i.subcategory) {
+          return !slot.excludeSubcategories.includes(i.subcategory);
+        }
+        return true;
+      });
     }
     return map;
   }, [active]);

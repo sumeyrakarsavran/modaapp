@@ -59,7 +59,7 @@ export function OutfitCollage({
               {p.item.imageUri ? (
                 <Image source={{ uri: p.item.imageUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
               ) : (
-                <GarmentArt category={p.item.category} colorId={p.item.colorId} size={s} />
+                <GarmentArt category={p.item.category} subcategory={p.item.subcategory} colorId={p.item.colorId} size={s} />
               )}
             </View>
           );
@@ -108,7 +108,7 @@ export function OutfitCollage({
                   contentFit="contain"
                 />
               ) : (
-                <GarmentArt category={p.item.category} colorId={p.item.colorId} size={s} />
+                <GarmentArt category={p.item.category} subcategory={p.item.subcategory} colorId={p.item.colorId} size={s} />
               )}
             </View>
           );

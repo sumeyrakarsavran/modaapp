@@ -105,5 +105,48 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
   Alt boşluk: klavye AÇIKKEN `insets.bottom` EKLEME — KAV'ın eklediği klavye yüksekliği
   alt çubuğu zaten kapsıyor, yoksa çift sayılıp arada boşluk kalır (`Keyboard`
   dinleyicisiyle `keyboardUp` durumu tutulur).
-- Android: `android/gradle.properties` içinde `reactNativeArchitectures=arm64-v8a`
-  (APK'yı küçük tutar, "not enough space" kurulum hatasını önler).
+- **Kıyafet sınıflandırma modeli (`assets/models/`).** MobileNetV3-Small, 20 sınıf,
+  ONNX. Sözleşme `MODEL.md`'de (kaynak proje: `clothes-class`). Kritik noktalar:
+  - `.onnx` ve `labels.json` **her zaman birlikte** taşınır — sınıf sırası ikisi
+    arasında eşleşiyor, karıştırırsan model sessizce yanlış etiket üretir.
+  - **Ön işleme en kritik kısım.** Model beyaz zemine ortalanmış, %8 kenar boşluklu
+    TEK parça bekler. `classifyGarment` yalnızca arka planı GERÇEKTEN silinmiş
+    (`removed === true`) görselle çağrılır; ham fotoğrafta isabet %78 → %30'a
+    düşüyor (ölçülmüş). Alfa şart: JPEG'e çevirip düzleştirme, siyaha düşer.
+  - ImageNet normalizasyonu ve softmax ONNX grafiğinin İÇİNDE — dışarıda tekrar
+    uygulama, girdi ham `[0,1]` RGB.
+  - **Bellek:** ONNX oturumu açıkken 30-80MB. Bu cihazda (boş RAM ~144MB) sürekli
+    açık tutmak süreç ölümü riskini artırıyor → oturum `acquireClassifier()` /
+    `releaseClassifier()` ile ekran ömrüne bağlı, kalıcı değil.
+  - **⚠️ `onnxruntime-react-native` KENDİLİĞİNDEN KAYDOLMUYOR.** Paketin Android
+    tarafı eski tip bir `ReactPackage` (`OnnxruntimePackage`) ama hiçbir otomatik
+    bağlama onu kaydetmiyor: kendi `app.plugin.js`'i yalnızca gradle bağımlılığı
+    ekliyor, RN CLI autolinking `unimodule.json` yüzünden atlıyor, Expo'nun
+    modern autolinking'i de yalnızca Expo `Module`'lerini kaydediyor. Kütüphane
+    APK'ya giriyor ama `NativeModules.Onnxruntime` null kalıyor ve import anında
+    patlıyor: `TypeError: Cannot read property 'install' of null`. Uygulama
+    açılış ekranında donuyor, hata ekranı bile çıkmıyor — teşhis Metro logundan.
+    Çözüm: `plugins/withOnnxruntimePackage.js` MainApplication'a elle kaydediyor.
+  - **⚠️ Gradle 9 uyumsuzluğu:** paketin `android/build.gradle`'ı `VersionNumber`
+    API'sini kullanıyor, Gradle 9'da kaldırıldı → `Could not get unknown property
+    'VersionNumber'`. `patches/onnxruntime-react-native+1.24.3.patch` bunu
+    dosyanın zaten hesapladığı `REACT_NATIVE_MINOR_VERSION` ile değiştiriyor.
+    `package.json` → `postinstall: patch-package` ile `npm install` sonrası
+    otomatik uygulanıyor.
+  - `metro.config.js` → `assetExts.push('onnx')` olmadan Metro modeli tanımaz.
+    Aynı dosyada `blockList` ile `android/app/.cxx` ve `android/app/build`
+    izlenmiyor: Gradle derleme sırasında oradaki klasörleri silince Metro'nun
+    izleyicisi ENOENT ile ÇÖKÜYOR ve uygulama açılış ekranında kalıyor.
+  - Model dosyası `InferenceSession.create`'e **yol olarak** verilir, Uint8Array
+    olarak değil — 6MB'ı JS belleğine okumaya gerek yok.
+- **Kategoriler modelin grup listesiyle hizalı** (`ust/alt/elbise/ic/ayakkabi/aksesuar`).
+  Eski ayrı `dis` kategorisi KALDIRILDI; dış giyim artık `OUTER_SUBCATEGORY`
+  (`jacket`) alt türü. Stüdyodaki dış giyim katmanı ve stilistin katmanlama
+  mantığı bu alt türe bakıyor. Kayıtlı veri için store'da `version: 2` migrate'i
+  var (`dis` → `ust` + `jacket`) — kategori setini değiştirirsen migrate şart,
+  yoksa eski parçalar geçersiz kategoriye düşüp listelerden kaybolur.
+- Android: `reactNativeArchitectures=arm64-v8a` — **ONNX'ten sonra kritik**:
+  `libonnxruntime.so` arm64 için 27MB, dört ABI birden 112MB. `useLegacyPackaging=false`
+  olduğu için native kütüphaneler APK'ya sıkıştırılmadan giriyor. Bu ayar ve
+  `largeHeap`/`installLocation` `plugins/withAndroidManifestFixes.js` içinde —
+  `android/` git'te izlenmiyor, elle yazmak prebuild'de kaybolur.

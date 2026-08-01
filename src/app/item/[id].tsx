@@ -10,7 +10,7 @@ import { OutfitCollage } from '@/components/OutfitCollage';
 import { Button, Card, Chip, SectionTitle } from '@/components/UI';
 import { useStore } from '@/store/useStore';
 import { colors, radius, spacing, type } from '@/theme';
-import { CATEGORIES, ITEM_COLORS, SEASONS, SOURCES, todayISO } from '@/types';
+import { CATEGORIES, ITEM_COLORS, SEASONS, SOURCES, subcategoryById, todayISO } from '@/types';
 
 export default function ItemDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -29,6 +29,7 @@ export default function ItemDetail() {
   }
 
   const cat = CATEGORIES.find((c) => c.id === item.category);
+  const sub = subcategoryById(item.subcategory);
   const color = ITEM_COLORS.find((c) => c.id === item.colorId);
   const src = SOURCES.find((s) => s.id === item.source);
   const wearCount = item.wearDates.length;
@@ -83,13 +84,14 @@ export default function ItemDetail() {
           {item.imageUri ? (
             <Image source={{ uri: item.imageUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
           ) : (
-            <GarmentArt category={item.category} colorId={item.colorId} size={170} />
+            <GarmentArt category={item.category} subcategory={item.subcategory} colorId={item.colorId} size={170} />
           )}
         </View>
 
         <Text style={[type.title, { marginTop: spacing.lg }]}>{item.name}</Text>
         <View style={[styles.wrapRow, { marginTop: spacing.sm }]}>
           {cat ? <Chip label={`${cat.emoji} ${cat.label}`} /> : null}
+          {sub ? <Chip label={sub.label} /> : null}
           {color ? <Chip label={color.label} /> : null}
           {src ? <Chip label={src.label} color={src.color} active /> : null}
           {item.brand ? <Chip label={item.brand} /> : null}
@@ -136,7 +138,7 @@ export default function ItemDetail() {
           />
         </Card>
 
-        {['ust', 'alt', 'elbise', 'dis'].includes(item.category) && item.imageUri ? (
+        {['ust', 'alt', 'elbise'].includes(item.category) && item.imageUri ? (
           <Button
             title={pro ? '🪞 Üzerimde nasıl durur? (AI deneme)' : '🪞 Üzerimde dene — PRO 🔒'}
             variant="dark"

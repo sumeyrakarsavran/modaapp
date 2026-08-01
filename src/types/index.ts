@@ -1,15 +1,88 @@
 /** BETTA veri modeli */
 
-export type Category = 'ust' | 'alt' | 'dis' | 'elbise' | 'ayakkabi' | 'aksesuar';
+/**
+ * Kategoriler, kıyafet sınıflandırma modelinin grup listesiyle aynı
+ * (assets/models/labels.json → `group`). Eski ayrı `dis` kategorisi kaldırıldı:
+ * model ceket/montu "Üst giyim" grubunda tutuyor. Dış giyim ayrımı kaybolmadı,
+ * modelin kendi `jacket` sınıfı üzerinden ALT TÜR olarak sürüyor
+ * (`OUTER_SUBCATEGORY`) — stüdyodaki dış giyim katmanı ve stilistin
+ * katmanlama mantığı bunu kullanıyor.
+ */
+export type Category = 'ust' | 'alt' | 'elbise' | 'ic' | 'ayakkabi' | 'aksesuar';
 
 export const CATEGORIES: { id: Category; label: string; emoji: string }[] = [
-  { id: 'ust', label: 'Üst', emoji: '👕' },
-  { id: 'alt', label: 'Alt', emoji: '👖' },
-  { id: 'dis', label: 'Dış Giyim', emoji: '🧥' },
+  { id: 'ust', label: 'Üst giyim', emoji: '👕' },
+  { id: 'alt', label: 'Alt giyim', emoji: '👖' },
   { id: 'elbise', label: 'Elbise', emoji: '👗' },
+  { id: 'ic', label: 'İç giyim', emoji: '🩲' },
   { id: 'ayakkabi', label: 'Ayakkabı', emoji: '👟' },
   { id: 'aksesuar', label: 'Aksesuar', emoji: '👜' },
 ];
+
+/** Dış giyim artık ayrı kategori değil, bu alt tür. */
+export const OUTER_SUBCATEGORY = 'jacket';
+
+/**
+ * Alt türler — kıyafet sınıflandırma modelinin (assets/models) ürettiği
+ * etiketler. `id` alanları modelin sınıf id'leriyle BİREBİR aynı olmalı:
+ * `garmentClassifier.ts` gelen tahmini bu id üzerinden eşleştiriyor.
+ *
+ * `aksesuar` altındakiler modelde YOK (model 20 kıyafet sınıfı biliyor,
+ * aksesuar tanımıyor) — onlar yalnızca elle seçilir, `detectable: false`.
+ */
+export interface Subcategory {
+  id: string;
+  label: string;
+  category: Category;
+  /** Model bu türü tanıyor mu? Tanımıyorsa otomatik işaretlenmez. */
+  detectable: boolean;
+}
+
+export const SUBCATEGORIES: Subcategory[] = [
+  // Üst
+  { id: 'tshirt', label: 'Tişört', category: 'ust', detectable: true },
+  { id: 'shirt', label: 'Gömlek', category: 'ust', detectable: true },
+  { id: 'top', label: 'Bluz', category: 'ust', detectable: true },
+  { id: 'sweater', label: 'Kazak', category: 'ust', detectable: true },
+  { id: 'sweatshirt', label: 'Sweatshirt', category: 'ust', detectable: true },
+  { id: 'jacket', label: 'Ceket / Mont', category: 'ust', detectable: true },
+  // Alt
+  { id: 'jeans', label: 'Kot pantolon', category: 'alt', detectable: true },
+  { id: 'trousers', label: 'Pantolon', category: 'alt', detectable: true },
+  { id: 'leggings', label: 'Tayt', category: 'alt', detectable: true },
+  { id: 'shorts', label: 'Şort', category: 'alt', detectable: true },
+  { id: 'skirt', label: 'Etek', category: 'alt', detectable: true },
+  // Elbise
+  { id: 'dress', label: 'Elbise', category: 'elbise', detectable: true },
+  // İç giyim
+  { id: 'bra', label: 'Sütyen', category: 'ic', detectable: true },
+  { id: 'briefs', label: 'Külot / Boxer', category: 'ic', detectable: true },
+  { id: 'undershirt', label: 'Atlet', category: 'ic', detectable: true },
+  // Ayakkabı
+  { id: 'sneakers', label: 'Spor / günlük', category: 'ayakkabi', detectable: true },
+  { id: 'formal_shoes', label: 'Klasik', category: 'ayakkabi', detectable: true },
+  { id: 'heels', label: 'Topuklu', category: 'ayakkabi', detectable: true },
+  { id: 'sandals', label: 'Sandalet', category: 'ayakkabi', detectable: true },
+  { id: 'flip_flops', label: 'Terlik', category: 'ayakkabi', detectable: true },
+  // Aksesuar — modelde yok, elle seçilir
+  { id: 'bag', label: 'Çanta', category: 'aksesuar', detectable: false },
+  { id: 'hat', label: 'Şapka / Bere', category: 'aksesuar', detectable: false },
+  { id: 'scarf', label: 'Atkı / Şal', category: 'aksesuar', detectable: false },
+  { id: 'belt', label: 'Kemer', category: 'aksesuar', detectable: false },
+  { id: 'jewelry', label: 'Takı', category: 'aksesuar', detectable: false },
+  { id: 'glasses', label: 'Gözlük', category: 'aksesuar', detectable: false },
+  { id: 'watch', label: 'Saat', category: 'aksesuar', detectable: false },
+];
+
+/** Bir kategoriye ait alt türler (arayüzde liste olarak gösterilir). */
+export function subcategoriesOf(category: Category): Subcategory[] {
+  return SUBCATEGORIES.filter((s) => s.category === category);
+}
+
+/** Model sınıf id'sinden alt tür kaydı. */
+export function subcategoryById(id?: string): Subcategory | undefined {
+  return id ? SUBCATEGORIES.find((s) => s.id === id) : undefined;
+}
 
 export type Source = 'yeni' | 'ikinciel' | 'kiralik' | 'elyapimi' | 'hediye' | 'belirsiz';
 
@@ -53,6 +126,8 @@ export interface WardrobeItem {
   id: string;
   name: string;
   category: Category;
+  /** Alt tür id'si (SUBCATEGORIES) — modelden gelir ya da elle seçilir. */
+  subcategory?: string;
   /** Fotoğraf URI'si (yerel dosya veya uzak URL). Yoksa renkli silüet gösterilir. */
   imageUri?: string;
   colorId: string; // ITEM_COLORS id
@@ -150,6 +225,8 @@ export interface Lookbook {
  * gönderi, kombin/canvas'ta oluşturulduğu düzenin aynısıyla gösterilir. */
 export interface GarmentSpec {
   category: Category;
+  /** Alt tür id'si — silüet çiziminde dış giyimi ayırt etmek için. */
+  subcategory?: string;
   colorId: string;
   imageUri?: string;
   layout?: { x: number; y: number; scale: number; z: number };

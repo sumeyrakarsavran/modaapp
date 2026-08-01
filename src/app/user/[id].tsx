@@ -144,7 +144,7 @@ export default function UserProfile() {
               {showcase.items.map((it) => (
                 <View key={it.name} style={{ width: gridCell }}>
                   <View style={[styles.itemBox, { width: gridCell, height: gridCell }]}>
-                    <GarmentArt category={it.category} colorId={it.colorId} size={gridCell * 0.66} />
+                    <GarmentArt category={it.category} subcategory={it.subcategory} colorId={it.colorId} size={gridCell * 0.66} />
                   </View>
                   <Text style={styles.itemName} numberOfLines={1}>
                     {it.name}

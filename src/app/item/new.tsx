@@ -23,6 +23,11 @@ import {
 } from '@/services/autotag';
 import { processGarmentPhoto } from '@/services/bgremove';
 import { detectPhotoColor } from '@/services/colorDetect';
+import {
+  acquireClassifier,
+  classifyGarment,
+  releaseClassifier,
+} from '@/services/garmentClassifier';
 import { resizeForAnalysis, resizeForProcessing } from '@/services/imageResize';
 import { classifyPhotoLabels } from '@/services/photoClassify';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
@@ -33,6 +38,8 @@ import {
   ITEM_COLORS,
   SEASONS,
   SOURCES,
+  subcategoriesOf,
+  subcategoryById,
   type Category,
   type Season,
   type Source,
@@ -46,6 +53,7 @@ export default function NewItem() {
 
   const [name, setName] = useState(editing?.name ?? '');
   const [category, setCategory] = useState<Category>(editing?.category ?? 'ust');
+  const [subcategory, setSubcategory] = useState<string | undefined>(editing?.subcategory);
   const [colorId, setColorId] = useState(editing?.colorId ?? 'siyah');
   const [brand, setBrand] = useState(editing?.brand ?? '');
   const [price, setPrice] = useState(editing?.price != null ? String(editing.price) : '');
@@ -66,6 +74,24 @@ export default function NewItem() {
     name: !!editing,
   });
 
+  /**
+   * Kıyafet sınıflandırma modelini bu ekran açıkken hazır tut, kapanınca bırak.
+   * ONNX oturumu 30-80MB tutuyor; sürekli açık bırakmak bu cihazda (boş RAM
+   * ~144MB) sistemin süreci öldürme riskini artırıyordu. Ekran açılırken
+   * kurulduğu için kullanıcı fotoğrafı seçtiğinde model çoktan hazır oluyor.
+   */
+  useEffect(() => {
+    acquireClassifier();
+    return releaseClassifier;
+  }, []);
+
+  /** Kategori elle değişirse, o kategoriye ait olmayan alt türü düşür. */
+  const chooseCategory = (c: Category) => {
+    touched.current.category = true;
+    setCategory(c);
+    setSubcategory((prev) => (subcategoryById(prev)?.category === c ? prev : undefined));
+  };
+
   /** Tespit sonuçlarını yalnızca dokunulmamış alanlara uygular. */
   const applyAutoTags = (auto: AutoTags): string[] => {
     const applied: string[] = [];
@@ -75,8 +101,16 @@ export default function NewItem() {
     }
     if (auto.category && !touched.current.category) {
       setCategory(auto.category);
-      const label = CATEGORIES.find((c) => c.id === auto.category)?.label;
-      applied.push(label ? `kategori: ${label}` : 'kategori');
+      // Alt tür kategoriyle birlikte gelir; ayrı "dokunuldu" bayrağı yok çünkü
+      // kategoriye dokunulunca chooseCategory zaten uyumsuz alt türü düşürüyor.
+      const sub = subcategoryById(auto.subcategory);
+      if (sub && sub.category === auto.category) {
+        setSubcategory(sub.id);
+        applied.push(`tür: ${sub.label}`);
+      } else {
+        const label = CATEGORIES.find((c) => c.id === auto.category)?.label;
+        applied.push(label ? `kategori: ${label}` : 'kategori');
+      }
     }
     if (auto.colorId && !touched.current.color) {
       setColorId(auto.colorId);
@@ -122,27 +156,50 @@ export default function NewItem() {
           ' 🔍 Özellikler tespit ediliyor…',
       );
       const small = await resizeForAnalysis(uri, 512);
-      let applied: string[] = [];
+
+      // Cihaz içi kıyafet sınıflandırma (MobileNetV3, 20 sınıf) — ücretsiz,
+      // çevrimdışı, birkaç ms. YALNIZCA arka plan gerçekten silindiyse çalıştır:
+      // model beyaz zemine ortalanmış tek parça görmek üzere eğitildi, ham
+      // fotoğrafta isabet %78'den %30'lara düşüyor (MODEL.md'de ölçülmüş).
+      const predicted = removed ? await classifyGarment(uri).catch(() => null) : null;
+
+      // ML Kit yalnızca tarz/sezon etiketleri için: kategori işini artık kıyafet
+      // modeli yapıyor ve o çok daha isabetli.
+      const labels = await classifyPhotoLabels(small).catch(() => null);
+      // Renk HIZ için küçük kopyadan okunur: PNG'yi saf JS'te (upng-js, zlib
+      // dahil) çözüyoruz — 1200px'te 1.44M piksel, Hermes'te onlarca saniye
+      // sürüyordu. 512px'te ~20 kat daha ucuz.
+      // Emniyet: arka plan silindiyse şeffaf piksel BEKLENİR; küçük kopyada
+      // hiç yoksa küçültme alfayı düşürmüş demektir, o zaman tam boy denenir.
+      const colorId = await detectPhotoColor(small, removed ? uri : undefined).catch(() => null);
+
+      const auto: AutoTags = labels ? tagsFromLabels(labels) : {};
+      if (colorId) auto.colorId = colorId;
+
+      // Claude anahtarı varsa isim gibi alanları o doldursun (opsiyonel).
       if (api.anthropicKey) {
-        const auto = await classifyWithClaude(api.anthropicKey, small).catch(() => null);
-        if (auto) applied = applyAutoTags(auto);
+        const fromClaude = await classifyWithClaude(api.anthropicKey, small).catch(() => null);
+        if (fromClaude) Object.assign(auto, fromClaude);
       }
-      if (!applied.length) {
-        const labels = await classifyPhotoLabels(small).catch(() => null);
-        // Renk HIZ için küçük kopyadan okunur: PNG'yi saf JS'te (upng-js, zlib
-        // dahil) çözüyoruz — 1200px'te 1.44M piksel, Hermes'te onlarca saniye
-        // sürüyordu. 512px'te ~20 kat daha ucuz.
-        // Emniyet: arka plan silindiyse şeffaf piksel BEKLENİR; küçük kopyada
-        // hiç yoksa küçültme alfayı düşürmüş demektir, o zaman tam boy denenir.
-        const colorId = await detectPhotoColor(small, removed ? uri : undefined).catch(() => null);
-        const auto: AutoTags = labels ? tagsFromLabels(labels) : {};
-        if (colorId) auto.colorId = colorId;
-        applied = applyAutoTags(auto);
+
+      // Kategori/alt tür konusunda EN İSABETLİ kaynak kıyafet modeli — bu yüzden
+      // en son o yazar ve diğerlerinin tahminini ezer.
+      const sub = subcategoryById(predicted?.subcategoryId);
+      if (sub) {
+        auto.subcategory = sub.id;
+        auto.category = sub.category;
       }
+
+      const applied = applyAutoTags(auto);
+      const confidence =
+        predicted && sub ? ` (%${Math.round(predicted.confidence * 100)} eminlik)` : '';
       setBgNote(
         (removed ? '✨ Arka plan silindi ve fotoğraf kaydedildi.' : 'Fotoğraf kaydedildi.') +
           (applied.length
-            ? ` Otomatik işaretlendi: ${applied.join(', ')} — istersen değiştir.`
+            ? ` Otomatik işaretlendi: ${applied.join(', ')}${confidence} — istersen değiştir.`
+            : '') +
+          (!removed
+            ? ' Arka plan silinemediği için tür tespiti atlandı, elle seçebilirsin.'
             : ''),
       );
     } catch {
@@ -180,6 +237,7 @@ export default function NewItem() {
     const data = {
       name: name.trim(),
       category,
+      subcategory,
       colorId,
       brand: brand.trim() || undefined,
       price: price.trim() ? Number(price.replace(',', '.')) || undefined : undefined,
@@ -265,10 +323,26 @@ export default function NewItem() {
               label={c.label}
               emoji={c.emoji}
               active={category === c.id}
-              onPress={() => {
-                touched.current.category = true;
-                setCategory(c.id);
-              }}
+              onPress={() => chooseCategory(c.id)}
+            />
+          ))}
+        </View>
+
+        {/* Alt tür — seçili kategoriye ait olanlar. Fotoğraftan otomatik gelir,
+            "Belirtme" ile boş bırakılabilir. */}
+        <Label>Tür</Label>
+        <View style={styles.wrapRow}>
+          <Chip
+            label="Belirtme"
+            active={!subcategory}
+            onPress={() => setSubcategory(undefined)}
+          />
+          {subcategoriesOf(category).map((s) => (
+            <Chip
+              key={s.id}
+              label={s.label}
+              active={subcategory === s.id}
+              onPress={() => setSubcategory(s.id)}
             />
           ))}
         </View>

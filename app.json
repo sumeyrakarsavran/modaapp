@@ -63,7 +63,10 @@
           "recordAudioAndroid": false
         }
       ],
-      "./plugins/withAndroidManifestFixes"
+      "./plugins/withAndroidManifestFixes",
+      "onnxruntime-react-native",
+      "expo-asset",
+      "./plugins/withOnnxruntimePackage"
     ],
     "experiments": {
       "typedRoutes": true,

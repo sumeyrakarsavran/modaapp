@@ -40,7 +40,7 @@ export default function TryOn() {
   const { items, api, pro } = useStore();
 
   const garments = useMemo(
-    () => items.filter((i) => !i.archived && i.imageUri && ['ust', 'alt', 'elbise', 'dis'].includes(i.category)),
+    () => items.filter((i) => !i.archived && i.imageUri && ['ust', 'alt', 'elbise'].includes(i.category)),
     [items],
   );
   const [selectedGarment, setSelectedGarment] = useState<string | undefined>(

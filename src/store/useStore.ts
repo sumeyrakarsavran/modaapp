@@ -14,7 +14,7 @@ import type {
   Selfie,
   WardrobeItem,
 } from '@/types';
-import { todayISO, uid } from '@/types';
+import { OUTER_SUBCATEGORY, todayISO, uid } from '@/types';
 
 interface BettaState {
   items: WardrobeItem[];
@@ -274,6 +274,26 @@ export const useStore = create<BettaState>()(
     }),
     {
       name: 'betta-store-v1',
+      /**
+       * v2: kategoriler kıyafet sınıflandırma modelinin grup listesine geçti.
+       * Ayrı `dis` (Dış Giyim) kategorisi kaldırıldı — model ceket/montu
+       * "Üst giyim" grubunda tutuyor. Kayıtlı parçalar `ust` kategorisine
+       * taşınır ve dış giyim ayrımı `jacket` ALT TÜRÜ olarak korunur, yoksa
+       * eski parçalar geçersiz bir kategoriye işaret edip listelerden düşerdi.
+       */
+      version: 2,
+      migrate: (persisted, from) => {
+        const state = persisted as { items?: { category: string; subcategory?: string }[] };
+        if (from < 2 && Array.isArray(state?.items)) {
+          for (const item of state.items) {
+            if (item.category === 'dis') {
+              item.category = 'ust';
+              item.subcategory = item.subcategory ?? OUTER_SUBCATEGORY;
+            }
+          }
+        }
+        return state as never;
+      },
       // SSR/Node ortamında window yok — orada belleğe yazan sahte depo kullan
       storage: createJSONStorage(() =>
         typeof window === 'undefined'
@@ -362,14 +382,17 @@ function buildDemoItems(): WardrobeItem[] {
     mk('Pileli Midi Etek', 'alt', 'lacivert', {
       price: 680, tags: ['klasik', 'ofis', 'midi'], seasons: ['ilkbahar', 'sonbahar'], wearDates: [days(15)],
     }),
-    mk('Oversize Denim Ceket', 'dis', 'mavi', {
+    mk('Oversize Denim Ceket', 'ust', 'mavi', {
+      subcategory: OUTER_SUBCATEGORY,
       price: 1250, source: 'ikinciel', tags: ['denim', 'oversize'], seasons: ['ilkbahar', 'sonbahar'],
       wearDates: [days(2), days(12), days(22)], favorite: true,
     }),
-    mk('Siyah Deri Ceket', 'dis', 'siyah', {
+    mk('Siyah Deri Ceket', 'ust', 'siyah', {
+      subcategory: OUTER_SUBCATEGORY,
       price: 2400, tags: ['deri', 'rock'], seasons: ['sonbahar', 'kis'], wearDates: [days(5), days(20)],
     }),
-    mk('Kaşe Uzun Palto', 'dis', 'kahve', {
+    mk('Kaşe Uzun Palto', 'ust', 'kahve', {
+      subcategory: OUTER_SUBCATEGORY,
       price: 3200, tags: ['klasik', 'şık'], seasons: ['kis'], wearDates: [days(3), days(27)],
     }),
     mk('Çiçekli Şifon Elbise', 'elbise', 'pembe', {

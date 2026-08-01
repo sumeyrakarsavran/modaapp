@@ -65,7 +65,7 @@ export function SpecCollage({ garments, size = 200 }: { garments: GarmentSpec[];
       <View style={styles.collageGrid}>
         {shown.map((g, i) => (
           <View key={i} style={[styles.collageCell, { width: cell, height: cell }]}>
-            <GarmentArt category={g.category} colorId={g.colorId} size={cell * 0.8} />
+            <GarmentArt category={g.category} subcategory={g.subcategory} colorId={g.colorId} size={cell * 0.8} />
           </View>
         ))}
       </View>
@@ -117,7 +117,7 @@ export function FluidSpecCollage({
                 {g.imageUri ? (
                   <Image source={{ uri: g.imageUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
                 ) : (
-                  <GarmentArt category={g.category} colorId={g.colorId} size="100%" />
+                  <GarmentArt category={g.category} subcategory={g.subcategory} colorId={g.colorId} size="100%" />
                 )}
               </View>
             );
@@ -157,7 +157,7 @@ export function FluidSpecCollage({
               {g.imageUri ? (
                 <Image source={{ uri: g.imageUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
               ) : (
-                <GarmentArt category={g.category} colorId={g.colorId} size="100%" />
+                <GarmentArt category={g.category} subcategory={g.subcategory} colorId={g.colorId} size="100%" />
               )}
             </View>
           );
@@ -180,7 +180,7 @@ export function FluidSpecCollage({
               />
             ) : (
               <View style={{ width: '78%', aspectRatio: 1 }}>
-                <GarmentArt category={g.category} colorId={g.colorId} size="100%" />
+                <GarmentArt category={g.category} subcategory={g.subcategory} colorId={g.colorId} size="100%" />
               </View>
             )}
           </View>

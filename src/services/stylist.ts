@@ -1,5 +1,5 @@
 import type { Outfit, WardrobeItem, WeatherDay } from '@/types';
-import { ITEM_COLORS } from '@/types';
+import { ITEM_COLORS, OUTER_SUBCATEGORY } from '@/types';
 
 /**
  * AI Stilist.
@@ -56,11 +56,16 @@ export function localSuggest(
 
   const cat = (c: WardrobeItem['category']) => weighted(active.filter((i) => i.category === c && bySeason(i)));
 
-  const tops = cat('ust');
+  // Dış giyim ayrı bir kategori değil (kategoriler sınıflandırma modelinin grup
+  // listesiyle hizalı): "Üst giyim" içindeki `jacket` alt türü. Üst katmanı da
+  // ceketleri dışlamalı, yoksa aynı parça hem üst hem dış olarak seçilebilir.
+  const isOuter = (i: WardrobeItem) => i.subcategory === OUTER_SUBCATEGORY;
+
+  const tops = weighted(active.filter((i) => i.category === 'ust' && !isOuter(i) && bySeason(i)));
   const bottoms = cat('alt');
   const dresses = cat('elbise');
   const shoes = cat('ayakkabi');
-  const outer = cat('dis');
+  const outer = weighted(active.filter((i) => i.category === 'ust' && isOuter(i) && bySeason(i)));
   const acc = cat('aksesuar');
 
   const useDress = dresses.length > 0 && (tops.length === 0 || bottoms.length === 0 || seedRandom() < 0.35);
