@@ -62,7 +62,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     overflow: 'hidden',
   },
-  img: { width: '100%', height: '100%' },
+  // Kutuyu kenardan kenara doldurmasın — `contain` görseli tam sığdırdığı için
+  // parça çerçeveye yapışık duruyordu. Kutuya padding vermek yerine görseli
+  // küçültüyoruz: favori/arşiv rozetleri mutlak konumlu, padding onları kaydırırdı.
+  img: { width: '90%', height: '90%' },
   fav: { position: 'absolute', top: 6, right: 7, fontSize: 12 },
   archived: {
     position: 'absolute',

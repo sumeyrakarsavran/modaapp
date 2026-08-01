@@ -491,6 +491,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    // Kıyafet kenarlara yapışmasın (bkz. item/[id] photo)
+    padding: spacing.sm,
   },
   input: {
     borderWidth: 1.5,

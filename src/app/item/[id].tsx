@@ -226,6 +226,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    // Kıyafet kutunun kenarlarına yapışmasın — `contain` görseli kenardan
+    // kenara sığdırıyor, bir tutam boşluk nefes aldırıyor.
+    padding: spacing.lg,
   },
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   statRow: { flexDirection: 'row' },
