@@ -133,13 +133,15 @@ export async function resizeForProcessing(
 }
 
 /**
- * Analiz (renk + sınıflandırma) için küçük kopya — ~256px PNG.
+ * Analiz (renk + sınıflandırma) için küçük kopya — ~512px PNG.
  *
  * PNG şart: arka planı silinmiş fotoğrafın ŞEFFAFLIĞI korunmalı, yoksa
- * renk analizi silinen arka planı da sayar. 256px'te piksel çözümü ~260KB
- * bellek kullanır (1200px'te ~5.7MB idi) — çökme riski biter.
+ * renk analizi silinen arka planı da sayar (UPNG.toRGBA8 alfayı korur).
+ * Boyut, iki ihtiyacın dengesi: PNG'yi saf JS'te çözmek pahalı (1200px'te
+ * 1.44M piksel, Hermes'te onlarca saniye), ama ML Kit etiketleme çok küçük
+ * görselde isabetini kaybediyor. 512px ≈ 262K piksel — yaklaşık 5 kat ucuz.
  */
-export async function resizeForAnalysis(uri: string, maxDim = 256): Promise<string> {
+export async function resizeForAnalysis(uri: string, maxDim = 512): Promise<string> {
   try {
     return await resizeTo(uri, maxDim, 'png');
   } catch {

@@ -9,6 +9,7 @@
 import { toByteArray } from 'base64-js';
 import UPNG from 'upng-js';
 
+import { withTimeout } from '@/services/async';
 import { colorIdFromPixels, nearestColorId } from '@/services/autotag';
 
 /**
@@ -40,9 +41,18 @@ export async function detectPhotoColor(
   if (first?.colorId) return first.colorId;
 
   // 2) Yedek: react-native-image-colors (JPEG vb. — şeffaflık yok, sorun değil)
+  //    Native çağrı bazı cihazlarda hiç dönmüyor; zaman sınırına bağla.
+  //    (Yukarıdaki PNG çözme saf JS olduğu için JS iş parçacığını bloklar —
+  //     ona withTimeout sarmak işe yaramaz, o yüzden yalnızca burada var.)
   try {
     const { getColors } = await import('react-native-image-colors');
-    const result = await getColors(imageUri, { fallback: '', cache: false });
+    const result = await withTimeout(
+      getColors(imageUri, { fallback: '', cache: false }),
+      8000,
+      null,
+      'renk tespiti (image-colors)',
+    );
+    if (!result) return null;
     let hex: string | undefined;
     if (result.platform === 'android') {
       hex = result.vibrant || result.dominant || result.average;

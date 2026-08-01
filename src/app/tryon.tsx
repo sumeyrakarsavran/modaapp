@@ -7,7 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemThumb } from '@/components/ItemThumb';
 import { Button, Card, SectionTitle } from '@/components/UI';
-import { photoFromParams, pickPhoto } from '@/services/photoPicker';
+import { resizeForProcessing } from '@/services/imageResize';
+import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
+import { persistGarmentPhoto } from '@/services/photoStore';
 import { runTryOn } from '@/services/tryon';
 import { useStore } from '@/store/useStore';
 import { colors, radius, spacing, type } from '@/theme';
@@ -26,7 +28,10 @@ async function toDataUri(uri: string): Promise<string> {
   }
   const FileSystem = await import('expo-file-system/legacy');
   const b64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' as any });
-  return `data:image/jpeg;base64,${b64}`;
+  // MIME tipi dosya uzantısından gelmeli: arka planı silinmiş PARÇA fotoğrafları
+  // PNG'dir (şeffaflık için). Hepsini "image/jpeg" diye etiketlemek yanlıştı.
+  const mime = uri.split('?')[0].toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+  return `data:${mime};base64,${b64}`;
 }
 
 export default function TryOn() {
@@ -47,12 +52,23 @@ export default function TryOn() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Model fotoğrafını küçültüp KALICI dizine kopyalar.
+   * Seçici/kamera önbellek dizinine yazar; Android önbelleği istediği an
+   * temizleyebilir ve fotoğraf ekrandan kaybolur. Küçültme ayrıca FASHN'a
+   * gidecek base64'ü de küçültür.
+   */
+  const saveModelPhoto = async (photo: PickedPhoto) => {
+    const small = await resizeForProcessing(photo.uri, photo.width, photo.height, 1400);
+    const saved = await persistGarmentPhoto(small).catch(() => small);
+    setModelUri(saved);
+    setResultUrl(undefined);
+  };
+
   /** Model fotoğrafı — kırpma açık (dikey kadraj), boydan duruş en iyi sonucu verir. */
   const pickModel = async (fromCamera = false) => {
     const photo = await pickPhoto({ fromCamera, aspect: [3, 4], quality: 0.9, purpose: 'model' });
-    if (!photo) return;
-    setModelUri(photo.uri);
-    setResultUrl(undefined);
+    if (photo) await saveModelPhoto(photo);
   };
 
   // Android'de süreç öldüyse kök layout model fotoğrafını parametreyle buraya yollar
@@ -62,8 +78,8 @@ export default function TryOn() {
     const photo = photoFromParams(params);
     if (!photo) return;
     recoveredRef.current = true;
-    setModelUri(photo.uri);
-    setResultUrl(undefined);
+    saveModelPhoto(photo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
   const garment = garments.find((g) => g.id === selectedGarment);
