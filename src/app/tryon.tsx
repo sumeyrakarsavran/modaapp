@@ -21,11 +21,11 @@ import { resizeForProcessing } from '@/services/imageResize';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
 import { persistGarmentPhoto, persistRemoteImage } from '@/services/photoStore';
 import {
-  applyEditorialLook,
   buildPrompt,
-  runOutfitTryOn,
-  type OutfitPiece,
-  type TryOnCategory,
+  runTryOnMax,
+  TRYON_CREDITS,
+  type TryOnMode,
+  type TryOnResolution,
 } from '@/services/tryon';
 import { useStore } from '@/store/useStore';
 import { colors, radius, spacing, type } from '@/theme';
@@ -65,13 +65,8 @@ async function modelSourceToDataUri(source: number): Promise<string> {
   return toDataUri(small);
 }
 
-/** Parçanın FASHN kategorisi. */
-function pieceCategory(item: WardrobeItem): TryOnCategory | null {
-  if (item.category === 'elbise') return 'one-pieces';
-  if (item.category === 'alt') return 'bottoms';
-  if (item.category === 'ust') return 'tops';
-  return null; // ayakkabı/aksesuar/iç giyim — FASHN try-on desteklemiyor
-}
+/** Kolajın yakalanacağı çözünürlük — FASHN'a gidecek ürün görseli. */
+const COLLAGE_PX = 1024;
 
 export default function TryOn() {
   const params = useLocalSearchParams<{ outfitId?: string }>();
@@ -86,6 +81,10 @@ export default function TryOn() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [resolution] = useState<TryOnResolution>('1k');
+  const [mode, setMode] = useState<TryOnMode>('fast');
+  /** Ekran dışında çizilen kombin kolajı — FASHN'a ürün görseli olarak gider. */
+  const collageRef = useRef<View>(null);
 
   /** Kendi model fotoğrafı — kalıcı kopya saklanır. */
   const saveOwnModel = async (photo: PickedPhoto) => {
@@ -119,12 +118,10 @@ export default function TryOn() {
         .filter(Boolean) as WardrobeItem[],
     [outfit, items],
   );
-  /** Yalnızca FASHN'ın giydirebildiği parçalar (üst/alt/elbise + fotoğraflı). */
-  const wearable = useMemo(
-    () => outfitItems.filter((i) => i.imageUri && pieceCategory(i)),
-    [outfitItems],
-  );
+  /** Kolaja girecek parçalar — fotoğrafı olanlar. */
+  const wearable = useMemo(() => outfitItems.filter((i) => i.imageUri), [outfitItems]);
   const skipped = outfitItems.length - wearable.length;
+  const credits = TRYON_CREDITS[mode][resolution];
 
   const run = async () => {
     const model = TRYON_MODELS.find((m) => m.id === modelId);
@@ -133,7 +130,7 @@ export default function TryOn() {
     setError(null);
     setResultUrl(undefined);
     try {
-      setStatus('Model hazırlanıyor…');
+      setStatus('Manken hazırlanıyor…');
       const modelImage = ownModelUri
         ? await toDataUri(ownModelUri)
         : model
@@ -141,34 +138,30 @@ export default function TryOn() {
           : null;
       if (!modelImage) throw new Error('Manken seçilmedi.');
 
-      setStatus('Kıyafetler hazırlanıyor…');
-      const pieces: OutfitPiece[] = [];
-      for (const it of wearable) {
-        pieces.push({
-          image: await toDataUri(it.imageUri as string),
-          category: pieceCategory(it) as TryOnCategory,
-          name: it.name,
-        });
-      }
+      // Kombin kolajını görsele çevir. tryon-max tek bir `product_image`
+      // alıyor ve kolajdaki parçaların hepsini birden giydiriyor — parçaları
+      // tek tek göndermeye (her biri ayrı çağrı = ayrı kredi) gerek yok.
+      setStatus('Kombin görseli hazırlanıyor…');
+      const { captureRef } = await import('react-native-view-shot');
+      const shot = await captureRef(collageRef, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+      });
+      const productImage = await toDataUri(shot);
 
-      // 1) Kombini sırayla giydir (FASHN tek çağrıda tek parça alıyor)
-      const dressed = await runOutfitTryOn(api.fashnKey, modelImage, pieces, setStatus);
-
-      // 2) Editoryal görünüm — prompt BURADA uygulanıyor; try-on modeli prompt almıyor.
-      setStatus('Editoryal görünüm uygulanıyor…');
-      const finalUrl = await applyEditorialLook(
+      setStatus('Giydiriliyor…');
+      const { outputUrl } = await runTryOnMax(
         api.fashnKey,
-        dressed.outputUrl,
+        modelImage,
+        productImage,
         buildPrompt(prompt),
+        { resolution, mode },
         setStatus,
-      ).then(
-        (r) => r.outputUrl,
-        // Editoryal adım başarısızsa giydirilmiş görseli kaybetme
-        () => dressed.outputUrl,
       );
 
       setStatus('Kaydediliyor…');
-      const saved = await persistRemoteImage(finalUrl).catch(() => finalUrl);
+      const saved = await persistRemoteImage(outputUrl).catch(() => outputUrl);
       setResultUrl(saved);
       addTryOn({
         imageUri: saved,
@@ -311,8 +304,7 @@ export default function TryOn() {
               )}
               {outfit && skipped > 0 ? (
                 <Text style={[type.tiny, { marginTop: spacing.sm }]}>
-                  {skipped} parça atlanacak — FASHN yalnızca üst, alt ve elbiseyi giydirebiliyor
-                  (ayakkabı/aksesuar desteklenmiyor).
+                  {skipped} parçanın fotoğrafı yok, kolaja girmeyecek.
                 </Text>
               ) : null}
 
@@ -329,8 +321,32 @@ export default function TryOn() {
                 Lüks editoryal yönerge (poz, ışık, stüdyo, kalite) her üretime otomatik ekleniyor.
               </Text>
 
+              <SectionTitle title="4 · Kalite" style={{ marginTop: spacing.xl }} />
+              <View style={styles.modeRow}>
+                {(['fast', 'balanced', 'quality'] as TryOnMode[]).map((m) => {
+                  const active = mode === m;
+                  const label = m === 'fast' ? 'Hızlı' : m === 'balanced' ? 'Dengeli' : 'Kaliteli';
+                  return (
+                    <Pressable
+                      key={m}
+                      onPress={() => setMode(m)}
+                      style={[styles.modeChip, active && styles.modeChipActive]}
+                    >
+                      <Text style={[styles.modeText, active && { color: '#fff' }]}>{label}</Text>
+                      <Text style={[styles.modeCredit, active && { color: '#fff' }]}>
+                        {TRYON_CREDITS[m][resolution]} kredi
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
               <Button
-                title={busy ? `Deneniyor…${status ? ` (${status})` : ''}` : '✨ Giydir'}
+                title={
+                  busy
+                    ? `Deneniyor…${status ? ` (${status})` : ''}`
+                    : `✨ Giydir · ${credits} kredi`
+                }
                 onPress={run}
                 disabled={!wearable.length || busy}
                 loading={busy}
@@ -355,6 +371,27 @@ export default function TryOn() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/*
+        FASHN'a gidecek ürün görseli: kombin kolajı, ekran DIŞINDA tam
+        çözünürlükte çiziliyor ve captureRef ile yakalanıyor.
+        - Beyaz zemin: `tryon-max` ürün fotoğrafı bekliyor, düz zemin en iyi sonucu veriyor.
+        - `collapsable={false}` Android'de ŞART: yoksa React Native görünümü
+          optimize edip kaldırıyor ve yakalanacak bir şey kalmıyor.
+        - Ekranda görünmesin diye konumlandırıldı; `opacity: 0` KULLANILMAZ,
+          bazı cihazlarda boş kare yakalanıyor.
+      */}
+      <View style={styles.offscreen} pointerEvents="none">
+        <View ref={collageRef} collapsable={false} style={styles.collage}>
+          <OutfitCollage
+            items={wearable}
+            size={COLLAGE_PX}
+            layout={outfit?.layout}
+            frame={outfit?.canvasFrame}
+            cropToContent={outfit?.cropToContent}
+          />
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -411,4 +448,20 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   resultImg: { width: 280, height: 380, borderRadius: radius.lg },
+  modeRow: { flexDirection: 'row', gap: spacing.sm },
+  modeChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  modeChipActive: { backgroundColor: colors.aquaDark, borderColor: colors.aquaDark },
+  modeText: { fontSize: 13, fontWeight: '700', color: colors.ink },
+  modeCredit: { fontSize: 11, color: colors.inkFaint },
+  /** Ekran dışı: yakalanacak kolaj burada tam boyutta çizilir. */
+  offscreen: { position: 'absolute', left: -COLLAGE_PX * 2, top: 0 },
+  collage: { width: COLLAGE_PX, height: COLLAGE_PX, backgroundColor: '#FFFFFF' },
 });

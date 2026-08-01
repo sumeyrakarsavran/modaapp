@@ -140,16 +140,19 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
   - Model dosyası `InferenceSession.create`'e **yol olarak** verilir, Uint8Array
     olarak değil — 6MB'ı JS belleğine okumaya gerek yok.
 - **FASHN sanal deneme (`services/tryon.ts`).** Doküman kontrolü (2026-08):
-  - `tryon-v1.6` **PROMPT KABUL ETMİYOR** — girdileri yalnızca model_image,
-    garment_image, category, mode, seed, num_samples, output_format. Editoryal
-    prompt bu yüzden ikinci bir çağrıyla (`background-change`) uygulanıyor;
-    o uç `prompt` alıyor ve kişiyi/kıyafeti koruyup sahneyi kuruyor.
-  - **Kombin SIRAYLA giydirilir**: üst giydirilir → çıkan görsel yeni
-    model_image olur → alt giydirilir. FASHN tek çağrıda tek parça alıyor;
-    kolaj görseli (birden çok kıyafet tek karede) göndermek sonucu bozuyor.
-    Yani N parçalı kombin = N+1 API çağrısı (+1 editoryal adım).
-  - FASHN yalnızca `tops` / `bottoms` / `one-pieces` giydirebiliyor —
-    ayakkabı, aksesuar ve iç giyim atlanır, arayüz bunu kullanıcıya söyler.
+  - Kullanılan model **`tryon-max`**: `product_image` + `model_image` + `prompt`.
+    `tryon-v1.6` PROMPT KABUL ETMİYOR, o yüzden kullanılmıyor.
+  - **Kombin KOLAJI tek `product_image` olarak gönderilir** — `tryon-max`
+    kolajdaki parçaların hepsini birden giydiriyor. Parçaları tek tek
+    göndermek (her biri ayrı çağrı = ayrı kredi) GEREKSİZ; kullanıcı bunu
+    FASHN web arayüzünde doğruladı.
+  - Kolaj ekranda yok, `tryon.tsx` içinde EKRAN DIŞINDA 1024px çiziliyor ve
+    `react-native-view-shot`'ın `captureRef`i ile yakalanıyor. Android'de
+    `collapsable={false}` ŞART (yoksa RN görünümü optimize edip kaldırır) ve
+    `opacity: 0` KULLANILMAZ (bazı cihazlarda boş kare yakalanıyor) — bunun
+    yerine görünüm ekran dışına konumlandırılır.
+  - Kredi: fast 1k = 1, balanced 1k = 2, quality 1k = 3 (× num_images).
+    Arayüz seçilen modun kredisini düğmede gösteriyor.
   - Hazır mankenler `assets/people/` (tam boy, beyaz zemin, beyaz iç katman).
     Kullanıcının kendi fotoğrafı ikincil seçenek: hazır mankenler tutarlı
     duruş/zemin sayesinde belirgin şekilde daha iyi sonuç veriyor.

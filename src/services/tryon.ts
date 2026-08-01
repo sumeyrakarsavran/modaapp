@@ -3,14 +3,15 @@
  * Ayarlar'dan FASHN API anahtarı girildiğinde aktifleşir.
  * https://docs.fashn.ai — POST /v1/run ile iş başlatılır, /v1/status/:id ile beklenir.
  *
- * ⚠️ `tryon-v1.6` PROMPT KABUL ETMİYOR (2026-08 doküman kontrolü). Girdileri
- * yalnızca: model_image, garment_image, category, mode, seed, num_samples…
- * Bu yüzden editoryal prompt, giydirme bittikten SONRA ayrı bir çağrıyla
- * (`background-change`) uygulanıyor — o uç prompt alıyor.
+ * Kullanılan model: **`tryon-max`**. `tryon-v1.6`'dan farkı:
+ *   - `prompt` KABUL EDİYOR (v1.6 etmiyor) — editoryal yönerge doğrudan gidiyor,
+ *     ikinci bir `background-change` çağrısına gerek kalmıyor.
+ *   - `product_image` olarak KOMBİN KOLAJI gönderilebiliyor; parçaları tek tek
+ *     giydirmeye (her parça = 1 çağrı = 1 kredi) gerek yok.
+ *   - Kredi: fast 1k = 1, balanced 1k = 2, quality 1k = 3 (num_images ile çarpılır).
+ *     v1.6 sabit 1 kredi/görsel ama prompt yok ve parça başına çağrı gerekiyordu.
  *
- * Kombin giydirme SIRAYLA yapılır: üst giydirilir, çıkan görsel yeni
- * model_image olur, sonra alt giydirilir. FASHN tek çağrıda tek parça alıyor;
- * kolaj görseli göndermek (birden çok kıyafet tek karede) sonucu bozuyor.
+ * Yani 2 parçalı bir kombin eskiden ~3-4 kredi ederken şimdi 1 çağrı / 1 kredi.
  */
 
 export interface TryOnResult {
@@ -104,79 +105,48 @@ async function runJob(
   throw new Error('FASHN zaman aşımı — lütfen tekrar dene.');
 }
 
-export type TryOnCategory = 'tops' | 'bottoms' | 'one-pieces' | 'auto';
+export type TryOnResolution = '1k' | '2k' | '4k';
+export type TryOnMode = 'fast' | 'balanced' | 'quality';
 
-/** Tek parça giydirme. */
-export async function runTryOn(
-  apiKey: string,
-  modelImage: string,
-  garmentImage: string,
-  category: TryOnCategory = 'auto',
-  onProgress?: (status: string) => void,
-): Promise<TryOnResult> {
-  const outputUrl = await runJob(
-    apiKey,
-    'tryon-v1.6',
-    { model_image: modelImage, garment_image: garmentImage, category, mode: 'quality' },
-    onProgress,
-  );
-  return { outputUrl };
-}
+/** Kredi tablosu (doküman, 2026-08): görsel başına, num_images ile çarpılır. */
+export const TRYON_CREDITS: Record<TryOnMode, Record<TryOnResolution, number>> = {
+  fast: { '1k': 1, '2k': 2, '4k': 3 },
+  balanced: { '1k': 2, '2k': 3, '4k': 4 },
+  quality: { '1k': 3, '2k': 4, '4k': 5 },
+};
 
-export interface OutfitPiece {
-  image: string;
-  category: TryOnCategory;
-  name: string;
+export interface TryOnMaxOptions {
+  resolution?: TryOnResolution;
+  mode?: TryOnMode;
 }
 
 /**
- * Kombini SIRAYLA giydirir: her adımın çıktısı bir sonraki adımın modeli olur.
- * FASHN tek çağrıda tek parça aldığı için kombin böyle giydirilir.
- */
-export async function runOutfitTryOn(
-  apiKey: string,
-  modelImage: string,
-  pieces: OutfitPiece[],
-  onProgress?: (status: string) => void,
-): Promise<TryOnResult> {
-  if (!pieces.length) throw new Error('Giydirilecek parça yok.');
-  // Elbise/tulum tek başına giyilir; yoksa önce üst, sonra alt.
-  const order: TryOnCategory[] = ['one-pieces', 'tops', 'bottoms'];
-  const sorted = [...pieces].sort(
-    (a, b) => order.indexOf(a.category) - order.indexOf(b.category),
-  );
-
-  let current = modelImage;
-  for (let i = 0; i < sorted.length; i++) {
-    const piece = sorted[i];
-    onProgress?.(`${piece.name} giydiriliyor (${i + 1}/${sorted.length})`);
-    current = await runJob(apiKey, 'tryon-v1.6', {
-      model_image: current,
-      garment_image: piece.image,
-      category: piece.category,
-      mode: 'quality',
-    });
-  }
-  return { outputUrl: current };
-}
-
-/**
- * Giydirilmiş görsele editoryal görünüm uygular.
+ * Kombin kolajını mankene giydirir — TEK çağrı.
  *
- * `tryon-v1.6` prompt almadığı için prompt BURADA devreye giriyor:
- * `background-change` görseldeki kişiyi ve kıyafeti koruyup sahneyi
- * prompta göre yeniden kuruyor (lüks stüdyo, ışık, renk).
+ * `product_image` olarak kombin kolajı (parçaların tek karede düz yerleşimi)
+ * gönderilir; `tryon-max` bunu çözüp hepsini birden giydiriyor. Parçaları tek
+ * tek giydirmeye (her biri ayrı çağrı = ayrı kredi) gerek yok.
  */
-export async function applyEditorialLook(
+export async function runTryOnMax(
   apiKey: string,
-  imageUrl: string,
+  modelImage: string,
+  productImage: string,
   prompt: string,
+  { resolution = '1k', mode = 'fast' }: TryOnMaxOptions = {},
   onProgress?: (status: string) => void,
 ): Promise<TryOnResult> {
   const outputUrl = await runJob(
     apiKey,
-    'background-change',
-    { image: imageUrl, prompt },
+    'tryon-max',
+    {
+      model_image: modelImage,
+      product_image: productImage,
+      prompt,
+      resolution,
+      generation_mode: mode,
+      num_images: 1,
+      output_format: 'png',
+    },
     onProgress,
   );
   return { outputUrl };
