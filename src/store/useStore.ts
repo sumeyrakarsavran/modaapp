@@ -66,6 +66,7 @@ interface BettaState {
 
   // sanal deneme
   addTryOn: (t: Omit<TryOnRecord, 'id' | 'createdAt'>) => void;
+  updateTryOn: (id: string, patch: Partial<TryOnRecord>) => void;
   deleteTryOn: (id: string) => void;
 
   // lookbooks
@@ -206,6 +207,8 @@ export const useStore = create<BettaState>()(
         set((s) => ({
           tryons: [{ ...t, id: uid(), createdAt: new Date().toISOString() }, ...s.tryons],
         })),
+      updateTryOn: (id, patch) =>
+        set((s) => ({ tryons: s.tryons.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
       deleteTryOn: (id) => set((s) => ({ tryons: s.tryons.filter((x) => x.id !== id) })),
 
       addLookbook: (lb) => {

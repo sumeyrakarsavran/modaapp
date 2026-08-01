@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -19,6 +19,7 @@ import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
+import { persistRemoteImage } from '@/services/photoStore';
 import { useStore } from '@/store/useStore';
 import { BETTA_ARCHETYPES, colors, radius, spacing, type } from '@/theme';
 import type { Category, WardrobeItem } from '@/types';
@@ -66,7 +67,7 @@ const SLOTS: Slot[] = [
 ];
 
 export default function Studio() {
-  const { items, outfits, addOutfit, pro, api, tryons, deleteTryOn } = useStore();
+  const { items, outfits, addOutfit, pro, api, tryons, updateTryOn, deleteTryOn } = useStore();
   const { width } = useWindowDimensions();
   const [mode, setMode] = useState<Mode>('dressme');
   const [indices, setIndices] = useState<Record<string, number>>({});
@@ -77,6 +78,25 @@ export default function Studio() {
     for (const s of SLOTS) if (s.defaultOff) init[s.key] = true;
     return init;
   });
+
+  /**
+   * Uzak URL'de kalmış sanal giydirmeleri onarır.
+   * FASHN çıktısı geçici bir CDN adresi; indirme sırasında bir hata olursa
+   * kayıt o adresle kalıyor ve görsel bir süre sonra kırılıyor. Galeri
+   * görününce sessizce yeniden indirip kalıcı kopyaya çeviriyoruz.
+   */
+  const repairing = useRef(new Set<string>());
+  useEffect(() => {
+    for (const t of tryons) {
+      if (!t.imageUri.startsWith('http') || repairing.current.has(t.id)) continue;
+      repairing.current.add(t.id);
+      persistRemoteImage(t.imageUri)
+        .then((uri) => updateTryOn(t.id, { imageUri: uri }))
+        .catch((e) => {
+          if ((globalThis as any).__DEV__) console.warn('[tryon onarım]', t.id, e);
+        });
+    }
+  }, [tryons, updateTryOn]);
 
   /** Sanal giydirme ızgarası: 3 sütun */
   const tryonCell = (Math.min(width, 700) - spacing.lg * 2 - spacing.sm * 2) / 3;
