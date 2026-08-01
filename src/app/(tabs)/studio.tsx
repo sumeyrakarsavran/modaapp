@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
-import { Button, Chip, EmptyState } from '@/components/UI';
+import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { useStore } from '@/store/useStore';
 import { BETTA_ARCHETYPES, colors, radius, spacing, type } from '@/theme';
 import type { Category, WardrobeItem } from '@/types';
@@ -64,7 +66,7 @@ const SLOTS: Slot[] = [
 ];
 
 export default function Studio() {
-  const { items, outfits, addOutfit, pro, api } = useStore();
+  const { items, outfits, addOutfit, pro, api, tryons, deleteTryOn } = useStore();
   const { width } = useWindowDimensions();
   const [mode, setMode] = useState<Mode>('dressme');
   const [indices, setIndices] = useState<Record<string, number>>({});
@@ -75,6 +77,21 @@ export default function Studio() {
     for (const s of SLOTS) if (s.defaultOff) init[s.key] = true;
     return init;
   });
+
+  /** Sanal giydirme ızgarası: 3 sütun */
+  const tryonCell = (Math.min(width, 700) - spacing.lg * 2 - spacing.sm * 2) / 3;
+
+  const confirmDeleteTryOn = (id: string) => {
+    const doDelete = () => deleteTryOn(id);
+    if (Platform.OS === 'web') {
+      if (window.confirm('Bu sanal giydirme silinsin mi?')) doDelete();
+    } else {
+      Alert.alert('Sil', 'Bu sanal giydirme silinsin mi?', [
+        { text: 'Vazgeç', style: 'cancel' },
+        { text: 'Sil', style: 'destructive', onPress: doDelete },
+      ]);
+    }
+  };
 
   const active = items.filter((i) => !i.archived);
   const pools = useMemo(() => {
@@ -264,6 +281,40 @@ export default function Studio() {
               />
             </View>
           )}
+
+          {/* Sanal giydirme çıktıları — görseller kalıcı kopya olarak saklanır */}
+          <SectionTitle
+            title={`🖼️ Sanal giydirmelerim${tryons.length ? ` · ${tryons.length}` : ''}`}
+            style={{ marginTop: spacing.md }}
+          />
+          {tryons.length === 0 ? (
+            <Text style={type.caption}>
+              Henüz sanal giydirme yok. Yukarıdan bir manken ve kombin seçip deneyince sonuçlar
+              burada birikir.
+            </Text>
+          ) : (
+            <View style={styles.tryonGrid}>
+              {tryons.map((t) => (
+                <Pressable
+                  key={t.id}
+                  onLongPress={() => confirmDeleteTryOn(t.id)}
+                  style={[styles.tryonCard, { width: tryonCell }]}
+                >
+                  <Image
+                    source={{ uri: t.imageUri }}
+                    style={{ width: '100%', height: tryonCell * 1.5, borderRadius: radius.md }}
+                    contentFit="cover"
+                  />
+                  <Text style={type.tiny} numberOfLines={1}>
+                    {t.outfitName ?? 'Kombin'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {tryons.length ? (
+            <Text style={type.tiny}>Silmek için bir görsele basılı tut.</Text>
+          ) : null}
         </ScrollView>
       ) : mode === 'dressme' ? (
         active.length === 0 ? (
@@ -417,6 +468,8 @@ export default function Studio() {
 }
 
 const styles = StyleSheet.create({
+  tryonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  tryonCard: { gap: 4 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

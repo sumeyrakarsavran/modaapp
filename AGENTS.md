@@ -139,6 +139,24 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
     izleyicisi ENOENT ile ÇÖKÜYOR ve uygulama açılış ekranında kalıyor.
   - Model dosyası `InferenceSession.create`'e **yol olarak** verilir, Uint8Array
     olarak değil — 6MB'ı JS belleğine okumaya gerek yok.
+- **FASHN sanal deneme (`services/tryon.ts`).** Doküman kontrolü (2026-08):
+  - `tryon-v1.6` **PROMPT KABUL ETMİYOR** — girdileri yalnızca model_image,
+    garment_image, category, mode, seed, num_samples, output_format. Editoryal
+    prompt bu yüzden ikinci bir çağrıyla (`background-change`) uygulanıyor;
+    o uç `prompt` alıyor ve kişiyi/kıyafeti koruyup sahneyi kuruyor.
+  - **Kombin SIRAYLA giydirilir**: üst giydirilir → çıkan görsel yeni
+    model_image olur → alt giydirilir. FASHN tek çağrıda tek parça alıyor;
+    kolaj görseli (birden çok kıyafet tek karede) göndermek sonucu bozuyor.
+    Yani N parçalı kombin = N+1 API çağrısı (+1 editoryal adım).
+  - FASHN yalnızca `tops` / `bottoms` / `one-pieces` giydirebiliyor —
+    ayakkabı, aksesuar ve iç giyim atlanır, arayüz bunu kullanıcıya söyler.
+  - Hazır mankenler `assets/people/` (tam boy, beyaz zemin, beyaz iç katman).
+    Kullanıcının kendi fotoğrafı ikincil seçenek: hazır mankenler tutarlı
+    duruş/zemin sayesinde belirgin şekilde daha iyi sonuç veriyor.
+  - **Çıktı URL'i GEÇİCİ** — `persistRemoteImage` ile belge dizinine indirilip
+    saklanıyor, yoksa "Sanal giydirmelerim" bir süre sonra kırık görsele döner.
+  - Prompt için doküman karakter sınırı YAYINLAMIYOR; metin kısaltılmadan
+    gönderiliyor (`EDITORIAL_PROMPT`).
 - **Kategoriler modelin grup listesiyle hizalı** (`ust/alt/elbise/ic/ayakkabi/aksesuar`).
   Eski ayrı `dis` kategorisi KALDIRILDI; dış giyim artık `OUTER_SUBCATEGORY`
   (`jacket`) alt türü. Stüdyodaki dış giyim katmanı ve stilistin katmanlama

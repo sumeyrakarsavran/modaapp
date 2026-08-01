@@ -144,7 +144,7 @@ export default function ItemDetail() {
             variant="dark"
             onPress={() =>
               pro
-                ? router.push({ pathname: '/tryon', params: { itemId: item.id } })
+                ? router.push('/tryon')
                 : router.push('/pro')
             }
             style={{ marginTop: spacing.md }}

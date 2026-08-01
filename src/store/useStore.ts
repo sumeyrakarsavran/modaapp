@@ -12,6 +12,7 @@ import type {
   PlanEntry,
   Profile,
   Selfie,
+  TryOnRecord,
   WardrobeItem,
 } from '@/types';
 import { OUTER_SUBCATEGORY, todayISO, uid } from '@/types';
@@ -22,6 +23,8 @@ interface BettaState {
   plans: PlanEntry[];
   selfies: Selfie[];
   lookbooks: Lookbook[];
+  /** Sanal deneme çıktıları (Stüdyo → AI → Sanal giydirmelerim) */
+  tryons: TryOnRecord[];
   posts: CommunityPost[];
   followedIds: string[];
   profile: Profile;
@@ -61,6 +64,10 @@ interface BettaState {
   addSelfie: (selfie: Omit<Selfie, 'id' | 'createdAt'>) => void;
   deleteSelfie: (id: string) => void;
 
+  // sanal deneme
+  addTryOn: (t: Omit<TryOnRecord, 'id' | 'createdAt'>) => void;
+  deleteTryOn: (id: string) => void;
+
   // lookbooks
   addLookbook: (lb: Omit<Lookbook, 'id' | 'createdAt'>) => Lookbook;
   updateLookbook: (id: string, patch: Partial<Lookbook>) => void;
@@ -97,6 +104,7 @@ export const useStore = create<BettaState>()(
       plans: [],
       selfies: [],
       lookbooks: [],
+      tryons: [],
       posts: SEED_POSTS,
       followedIds: ['mira', 'luna'],
       profile: emptyProfile,
@@ -193,6 +201,12 @@ export const useStore = create<BettaState>()(
           selfies: [{ ...selfie, id: uid(), createdAt: new Date().toISOString() }, ...s.selfies],
         })),
       deleteSelfie: (id) => set((s) => ({ selfies: s.selfies.filter((x) => x.id !== id) })),
+
+      addTryOn: (t) =>
+        set((s) => ({
+          tryons: [{ ...t, id: uid(), createdAt: new Date().toISOString() }, ...s.tryons],
+        })),
+      deleteTryOn: (id) => set((s) => ({ tryons: s.tryons.filter((x) => x.id !== id) })),
 
       addLookbook: (lb) => {
         const full: Lookbook = { ...lb, id: uid(), createdAt: new Date().toISOString() };

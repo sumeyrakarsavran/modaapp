@@ -223,6 +223,22 @@ export interface Lookbook {
 /** Topluluk gönderilerinde kıyafetler spec olarak tutulur. Kendi paylaşımında
  * gerçek fotoğraf (imageUri) ve canvas yerleşimi (layout) de saklanır; böylece
  * gönderi, kombin/canvas'ta oluşturulduğu düzenin aynısıyla gösterilir. */
+/**
+ * Sanal deneme çıktısı. FASHN'ın döndürdüğü URL geçicidir, bu yüzden görsel
+ * indirilip belge dizinine kopyalanır ve `imageUri` o kalıcı kopyayı gösterir.
+ */
+export interface TryOnRecord {
+  id: string;
+  imageUri: string;
+  /** Hangi hazır manken kullanıldı (TRYON_MODELS id'si) */
+  modelId?: string;
+  outfitId?: string;
+  outfitName?: string;
+  /** Kullanıcının yazdığı ek yönerge (sabit editoryal metin hariç) */
+  prompt?: string;
+  createdAt: string;
+}
+
 export interface GarmentSpec {
   category: Category;
   /** Alt tür id'si — silüet çiziminde dış giyimi ayırt etmek için. */

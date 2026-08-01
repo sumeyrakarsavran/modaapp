@@ -8,6 +8,22 @@ import { uid } from '@/types';
  *   silinebilir; belge dizini uygulamayla birlikte yaşar).
  * - Web: data URI'ye çevrilir (store ile birlikte localStorage'da saklanır).
  */
+/**
+ * Uzaktaki bir görseli (ör. FASHN çıktısı) KALICI olarak indirir.
+ * FASHN'ın döndürdüğü URL geçicidir; kaydetmezsek sanal deneme sonuçları
+ * bir süre sonra kırık görsele döner.
+ */
+export async function persistRemoteImage(url: string): Promise<string> {
+  if (Platform.OS === 'web') return url;
+  const FileSystem = await import('expo-file-system/legacy');
+  const dir = `${FileSystem.documentDirectory}tryons/`;
+  await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+  const ext = /\.png(\?|$)/i.test(url) ? 'png' : 'jpg';
+  const dest = `${dir}tryon-${uid()}.${ext}`;
+  const res = await FileSystem.downloadAsync(url, dest);
+  return res.uri;
+}
+
 export async function persistGarmentPhoto(uri: string): Promise<string> {
   if (Platform.OS === 'web') {
     if (uri.startsWith('data:')) return uri;
