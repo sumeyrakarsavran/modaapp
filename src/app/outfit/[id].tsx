@@ -3,14 +3,15 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
   useWindowDimensions,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -97,148 +98,150 @@ export default function OutfitDetail() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 50 }}>
-        {editingName ? (
-          <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              style={styles.nameInput}
-              autoFocus
-              onSubmitEditing={() => {
-                updateOutfit(outfit.id, { name: name.trim() || outfit.name });
-                setEditingName(false);
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 50 }}>
+          {editingName ? (
+            <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                style={styles.nameInput}
+                autoFocus
+                onSubmitEditing={() => {
+                  updateOutfit(outfit.id, { name: name.trim() || outfit.name });
+                  setEditingName(false);
+                }}
+              />
+              <Button
+                small
+                title="Tamam"
+                onPress={() => {
+                  updateOutfit(outfit.id, { name: name.trim() || outfit.name });
+                  setEditingName(false);
+                }}
+              />
+            </View>
+          ) : (
+            <Pressable onPress={() => setEditingName(true)}>
+              <Text style={type.display}>
+                {outfit.name} <Text style={{ fontSize: 16 }}>✏️</Text>
+              </Text>
+            </Pressable>
+          )}
+
+          {arch ? (
+            <View style={{ flexDirection: 'row', marginTop: spacing.sm }}>
+              <Chip label={`${arch.emoji} ${arch.fish} · ${arch.styleName} stil`} color={arch.color} active />
+            </View>
+          ) : null}
+
+          <View style={{ alignItems: 'center', marginTop: spacing.lg }}>
+            <OutfitCollage
+              items={its}
+              size={Math.min(width - spacing.lg * 2, 360)}
+              layout={outfit.layout}
+              frame={outfit.canvasFrame}
+              cropToContent={outfit.cropToContent}
+            />
+          </View>
+
+          <Card style={{ marginTop: spacing.lg }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={type.title}>{its.length}</Text>
+                <Text style={type.tiny}>parça</Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={type.title}>{outfit.wearDates.length}</Text>
+                <Text style={type.tiny}>kez giyildi</Text>
+              </View>
+            </View>
+          </Card>
+
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, flexWrap: 'wrap' }}>
+            <Button
+              small
+              title={wornToday ? '✔ Bugün giyildi' : '✔ Bugün giydim'}
+              disabled={wornToday}
+              onPress={() => wearOutfit(outfit.id)}
+            />
+            <Button
+              small
+              variant="secondary"
+              title="📅 Bugüne planla"
+              onPress={() => {
+                setPlan({ date: todayISO(), outfitId: outfit.id });
+                router.push('/(tabs)/today');
               }}
             />
             <Button
               small
-              title="Tamam"
-              onPress={() => {
-                updateOutfit(outfit.id, { name: name.trim() || outfit.name });
-                setEditingName(false);
-              }}
+              variant="dark"
+              title={shared ? '✔ Paylaşıldı' : '🌊 Toplulukta paylaş'}
+              disabled={shared}
+              onPress={() => setShareOpen(true)}
             />
-          </View>
-        ) : (
-          <Pressable onPress={() => setEditingName(true)}>
-            <Text style={type.display}>
-              {outfit.name} <Text style={{ fontSize: 16 }}>✏️</Text>
-            </Text>
-          </Pressable>
-        )}
-
-        {arch ? (
-          <View style={{ flexDirection: 'row', marginTop: spacing.sm }}>
-            <Chip label={`${arch.emoji} ${arch.fish} · ${arch.styleName} stil`} color={arch.color} active />
-          </View>
-        ) : null}
-
-        <View style={{ alignItems: 'center', marginTop: spacing.lg }}>
-          <OutfitCollage
-            items={its}
-            size={Math.min(width - spacing.lg * 2, 360)}
-            layout={outfit.layout}
-            frame={outfit.canvasFrame}
-            cropToContent={outfit.cropToContent}
-          />
-        </View>
-
-        <Card style={{ marginTop: spacing.lg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={type.title}>{its.length}</Text>
-              <Text style={type.tiny}>parça</Text>
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={type.title}>{outfit.wearDates.length}</Text>
-              <Text style={type.tiny}>kez giyildi</Text>
-            </View>
-          </View>
-        </Card>
-
-        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, flexWrap: 'wrap' }}>
-          <Button
-            small
-            title={wornToday ? '✔ Bugün giyildi' : '✔ Bugün giydim'}
-            disabled={wornToday}
-            onPress={() => wearOutfit(outfit.id)}
-          />
-          <Button
-            small
-            variant="secondary"
-            title="📅 Bugüne planla"
-            onPress={() => {
-              setPlan({ date: todayISO(), outfitId: outfit.id });
-              router.push('/(tabs)/today');
-            }}
-          />
-          <Button
-            small
-            variant="dark"
-            title={shared ? '✔ Paylaşıldı' : '🌊 Toplulukta paylaş'}
-            disabled={shared}
-            onPress={() => setShareOpen(true)}
-          />
-          <Button
-            small
-            variant="ghost"
-            title="📖 Lookbook'a ekle"
-            onPress={() => setLbPickerOpen(true)}
-          />
-        </View>
-
-        {/* Lookbook seçici */}
-        {lbPickerOpen ? (
-          <Card style={{ marginTop: spacing.md }}>
-            <Text style={type.subtitle}>Hangi lookbook'a?</Text>
-            {lookbooks.length === 0 ? (
-              <Text style={[type.caption, { marginTop: spacing.sm }]}>
-                Henüz lookbook yok — Gardırop → Lookbook'lar bölümünden oluşturabilirsin.
-              </Text>
-            ) : (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }}>
-                {lookbooks.map((lb) => {
-                  const inside = lb.outfitIds.includes(outfit.id);
-                  return (
-                    <Chip
-                      key={lb.id}
-                      label={`${lb.emoji} ${lb.name}${inside ? ' ✔' : ''}`}
-                      active={inside}
-                      onPress={() =>
-                        updateLookbook(lb.id, {
-                          outfitIds: inside
-                            ? lb.outfitIds.filter((x) => x !== outfit.id)
-                            : [...lb.outfitIds, outfit.id],
-                        })
-                      }
-                    />
-                  );
-                })}
-              </View>
-            )}
             <Button
               small
               variant="ghost"
-              title="Kapat"
-              onPress={() => setLbPickerOpen(false)}
-              style={{ marginTop: spacing.sm, alignSelf: 'flex-start' }}
+              title="📖 Lookbook'a ekle"
+              onPress={() => setLbPickerOpen(true)}
             />
-          </Card>
-        ) : null}
+          </View>
 
-        <Text style={[type.subtitle, { marginTop: spacing.xl, marginBottom: spacing.sm }]}>Parçalar</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          {its.map((i) => (
-            <ItemThumb
-              key={i.id}
-              item={i}
-              size={90}
-              showName
-              onPress={() => router.push({ pathname: '/item/[id]', params: { id: i.id } })}
-            />
-          ))}
-        </View>
-      </ScrollView>
+          {/* Lookbook seçici */}
+          {lbPickerOpen ? (
+            <Card style={{ marginTop: spacing.md }}>
+              <Text style={type.subtitle}>Hangi lookbook'a?</Text>
+              {lookbooks.length === 0 ? (
+                <Text style={[type.caption, { marginTop: spacing.sm }]}>
+                  Henüz lookbook yok — Gardırop → Lookbook'lar bölümünden oluşturabilirsin.
+                </Text>
+              ) : (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }}>
+                  {lookbooks.map((lb) => {
+                    const inside = lb.outfitIds.includes(outfit.id);
+                    return (
+                      <Chip
+                        key={lb.id}
+                        label={`${lb.emoji} ${lb.name}${inside ? ' ✔' : ''}`}
+                        active={inside}
+                        onPress={() =>
+                          updateLookbook(lb.id, {
+                            outfitIds: inside
+                              ? lb.outfitIds.filter((x) => x !== outfit.id)
+                              : [...lb.outfitIds, outfit.id],
+                          })
+                        }
+                      />
+                    );
+                  })}
+                </View>
+              )}
+              <Button
+                small
+                variant="ghost"
+                title="Kapat"
+                onPress={() => setLbPickerOpen(false)}
+                style={{ marginTop: spacing.sm, alignSelf: 'flex-start' }}
+              />
+            </Card>
+          ) : null}
+
+          <Text style={[type.subtitle, { marginTop: spacing.xl, marginBottom: spacing.sm }]}>Parçalar</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+            {its.map((i) => (
+              <ItemThumb
+                key={i.id}
+                item={i}
+                size={90}
+                showName
+                onPress={() => router.push({ pathname: '/item/[id]', params: { id: i.id } })}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <ShareModal
         visible={shareOpen}

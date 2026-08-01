@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -12,10 +13,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
   useWindowDimensions,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
@@ -39,6 +40,8 @@ export default function Wardrobe() {
     addSelfie, deleteSelfie, addLookbook, sharePost,
   } = useStore();
   const { width } = useWindowDimensions();
+  // Lookbook modalı alt sistem çubuğunun altında kalmasın
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const [section, setSection] = useState<Section>('parcalar');
 
@@ -426,9 +429,21 @@ export default function Wardrobe() {
       </Modal>
 
       {/* Lookbook oluşturma modalı */}
-      <Modal visible={lbModal} animationType="slide" transparent onRequestClose={() => setLbModal(false)}>
-        <View style={styles.modalWrap}>
-          <View style={styles.lbModal}>
+      {/*
+        `edgeToEdgeEnabled=true` iken sistem pencereyi klavye için yeniden
+        boyutlandırmaz; `autoFocus` ile klavye hemen açıldığı için yazı alanı
+        ve "Oluştur" düğmesi klavyenin altında kalıyordu.
+      */}
+      <Modal
+        visible={lbModal}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setLbModal(false)}
+      >
+        <KeyboardAvoidingView style={styles.modalWrap} behavior="padding">
+          <View style={[styles.lbModal, { paddingBottom: spacing.lg + insets.bottom }]}>
             <SectionTitle title="Yeni lookbook" right={<Chip label="Kapat" onPress={() => setLbModal(false)} />} />
             <TextInput
               value={lbName}
@@ -451,7 +466,7 @@ export default function Wardrobe() {
             </View>
             <Button title="Oluştur" onPress={createLookbook} disabled={!lbName.trim()} style={{ marginTop: spacing.lg }} />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <ShareModal

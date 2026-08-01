@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -10,8 +11,8 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
   useWindowDimensions,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -111,92 +112,94 @@ export default function LookbookDetail() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 50 }}>
-        {editingName ? (
-          <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              style={styles.nameInput}
-              autoFocus
-              onSubmitEditing={() => {
-                updateLookbook(lb.id, { name: name.trim() || lb.name });
-                setEditingName(false);
-              }}
-            />
-            <Button
-              small
-              title="Tamam"
-              onPress={() => {
-                updateLookbook(lb.id, { name: name.trim() || lb.name });
-                setEditingName(false);
-              }}
-            />
-          </View>
-        ) : (
-          <Pressable onPress={() => setEditingName(true)}>
-            <Text style={type.display}>
-              {lb.emoji} {lb.name} <Text style={{ fontSize: 16 }}>✏️</Text>
-            </Text>
-          </Pressable>
-        )}
-        <Text style={type.caption}>{lb.outfitIds.length} kombin</Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 50 }}>
+          {editingName ? (
+            <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                style={styles.nameInput}
+                autoFocus
+                onSubmitEditing={() => {
+                  updateLookbook(lb.id, { name: name.trim() || lb.name });
+                  setEditingName(false);
+                }}
+              />
+              <Button
+                small
+                title="Tamam"
+                onPress={() => {
+                  updateLookbook(lb.id, { name: name.trim() || lb.name });
+                  setEditingName(false);
+                }}
+              />
+            </View>
+          ) : (
+            <Pressable onPress={() => setEditingName(true)}>
+              <Text style={type.display}>
+                {lb.emoji} {lb.name} <Text style={{ fontSize: 16 }}>✏️</Text>
+              </Text>
+            </Pressable>
+          )}
+          <Text style={type.caption}>{lb.outfitIds.length} kombin</Text>
 
-        <TextInput
-          value={desc}
-          onChangeText={setDesc}
-          onEndEditing={() => updateLookbook(lb.id, { description: desc.trim() || undefined })}
-          onBlur={() => updateLookbook(lb.id, { description: desc.trim() || undefined })}
-          placeholder="Açıklama ekle… (örn. plaj günleri için)"
-          placeholderTextColor={colors.inkFaint}
-          style={styles.descInput}
-          multiline
-        />
-
-        <SectionTitle
-          title="Kombinler"
-          style={{ marginTop: spacing.lg }}
-          right={<Chip label="+ Kombin ekle" color={colors.aqua} active onPress={() => setPickerOpen(true)} />}
-        />
-
-        {lbOutfits.length === 0 ? (
-          <EmptyState
-            emoji="📖"
-            title="Bu lookbook boş"
-            message="Kombinlerini ekleyerek temanı oluştur."
-            action={<Button small title="+ Kombin ekle" onPress={() => setPickerOpen(true)} />}
+          <TextInput
+            value={desc}
+            onChangeText={setDesc}
+            onEndEditing={() => updateLookbook(lb.id, { description: desc.trim() || undefined })}
+            onBlur={() => updateLookbook(lb.id, { description: desc.trim() || undefined })}
+            placeholder="Açıklama ekle… (örn. plaj günleri için)"
+            placeholderTextColor={colors.inkFaint}
+            style={styles.descInput}
+            multiline
           />
-        ) : (
-          <View style={styles.grid}>
-            {lbOutfits.map((o) => (
-              <View key={o.id} style={{ width: (width - spacing.lg * 3) / 2 }}>
-                <Pressable onPress={() => router.push({ pathname: '/outfit/[id]', params: { id: o.id } })}>
-                  <OutfitCollage
-                    items={itemsOf(o.itemIds)}
-                    size={(width - spacing.lg * 3) / 2}
-                    layout={o.layout}
-                    frame={o.canvasFrame}
-                    cropToContent={o.cropToContent}
-                  />
-                </Pressable>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={[type.caption, { flex: 1 }]} numberOfLines={1}>
-                    {o.name}
-                  </Text>
-                  <Pressable
-                    onPress={() =>
-                      updateLookbook(lb.id, { outfitIds: lb.outfitIds.filter((x) => x !== o.id) })
-                    }
-                    hitSlop={8}
-                  >
-                    <Ionicons name="close-circle" size={18} color={colors.inkFaint} />
+
+          <SectionTitle
+            title="Kombinler"
+            style={{ marginTop: spacing.lg }}
+            right={<Chip label="+ Kombin ekle" color={colors.aqua} active onPress={() => setPickerOpen(true)} />}
+          />
+
+          {lbOutfits.length === 0 ? (
+            <EmptyState
+              emoji="📖"
+              title="Bu lookbook boş"
+              message="Kombinlerini ekleyerek temanı oluştur."
+              action={<Button small title="+ Kombin ekle" onPress={() => setPickerOpen(true)} />}
+            />
+          ) : (
+            <View style={styles.grid}>
+              {lbOutfits.map((o) => (
+                <View key={o.id} style={{ width: (width - spacing.lg * 3) / 2 }}>
+                  <Pressable onPress={() => router.push({ pathname: '/outfit/[id]', params: { id: o.id } })}>
+                    <OutfitCollage
+                      items={itemsOf(o.itemIds)}
+                      size={(width - spacing.lg * 3) / 2}
+                      layout={o.layout}
+                      frame={o.canvasFrame}
+                      cropToContent={o.cropToContent}
+                    />
                   </Pressable>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={[type.caption, { flex: 1 }]} numberOfLines={1}>
+                      {o.name}
+                    </Text>
+                    <Pressable
+                      onPress={() =>
+                        updateLookbook(lb.id, { outfitIds: lb.outfitIds.filter((x) => x !== o.id) })
+                      }
+                      hitSlop={8}
+                    >
+                      <Ionicons name="close-circle" size={18} color={colors.inkFaint} />
+                    </Pressable>
+                  </View>
                 </View>
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Kombin seçici */}
       <Modal visible={pickerOpen} animationType="slide" transparent onRequestClose={() => setPickerOpen(false)}>
