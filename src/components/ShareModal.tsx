@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   ScrollView,
@@ -8,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Chip, SectionTitle } from '@/components/UI';
 import { colors, radius, spacing, type } from '@/theme';
@@ -27,24 +29,49 @@ export function ShareModal({
   preview?: React.ReactNode;
 }) {
   const [text, setText] = useState(defaultCaption);
+  const insets = useSafeAreaInsets();
+  const [keyboardUp, setKeyboardUp] = useState(false);
 
   // Modal her açıldığında öneri metnini tazele
   useEffect(() => {
     if (visible) setText(defaultCaption);
   }, [visible, defaultCaption]);
 
+  // Alt boşluk: klavye AÇIKKEN insets.bottom ekleme — KeyboardAvoidingView'in
+  // eklediği klavye yüksekliği alt çubuğu zaten kapsıyor, yoksa çift sayılır.
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardUp(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardUp(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.wrap}
-        behavior="padding"
-      >
-        <View style={styles.card}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView style={styles.wrap} behavior="padding">
+        <View
+          style={[styles.card, { paddingBottom: spacing.lg + (keyboardUp ? 0 : insets.bottom) }]}
+        >
           <SectionTitle
             title="🌊 Toplulukta paylaş"
             right={<Chip label="Kapat" onPress={onClose} />}
           />
-          <ScrollView keyboardShouldPersistTaps="handled">
+          {/*
+            flexShrink: 1 ŞART. Kart `maxHeight: '85%'` ile sınırlı; klavye
+            açılınca kullanılabilir alan daralıyor ve sınırsız ScrollView
+            büyüyüp altındaki "Paylaş" düğmesini kartın dışına itiyordu.
+            (Stilistteki hızlı öneri çubuğunda da aynı hata vardı.)
+          */}
+          <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled">
             {preview ? (
               <View style={{ alignItems: 'center', marginBottom: spacing.md }}>{preview}</View>
             ) : null}
@@ -79,7 +106,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
+    // paddingBottom satır içinde veriliyor (güvenli alan + klavye durumu)
     maxHeight: '85%',
   },
   label: {
