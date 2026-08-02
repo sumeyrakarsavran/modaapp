@@ -287,10 +287,16 @@ export function PostCard({
             <View style={styles.setGrid}>
               {post.outfitSets.slice(0, 4).map((set, i) => (
                 <View key={i} style={styles.setCell}>
+                  {/*
+                    `garments ?? []`: eski kayıtlarda outfitSets düz
+                    GarmentSpec[][] idi. Store migrate'i sarıyor ama
+                    migrate'ten önce yazılmış/elle taşınmış kayıt akışı
+                    çökertmesin.
+                  */}
                   <FluidSpecCollage
-                    garments={set.garments}
-                    frame={set.canvasFrame}
-                    cropToContent={set.cropToContent}
+                    garments={set?.garments ?? (Array.isArray(set) ? set : [])}
+                    frame={set?.canvasFrame}
+                    cropToContent={set?.cropToContent}
                   />
                 </View>
               ))}

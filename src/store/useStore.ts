@@ -308,16 +308,32 @@ export const useStore = create<BettaState>()(
        * "Üst giyim" grubunda tutuyor. Kayıtlı parçalar `ust` kategorisine
        * taşınır ve dış giyim ayrımı `jacket` ALT TÜRÜ olarak korunur, yoksa
        * eski parçalar geçersiz bir kategoriye işaret edip listelerden düşerdi.
+       *
+       * v3: lookbook gönderilerindeki `outfitSets` düz `GarmentSpec[][]` iken
+       * `{ garments, canvasFrame, cropToContent }` nesnesine geçti (canvas
+       * düzeni kombin başına saklanabilsin diye). Eski kayıtlar sarılmazsa
+       * `set.garments` undefined kalıp akış çöküyor.
        */
-      version: 2,
+      version: 3,
       migrate: (persisted, from) => {
-        const state = persisted as { items?: { category: string; subcategory?: string }[] };
+        const state = persisted as {
+          items?: { category: string; subcategory?: string }[];
+          posts?: { outfitSets?: unknown[] }[];
+        };
         if (from < 2 && Array.isArray(state?.items)) {
           for (const item of state.items) {
             if (item.category === 'dis') {
               item.category = 'ust';
               item.subcategory = item.subcategory ?? OUTER_SUBCATEGORY;
             }
+          }
+        }
+        if (from < 3 && Array.isArray(state?.posts)) {
+          for (const post of state.posts) {
+            if (!Array.isArray(post?.outfitSets)) continue;
+            post.outfitSets = post.outfitSets.map((set) =>
+              Array.isArray(set) ? { garments: set } : set,
+            );
           }
         }
         return state as never;
