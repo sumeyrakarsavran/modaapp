@@ -160,6 +160,39 @@ function Backdrop() {
   );
 }
 
+/**
+ * Parlak kart: opak beyaz zemin + içeride köşegen ışık geçişi.
+ *
+ * Geçiş kartın KENDİ zemini olarak değil, AYRI bir katman olarak çiziliyor ve
+ * kırpma (`overflow`) yerine katmana aynı `borderRadius` veriliyor — çünkü
+ * gölge (elevation) veren View'a `overflow: 'hidden'` eklenince Android'de
+ * çocuklar hiç çizilmiyor. Kart zemini de opak kalmalı: yarı saydam olunca
+ * elevation gölgesi kartın içine beyaz dikdörtgen olarak sızıyor.
+ */
+function LuxeCard({
+  children,
+  accent,
+  style,
+}: {
+  children: React.ReactNode;
+  /** Vurgulu kart (stilistin önerisi) — şeftali tarafa çalar. */
+  accent?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View style={[styles.card, accent && styles.cardAccent, style]}>
+      <LinearGradient
+        colors={accent ? ['#FFF6EF', '#FFEADF'] : ['#FFFFFF', '#FFF6F1']}
+        start={{ x: 0.15, y: 0 }}
+        end={{ x: 0.85, y: 1 }}
+        style={styles.cardSheen}
+        pointerEvents="none"
+      />
+      {children}
+    </View>
+  );
+}
+
 /** İnce, iki ucu sönümlenen ayraç (örnekteki `fin-divider`). */
 function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
   return (
@@ -445,6 +478,13 @@ export default function Today() {
           </View>
         ) : (
           <View style={styles.heroEmpty}>
+            <LinearGradient
+              colors={['#FFF9F4', '#FFEDE4']}
+              start={{ x: 0.15, y: 0 }}
+              end={{ x: 0.85, y: 1 }}
+              style={styles.heroEmptySheen}
+              pointerEvents="none"
+            />
             <Text style={[luxeType.label, { color: luxe.primary }]}>{selectedLabel}</Text>
             <Text style={[luxeType.headline, { marginTop: 6 }]}>Bu gün için plan yok</Text>
             <Text style={[luxeType.body, { marginTop: 6 }]}>
@@ -459,7 +499,7 @@ export default function Today() {
 
         {/* Stilistin önerisi */}
         {suggestion && suggestedItems.length ? (
-          <View style={[styles.card, styles.cardAccent]}>
+          <LuxeCard accent>
             <Text style={[luxeType.label, { color: luxe.primary }]}>Stilistin önerisi</Text>
             <ScrollView
               horizontal
@@ -476,11 +516,11 @@ export default function Today() {
               <LuxeButton variant="outline" title="🎲 Başka öner" onPress={shuffle} />
               <LuxeButton variant="outline" title="Vazgeç" onPress={() => setSuggestion(null)} />
             </View>
-          </View>
+          </LuxeCard>
         ) : null}
 
         {/* Stil raporu (hava durumu) */}
-        <View style={styles.card}>
+        <LuxeCard>
           <View style={styles.forecastHead}>
             <Text style={{ fontSize: 30 }}>
               {todayWeather ? weatherEmoji(todayWeather.weatherCode) : '🌤️'}
@@ -544,11 +584,18 @@ export default function Today() {
           {askCity && hasLocation && todayWeather ? (
             <View style={{ marginTop: 14 }}>{cityForm('Yeni şehir')}</View>
           ) : null}
-        </View>
+        </LuxeCard>
 
 
         {/* AI stilist */}
         <View style={styles.stylist}>
+          <LinearGradient
+            colors={['#FFF7F1', '#FFE7DA']}
+            start={{ x: 0.15, y: 0 }}
+            end={{ x: 0.85, y: 1 }}
+            style={styles.heroEmptySheen}
+            pointerEvents="none"
+          />
           <View style={styles.stylistGlow} pointerEvents="none" />
           <Text style={luxeType.headline}>AI Stilist'e danış</Text>
           <Text style={[luxeType.body, { marginTop: 8 }]}>
@@ -563,7 +610,7 @@ export default function Today() {
 
         {/* Gardırop boşsa */}
         {activeItems.length === 0 ? (
-          <View style={[styles.card, { alignItems: 'center' }]}>
+          <LuxeCard style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 34 }}>🐟</Text>
             <Text style={[luxeType.headline, { marginTop: 8 }]}>Gardırobun bomboş</Text>
             <Text style={[luxeType.body, { textAlign: 'center', marginTop: 6 }]}>
@@ -574,7 +621,7 @@ export default function Today() {
               onPress={() => router.push('/item/new')}
               style={{ marginTop: 14 }}
             />
-          </View>
+          </LuxeCard>
         ) : null}
       </ScrollView>
 
@@ -731,6 +778,14 @@ const styles = StyleSheet.create({
     borderColor: luxe.primaryContainer,
     padding: 22,
   },
+  heroEmptySheen: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: luxeRadius.xl,
+  },
 
   // Kartlar
   card: {
@@ -742,9 +797,21 @@ const styles = StyleSheet.create({
     */
     backgroundColor: '#FFFCFB',
     borderWidth: 1,
-    borderColor: luxe.outlineSoft,
+    borderColor: 'rgba(227,192,160,0.5)',
     padding: 18,
     ...luxeShadow.card,
+    shadowOpacity: 0.12,
+    shadowRadius: 22,
+    elevation: 3,
+  },
+  /** İçerideki ışık geçişi — kartla aynı yuvarlaklık, kırpma gerekmiyor. */
+  cardSheen: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: luxeRadius.lg,
   },
   cardAccent: { borderColor: luxe.primarySoft, backgroundColor: luxe.surfaceLow },
   forecastHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
