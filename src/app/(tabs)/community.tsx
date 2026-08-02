@@ -28,8 +28,21 @@ import type { CommunityPost } from '@/types';
 type Filter = 'hepsi' | 'takip' | 'kombin' | 'selfie' | 'lookbook';
 
 export default function Community() {
-  const { posts, followedIds, profile, toggleFollow, toggleLike, addComment, deletePost } =
+  const { posts, lookbooks, followedIds, profile, toggleFollow, toggleLike, addComment, deletePost } =
     useStore();
+  /**
+   * Gönderinin kaynak lookbook'u.
+   * `lookbookId` alanı sonradan eklendi — ondan ÖNCE paylaşılmış gönderilerde
+   * yok ve dokunma ölü kalıyordu. Geri düşüş: başlık lookbook adını içeriyor
+   * (`"Deniz" lookbook'um: 7 kombin`), en uzun eşleşen ad alınır ki "Yaz" adı
+   * "Yazlık"ı yanlışlıkla kapmasın.
+   */
+  const lookbookIdOf = (p: CommunityPost): string | undefined =>
+    p.lookbookId ??
+    [...lookbooks]
+      .filter((l) => l.name && p.caption?.includes(l.name))
+      .sort((a, b) => b.name.length - a.name.length)[0]?.id;
+
   const [filter, setFilter] = useState<Filter>('hepsi');
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -286,12 +299,12 @@ export default function Community() {
               bizim store'umuzda yok — onun profiline gidiliyor (lookbook sekmesi orada).
             */
             onOpenLookbook={
-              p.lookbookId
-                ? () =>
-                    p.userId === 'me'
-                      ? router.push({ pathname: '/lookbook/[id]', params: { id: p.lookbookId! } })
-                      : router.push({ pathname: '/user/[id]', params: { id: p.userId } })
-                : undefined
+              p.userId === 'me'
+                ? () => {
+                    const id = lookbookIdOf(p);
+                    if (id) router.push({ pathname: '/lookbook/[id]', params: { id } });
+                  }
+                : () => router.push({ pathname: '/user/[id]', params: { id: p.userId } })
             }
             onDelete={p.userId === 'me' ? () => deletePost(p.id) : undefined}
           />
