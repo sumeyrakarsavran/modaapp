@@ -22,8 +22,10 @@ import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPi
 import { persistGarmentPhoto, persistRemoteImage } from '@/services/photoStore';
 import {
   buildPrompt,
-  runTryOnMax,
+  startTryOnMax,
   TRYON_CREDITS,
+  TryOnPendingError,
+  waitForJob,
   type TryOnMode,
   type TryOnResolution,
 } from '@/services/tryon';
@@ -77,7 +79,7 @@ const MODEL_PX: Record<TryOnResolution, number> = { '1k': 1024, '2k': 1536, '4k'
 
 export default function TryOn() {
   const params = useLocalSearchParams<{ outfitId?: string }>();
-  const { items, outfits, api, pro, addTryOn } = useStore();
+  const { items, outfits, api, pro, addTryOn, pendingTryOn, setPendingTryOn } = useStore();
 
   const [modelId, setModelId] = useState<string>(TRYON_MODELS[0]?.id ?? '');
   /** Kendi fotoğrafını kullanmak isteyenler için (küçük seçenek). */
@@ -161,14 +163,23 @@ export default function TryOn() {
       const productImage = await toDataUri(shot);
 
       setStatus('Giydiriliyor…');
-      const { outputUrl } = await runTryOnMax(
-        api.fashnKey,
-        modelImage,
-        productImage,
-        buildPrompt(prompt),
-        { resolution, mode },
-        setStatus,
-      );
+      // Başlatma ile bekleme AYRI: iş başladığı an kredi harcanıyor. Kimliği
+      // hemen saklıyoruz ki zaman aşımı/ekrandan çıkma/uygulama kapanması
+      // durumunda sonucu kaybetmeyelim — sonra kaldığımız yerden devam ederiz.
+      const jobId = await startTryOnMax(api.fashnKey, modelImage, productImage, buildPrompt(prompt), {
+        resolution,
+        mode,
+      });
+      setPendingTryOn({
+        jobId,
+        modelId: ownModelUri ? undefined : modelId,
+        outfitId: outfit?.id,
+        outfitName: outfit?.name,
+        prompt: prompt.trim() || undefined,
+        startedAt: new Date().toISOString(),
+      });
+
+      const outputUrl = await waitForJob(api.fashnKey, jobId, setStatus);
 
       setStatus('Kaydediliyor…');
       const saved = await persistRemoteImage(outputUrl).catch(() => outputUrl);
@@ -180,8 +191,14 @@ export default function TryOn() {
         outfitName: outfit?.name,
         prompt: prompt.trim() || undefined,
       });
+      setPendingTryOn(null);
     } catch (e: any) {
-      setError(e?.message ?? 'Bilinmeyen hata');
+      // Zaman aşımı iş İPTAL demek değil: kimlik saklı, arka planda sürüyor.
+      setError(
+        e instanceof TryOnPendingError
+          ? 'Üretim uzun sürüyor ama iptal olmadı — sonuç hazır olunca "Sanal giydirmelerim"de görünecek.'
+          : (e?.message ?? 'Bilinmeyen hata'),
+      );
     } finally {
       setBusy(false);
       setStatus('');

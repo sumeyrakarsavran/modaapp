@@ -11,6 +11,7 @@ import type {
   Outfit,
   PlanEntry,
   Profile,
+  PendingTryOn,
   Selfie,
   TryOnRecord,
   WardrobeItem,
@@ -25,6 +26,8 @@ interface BettaState {
   lookbooks: Lookbook[];
   /** Sanal deneme çıktıları (Stüdyo → AI → Sanal giydirmelerim) */
   tryons: TryOnRecord[];
+  /** Sonucu beklenen FASHN işi (uygulama kapansa bile kaybolmasın) */
+  pendingTryOn: PendingTryOn | null;
   posts: CommunityPost[];
   followedIds: string[];
   profile: Profile;
@@ -66,6 +69,7 @@ interface BettaState {
 
   // sanal deneme
   addTryOn: (t: Omit<TryOnRecord, 'id' | 'createdAt'>) => void;
+  setPendingTryOn: (p: PendingTryOn | null) => void;
   updateTryOn: (id: string, patch: Partial<TryOnRecord>) => void;
   deleteTryOn: (id: string) => void;
 
@@ -106,6 +110,7 @@ export const useStore = create<BettaState>()(
       selfies: [],
       lookbooks: [],
       tryons: [],
+      pendingTryOn: null,
       posts: SEED_POSTS,
       followedIds: ['mira', 'luna'],
       profile: emptyProfile,
@@ -203,6 +208,7 @@ export const useStore = create<BettaState>()(
         })),
       deleteSelfie: (id) => set((s) => ({ selfies: s.selfies.filter((x) => x.id !== id) })),
 
+      setPendingTryOn: (pendingTryOn) => set({ pendingTryOn }),
       addTryOn: (t) =>
         set((s) => ({
           tryons: [{ ...t, id: uid(), createdAt: new Date().toISOString() }, ...s.tryons],

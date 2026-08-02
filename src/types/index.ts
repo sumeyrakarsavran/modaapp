@@ -239,6 +239,21 @@ export interface TryOnRecord {
   createdAt: string;
 }
 
+/**
+ * Başlatılmış ama sonucu henüz alınmamış sanal deneme.
+ * FASHN işi başladığı an kredi harcanıyor; beklerken vazgeçersek (zaman aşımı,
+ * ekrandan çıkma, uygulamanın kapanması) sonucu kaybetmemek için kimliği
+ * saklıyoruz ve sonra kaldığımız yerden devam ediyoruz.
+ */
+export interface PendingTryOn {
+  jobId: string;
+  modelId?: string;
+  outfitId?: string;
+  outfitName?: string;
+  prompt?: string;
+  startedAt: string;
+}
+
 export interface GarmentSpec {
   category: Category;
   /** Alt tür id'si — silüet çiziminde dış giyimi ayırt etmek için. */

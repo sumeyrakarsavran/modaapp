@@ -22,6 +22,7 @@ import { ProfileButton } from '@/components/ProfileButton';
 import { ShareModal } from '@/components/ShareModal';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { persistRemoteImage } from '@/services/photoStore';
+import { TryOnPendingError, waitForJob } from '@/services/tryon';
 import { useStore } from '@/store/useStore';
 import { BETTA_ARCHETYPES, colors, radius, spacing, type } from '@/theme';
 import type { Category, TryOnRecord, WardrobeItem } from '@/types';
@@ -69,8 +70,10 @@ const SLOTS: Slot[] = [
 ];
 
 export default function Studio() {
-  const { items, outfits, addOutfit, pro, api, tryons, updateTryOn, deleteTryOn, sharePost } =
-    useStore();
+  const {
+    items, outfits, addOutfit, pro, api, tryons, updateTryOn, deleteTryOn, sharePost,
+    addTryOn, pendingTryOn, setPendingTryOn,
+  } = useStore();
   const { width } = useWindowDimensions();
   const [mode, setMode] = useState<Mode>('dressme');
   const [indices, setIndices] = useState<Record<string, number>>({});
@@ -103,6 +106,39 @@ export default function Studio() {
         });
     }
   }, [tryons, updateTryOn]);
+
+  /**
+   * Yarım kalmış FASHN işini tamamlar.
+   * İş başladığı an kredi harcanıyor; beklerken vazgeçtiysek (zaman aşımı,
+   * ekrandan çıkma, uygulamanın kapanması) sonuç sunucuda hazır bekliyor
+   * olabilir. Burada kaldığımız yerden devam edip galeriye düşürüyoruz.
+   */
+  const resuming = useRef(false);
+  useEffect(() => {
+    const p = pendingTryOn;
+    if (!p || !api.fashnKey || resuming.current) return;
+    resuming.current = true;
+    waitForJob(api.fashnKey, p.jobId)
+      .then(async (url) => {
+        const saved = await persistRemoteImage(url).catch(() => url);
+        addTryOn({
+          imageUri: saved,
+          modelId: p.modelId,
+          outfitId: p.outfitId,
+          outfitName: p.outfitName,
+          prompt: p.prompt,
+        });
+        setPendingTryOn(null);
+      })
+      .catch((e) => {
+        // Hâlâ hazır değilse kaydı BIRAKMA: bir dahaki açılışta yine denenir.
+        if (!(e instanceof TryOnPendingError)) setPendingTryOn(null);
+        if ((globalThis as any).__DEV__) console.warn('[tryon devam]', e);
+      })
+      .finally(() => {
+        resuming.current = false;
+      });
+  }, [pendingTryOn, api.fashnKey, addTryOn, setPendingTryOn]);
 
   /** Sanal giydirme ızgarası: 3 sütun */
   const tryonCell = (Math.min(width, 700) - spacing.lg * 2 - spacing.sm * 2) / 3;
@@ -329,7 +365,12 @@ export default function Studio() {
             title={`🖼️ Sanal giydirmelerim${tryons.length ? ` · ${tryons.length}` : ''}`}
             style={{ marginTop: spacing.md }}
           />
-          {tryons.length === 0 ? (
+          {pendingTryOn ? (
+            <Text style={[type.caption, { marginBottom: spacing.sm }]}>
+              ⏳ Bir giydirme hazırlanıyor… Hazır olunca burada belirecek.
+            </Text>
+          ) : null}
+          {tryons.length === 0 && !pendingTryOn ? (
             <Text style={type.caption}>
               Henüz sanal giydirme yok. Yukarıdan bir manken ve kombin seçip deneyince sonuçlar
               burada birikir.

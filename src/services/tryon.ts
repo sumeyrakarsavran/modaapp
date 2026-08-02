@@ -171,32 +171,63 @@ export function buildPrompt(userPrompt?: string): string {
   return extra ? `${extra}\n\n${EDITORIAL_PROMPT}` : EDITORIAL_PROMPT;
 }
 
-/** İş başlat + bitene kadar bekle. */
-async function runJob(
+/**
+ * İşi başlatır ve FASHN iş kimliğini döndürür.
+ *
+ * Başlatma ile beklemeyi AYIRIYORUZ: iş bir kez başladıysa kredi harcanmış
+ * demektir. Beklerken vazgeçersek (zaman aşımı, ekrandan çıkma, uygulamanın
+ * kapanması) sonucu kaybetmemek için kimliği saklayıp sonra devam edebilmeliyiz.
+ */
+export async function startJob(
   apiKey: string,
   modelName: string,
   inputs: Record<string, unknown>,
-  onProgress?: (status: string) => void,
 ): Promise<string> {
-  const startRes = await fetch(`${BASE}/run`, {
+  const res = await fetch(`${BASE}/run`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ model_name: modelName, inputs }),
   });
-  if (!startRes.ok) {
-    const t = await startRes.text();
-    throw new Error(`FASHN başlatma hatası (${startRes.status}): ${t.slice(0, 200)}`);
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`FASHN başlatma hatası (${res.status}): ${t.slice(0, 200)}`);
   }
-  const { id } = await startRes.json();
+  const { id } = await res.json();
   if (!id) throw new Error('FASHN iş kimliği alınamadı.');
+  return id;
+}
 
-  // Sonucu bekle (maks ~90 sn)
-  for (let attempt = 0; attempt < 45; attempt++) {
-    await new Promise((r) => setTimeout(r, 2000));
+/** Zaman aşımında iş kimliğini taşır ki sonra devam edilebilsin. */
+export class TryOnPendingError extends Error {
+  constructor(public jobId: string) {
+    super('Sonuç henüz hazır değil. İş arka planda sürüyor — birazdan galeride görünecek.');
+    this.name = 'TryOnPendingError';
+  }
+}
+
+/**
+ * İş bitene kadar bekler.
+ * `tryon-max` üretken bir model; FASHN süre yayınlamıyor ve gözlemde 90 saniye
+ * YETMEDİ. Sınır cömert tutuldu; dolarsa iş iptal edilmiyor, TryOnPendingError
+ * ile kimlik geri veriliyor.
+ */
+export async function waitForJob(
+  apiKey: string,
+  id: string,
+  onProgress?: (status: string) => void,
+  timeoutMs = 6 * 60 * 1000,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  // İlk saniyelerde sık, sonra seyrek sor: hem hızlı bitenler beklemesin
+  // hem de uzun işlerde gereksiz istek atılmasın.
+  let delay = 1500;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, delay));
+    delay = Math.min(delay * 1.3, 5000);
     const st = await fetch(`${BASE}/status/${id}`, {
       headers: { authorization: `Bearer ${apiKey}` },
-    });
-    if (!st.ok) continue;
+    }).catch(() => null);
+    if (!st?.ok) continue;
     const data = await st.json();
     onProgress?.(data.status);
     if (data.status === 'completed') {
@@ -208,7 +239,7 @@ async function runJob(
       throw new Error(`FASHN işi başarısız: ${JSON.stringify(data.error ?? '').slice(0, 200)}`);
     }
   }
-  throw new Error('FASHN zaman aşımı — lütfen tekrar dene.');
+  throw new TryOnPendingError(id);
 }
 
 export type TryOnResolution = '1k' | '2k' | '4k';
@@ -233,27 +264,20 @@ export interface TryOnMaxOptions {
  * gönderilir; `tryon-max` bunu çözüp hepsini birden giydiriyor. Parçaları tek
  * tek giydirmeye (her biri ayrı çağrı = ayrı kredi) gerek yok.
  */
-export async function runTryOnMax(
+export async function startTryOnMax(
   apiKey: string,
   modelImage: string,
   productImage: string,
   prompt: string,
   { resolution = '1k', mode = 'fast' }: TryOnMaxOptions = {},
-  onProgress?: (status: string) => void,
-): Promise<TryOnResult> {
-  const outputUrl = await runJob(
-    apiKey,
-    'tryon-max',
-    {
-      model_image: modelImage,
-      product_image: productImage,
-      prompt,
-      resolution,
-      generation_mode: mode,
-      num_images: 1,
-      output_format: 'png',
-    },
-    onProgress,
-  );
-  return { outputUrl };
+): Promise<string> {
+  return startJob(apiKey, 'tryon-max', {
+    model_image: modelImage,
+    product_image: productImage,
+    prompt,
+    resolution,
+    generation_mode: mode,
+    num_images: 1,
+    output_format: 'png',
+  });
 }
