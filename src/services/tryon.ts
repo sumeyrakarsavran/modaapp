@@ -31,33 +31,139 @@ The clothing must be transferred perfectly onto the model while preserving the e
 
 The garment must fit naturally according to realistic tailoring. Follow accurate body contours while respecting the intended cut of the clothing. Preserve oversized, slim-fit, loose-fit, structured, or flowing silhouettes exactly as designed. Fabric must never melt into the body or look artificially stretched.
 
-The model's identity must remain 100% unchanged. Preserve the exact facial structure, eyes, eyebrows, lips, nose, skin tone, hairstyle, body proportions, hands, fingers, nails, posture, and natural anatomy.
+The model's identity must remain 100% unchanged.
+Preserve the exact facial structure, eyes, eyebrows, lips, nose, skin tone, hairstyle, body proportions, hands, fingers, nails, posture, and natural anatomy.
 
 Create the feeling of a luxury fashion campaign photographed for Pinterest, Zara, COS, Massimo Dutti, Jacquemus, Revolve, and high-end editorial magazines.
 
-POSE: Elegant, confident, relaxed luxury fashion pose. Natural weight shift. Long neck. Relaxed shoulders. Beautiful hand placement. Editorial body language. Strong feminine energy. Minimal but expensive-looking pose. No awkward limbs. No exaggerated fashion pose.
+POSE:
+Elegant, confident, relaxed luxury fashion pose.
+Natural weight shift.
+Long neck.
+Relaxed shoulders.
+Beautiful hand placement.
+Editorial body language.
+Strong feminine energy.
+Minimal but expensive-looking pose.
+No awkward limbs.
+No exaggerated fashion pose.
 
-EXPRESSION: Calm. Confident. Magnetic. Sophisticated. Slight mysterious expression. Soft relaxed lips. Natural eyes. Luxury editorial emotion. No exaggerated smile.
+EXPRESSION:
+Calm.
+Confident.
+Magnetic.
+Sophisticated.
+Slight mysterious expression.
+Soft relaxed lips.
+Natural eyes.
+Luxury editorial emotion.
+No exaggerated smile.
 
-CAMERA: Medium-format Hasselblad X2D photography. 80mm portrait lens. Eye-level composition. Perfect perspective. Natural proportions. No wide-angle distortion. Ultra high dynamic range. Professional fashion photography.
+CAMERA:
+Medium-format Hasselblad X2D photography.
+80mm portrait lens.
+Eye-level composition.
+Perfect perspective.
+Natural proportions.
+No wide-angle distortion.
+Ultra high dynamic range.
+Professional fashion photography.
 
-LIGHTING: Large softbox from front-left. Large fill light. Subtle rim light separating the subject. Natural studio shadows. Beautiful skin highlights. Luxury editorial lighting. Soft contrast. No harsh shadows. No blown highlights.
+LIGHTING:
+Large softbox from front-left.
+Large fill light.
+Subtle rim light separating the subject.
+Natural studio shadows.
+Beautiful skin highlights.
+Luxury editorial lighting.
+Soft contrast.
+No harsh shadows.
+No blown highlights.
 
-BACKGROUND: Use the exact same premium studio background in every generated image for perfect catalog consistency. A luxurious architectural fashion studio with an elegant seamless floor and wall transition. Warm off-white plaster walls. Soft ivory microcement floor. Minimal Scandinavian architecture. Large arched window shadows. Soft natural daylight entering from one side. Elegant wall panels. Minimal luxury atmosphere. Clean composition. No furniture. No decorations. No distracting objects. No color distractions. The background must always remain identical between generations while only the model pose changes. The environment should immediately look recognizable as a premium luxury fashion campaign rather than a generic AI studio.
+BACKGROUND:
+A perfectly seamless premium studio cyclorama with a single solid matte light gray background (#F5F5F5).
 
-COMPOSITION: Centered composition. Full-body. Perfect symmetry. Professional fashion framing. Enough negative space. Pinterest editorial composition. Instagram luxury campaign aesthetic.
+Completely uniform color across both floor and wall with an invisible infinity curve.
+No gradients.
+No textures.
+No plaster.
+No concrete.
+No architecture.
+No windows.
+No wall panels.
+No shadows cast on the background except a subtle natural contact shadow beneath the model.
+No furniture.
+No decorations.
+No props.
+No reflections.
+No distracting elements.
 
-FABRIC PHYSICS: Physically accurate cloth simulation. Natural gravity. Realistic folds. Luxury fabric weight. Correct tension. Beautiful draping. Rich volume. Fine wrinkles only where physically expected.
+The background must remain absolutely identical in every generated image, ensuring perfect consistency across the entire fashion catalog. Only the model pose may change between generations.
 
-SKIN: Ultra realistic skin pores. Natural makeup. Healthy skin texture. Luxury beauty retouching. No plastic skin. Natural subsurface scattering.
+The result should resemble the clean, premium e-commerce photography used by Zara, COS, Massimo Dutti, Uniqlo, and luxury fashion brands.
 
-HAIR: Perfectly groomed. Natural volume. Individual hair strands. Luxury hair photography. No flyaway artifacts.
+COMPOSITION:
+Centered composition.
+Full-body.
+Perfect symmetry.
+Professional fashion framing.
+Enough negative space.
+Pinterest editorial composition.
+Instagram luxury campaign aesthetic.
 
-COLOR GRADING: Luxury editorial color grading. Soft warm neutrals. Natural skin tones. Rich whites. Cream highlights. Gentle contrast. Timeless premium aesthetic. Pinterest trending fashion photography. Expensive magazine look.
+FABRIC PHYSICS:
+Physically accurate cloth simulation.
+Natural gravity.
+Realistic folds.
+Luxury fabric weight.
+Correct tension.
+Beautiful draping.
+Rich volume.
+Fine wrinkles only where physically expected.
 
-QUALITY: Ultra photorealistic. Impossible to distinguish from real photography. Award-winning fashion photography. Luxury campaign. Editorial masterpiece. Medium-format realism. 16-bit color. HDR. Global illumination. Ray-traced lighting. Extremely sharp garment details. Hyper realistic. 8K. Insanely detailed.
+SKIN:
+Ultra realistic skin pores.
+Natural makeup.
+Healthy skin texture.
+Luxury beauty retouching.
+No plastic skin.
+Natural subsurface scattering.
 
-AVOID: low quality, blurry, CGI, cartoon, anime, AI generated look, bad anatomy, extra fingers, missing fingers, deformed hands, duplicate limbs, stretched body, distorted face, asymmetrical eyes, identity drift, different hairstyle, clothing deformation, incorrect garment fit, melted fabric, texture loss, washed colors, oversaturated colors, watermark, logo, text, cropped feet, cropped hands, unrealistic shadows, harsh lighting, background changes, inconsistent studio, plastic skin, wax face, over-retouched skin, noise, artifacts, compression artifacts, motion blur`;
+HAIR:
+Perfectly groomed.
+Natural volume.
+Individual hair strands.
+Luxury hair photography.
+No flyaway artifacts.
+
+COLOR GRADING:
+Luxury editorial color grading.
+Soft warm neutrals.
+Natural skin tones.
+Clean neutral grays.
+Rich whites.
+Gentle contrast.
+Timeless premium aesthetic.
+Premium fashion catalog look.
+
+QUALITY:
+Ultra photorealistic.
+Impossible to distinguish from real photography.
+Award-winning fashion photography.
+Luxury campaign.
+Editorial masterpiece.
+Medium-format realism.
+16-bit color.
+HDR.
+Global illumination.
+Ray-traced lighting.
+Extremely sharp garment details.
+Hyper realistic.
+8K.
+Insanely detailed.
+
+AVOID:
+low quality, blurry, CGI, cartoon, anime, AI generated look, bad anatomy, extra fingers, missing fingers, deformed hands, duplicate limbs, stretched body, distorted face, asymmetrical eyes, identity drift, different hairstyle, clothing deformation, incorrect garment fit, melted fabric, texture loss, washed colors, oversaturated colors, watermark, logo, text, cropped feet, cropped hands, unrealistic shadows, harsh lighting, background gradients, textured background, architectural background, furniture, decorations, props, inconsistent background color, plastic skin, wax face, over-retouched skin, noise, artifacts, compression artifacts, motion blur`;
 
 /** Kullanıcının yazdığı metni sabit editoryal yönergeyle birleştirir. */
 export function buildPrompt(userPrompt?: string): string {

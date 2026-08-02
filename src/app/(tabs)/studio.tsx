@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -18,11 +19,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
+import { ShareModal } from '@/components/ShareModal';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { persistRemoteImage } from '@/services/photoStore';
 import { useStore } from '@/store/useStore';
 import { BETTA_ARCHETYPES, colors, radius, spacing, type } from '@/theme';
-import type { Category, WardrobeItem } from '@/types';
+import type { Category, TryOnRecord, WardrobeItem } from '@/types';
 import { OUTER_SUBCATEGORY } from '@/types';
 
 type Mode = 'dressme' | 'outfits' | 'ai';
@@ -67,11 +69,15 @@ const SLOTS: Slot[] = [
 ];
 
 export default function Studio() {
-  const { items, outfits, addOutfit, pro, api, tryons, updateTryOn, deleteTryOn } = useStore();
+  const { items, outfits, addOutfit, pro, api, tryons, updateTryOn, deleteTryOn, sharePost } =
+    useStore();
   const { width } = useWindowDimensions();
   const [mode, setMode] = useState<Mode>('dressme');
   const [indices, setIndices] = useState<Record<string, number>>({});
   const [locked, setLocked] = useState<Record<string, boolean>>({});
+  /** Büyütülerek görüntülenen sanal giydirme */
+  const [openTryon, setOpenTryon] = useState<TryOnRecord | null>(null);
+  const [shareTryon, setShareTryon] = useState<TryOnRecord | null>(null);
   // Dış giyim başta kapalı; isteyen açar.
   const [skipped, setSkipped] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
@@ -100,6 +106,22 @@ export default function Studio() {
 
   /** Sanal giydirme ızgarası: 3 sütun */
   const tryonCell = (Math.min(width, 700) - spacing.lg * 2 - spacing.sm * 2) / 3;
+
+  const doShareTryOn = (caption: string) => {
+    const t = shareTryon;
+    if (!t) return;
+    sharePost({
+      kind: 'selfie',
+      caption,
+      garments: [],
+      imageUri: t.imageUri,
+      archetypeId: useStore.getState().profile.bettaArchetypeId,
+    });
+    setShareTryon(null);
+    setOpenTryon(null);
+    // Modal kapanışı işlensin, sonra git (ekran donmadan önce)
+    setTimeout(() => router.push('/(tabs)/community'), 120);
+  };
 
   const confirmDeleteTryOn = (id: string) => {
     const doDelete = () => deleteTryOn(id);
@@ -317,6 +339,7 @@ export default function Studio() {
               {tryons.map((t) => (
                 <Pressable
                   key={t.id}
+                  onPress={() => setOpenTryon(t)}
                   onLongPress={() => confirmDeleteTryOn(t.id)}
                   style={[styles.tryonCard, { width: tryonCell }]}
                 >
@@ -333,7 +356,7 @@ export default function Studio() {
             </View>
           )}
           {tryons.length ? (
-            <Text style={type.tiny}>Silmek için bir görsele basılı tut.</Text>
+            <Text style={type.tiny}>Büyütmek için dokun, silmek için basılı tut.</Text>
           ) : null}
         </ScrollView>
       ) : mode === 'dressme' ? (
@@ -483,12 +506,93 @@ export default function Studio() {
           }}
         />
       )}
+
+      {/* Sanal giydirmeyi büyüt: küçük ızgara karesinde detay görünmüyor */}
+      <Modal
+        visible={!!openTryon}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setOpenTryon(null)}
+      >
+        <View style={styles.viewerWrap}>
+          <View style={styles.viewerHead}>
+            <Text style={[type.subtitle, { color: '#fff', flex: 1 }]} numberOfLines={1}>
+              {openTryon?.outfitName ?? 'Sanal giydirme'}
+            </Text>
+            <Pressable onPress={() => setOpenTryon(null)} style={styles.viewerClose}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </Pressable>
+          </View>
+          {openTryon ? (
+            <Image
+              source={{ uri: openTryon.imageUri }}
+              style={styles.viewerImg}
+              contentFit="contain"
+            />
+          ) : null}
+          {openTryon?.prompt ? (
+            <Text style={styles.viewerPrompt} numberOfLines={3}>
+              “{openTryon.prompt}”
+            </Text>
+          ) : null}
+          <View style={styles.viewerActions}>
+            <Button
+              small
+              title="🌊 Toplulukta paylaş"
+              onPress={() => setShareTryon(openTryon)}
+            />
+            <Button
+              small
+              variant="secondary"
+              title="🗑️ Sil"
+              onPress={() => {
+                const id = openTryon?.id;
+                setOpenTryon(null);
+                if (id) setTimeout(() => confirmDeleteTryOn(id), 120);
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <ShareModal
+        visible={!!shareTryon}
+        defaultCaption={
+          shareTryon?.outfitName ? `"${shareTryon.outfitName}" üzerimde 🪞🐟` : 'Sanal denemem 🪞🐟'
+        }
+        preview={
+          shareTryon ? (
+            <Image
+              source={{ uri: shareTryon.imageUri }}
+              style={{ width: 150, height: 200, borderRadius: radius.lg }}
+              contentFit="cover"
+            />
+          ) : null
+        }
+        onShare={doShareTryOn}
+        onClose={() => setShareTryon(null)}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   tryonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  viewerWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', padding: spacing.lg },
+  viewerHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  viewerClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  viewerImg: { flex: 1, width: '100%', borderRadius: radius.lg },
+  viewerPrompt: { color: '#D8D8D8', fontSize: 12, marginTop: spacing.sm, fontStyle: 'italic' },
+  viewerActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   tryonCard: { gap: 4 },
   header: {
     flexDirection: 'row',
