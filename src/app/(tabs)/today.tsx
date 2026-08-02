@@ -134,7 +134,7 @@ function Backdrop() {
   return (
     <View style={styles.backdrop} pointerEvents="none">
       <LinearGradient
-        colors={['#FFF3EC', '#FFF8F7', '#FFF0EC']}
+        colors={['#FFFAF7', '#FFFCFB', '#FFF8F5']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -144,12 +144,12 @@ function Backdrop() {
         <Defs>
           {/* Sağ üstte şeftali parıltı */}
           <RadialGradient id="glowTop" cx="82%" cy="6%" r="70%">
-            <Stop offset="0" stopColor={luxe.primaryContainer} stopOpacity="0.7" />
+            <Stop offset="0" stopColor={luxe.primaryContainer} stopOpacity="0.4" />
             <Stop offset="1" stopColor={luxe.primaryContainer} stopOpacity="0" />
           </RadialGradient>
           {/* Sol altta gülkurusu parıltı — derinlik için */}
           <RadialGradient id="glowBottom" cx="6%" cy="88%" r="62%">
-            <Stop offset="0" stopColor="#F6D9DA" stopOpacity="0.55" />
+            <Stop offset="0" stopColor="#F6D9DA" stopOpacity="0.3" />
             <Stop offset="1" stopColor="#F6D9DA" stopOpacity="0" />
           </RadialGradient>
         </Defs>
