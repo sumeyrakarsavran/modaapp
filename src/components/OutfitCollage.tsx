@@ -26,6 +26,7 @@ export function OutfitCollage({
   layout,
   frame,
   cropToContent,
+  capture = false,
 }: {
   items: WardrobeItem[];
   size?: number;
@@ -33,6 +34,12 @@ export function OutfitCollage({
   /** Canvas içerik alanı boyutu — verilirse ve cropToContent değilse tuval çerçevesi korunur. */
   frame?: { w: number; h: number };
   cropToContent?: boolean;
+  /**
+   * Sanal denemeye gönderilecek ÜRÜN GÖRSELİ için: tüm parçalar çizilir
+   * (4 sınırı yok), "+N" rozeti basılmaz, kutu beyaz ve çerçevesizdir.
+   * Bunlar galeri önizlemesinde iyi ama FASHN'a giden karede zararlı.
+   */
+  capture?: boolean;
 }) {
   const placed = layout
     ? items
@@ -48,7 +55,7 @@ export function OutfitCollage({
     const offX = (size - frame.w * f) / 2;
     const offY = (size - frame.h * f) / 2;
     return (
-      <View style={[styles.box, { width: size, height: size }]}>
+      <View style={[styles.box, { width: size, height: size }, capture && styles.captureBox]}>
         {placed.map((p) => {
           const s = CANVAS_BASE * p.scale * f;
           return (
@@ -87,7 +94,7 @@ export function OutfitCollage({
     const offY = pad + (size - pad * 2 - bh * factor) / 2;
 
     return (
-      <View style={[styles.box, { width: size, height: size }]}>
+      <View style={[styles.box, { width: size, height: size }, capture && styles.captureBox]}>
         {placed.map((p) => {
           const s = CANVAS_BASE * p.scale * factor;
           return (
@@ -118,15 +125,23 @@ export function OutfitCollage({
   }
 
   // Izgara kolaj (Giydir beni / öneri / layoutsuz kombinler) — 2x2 kare
-  const shown = items.slice(0, 4);
+  const shown = capture ? items : items.slice(0, 4);
   const extra = items.length - shown.length;
+  // Yakalamada tüm parçalar sığsın: 3 parça → 2 sütun, 5-9 parça → 3 sütun…
+  const cols = capture ? Math.max(2, Math.ceil(Math.sqrt(shown.length))) : 2;
   // Kare boyutu GERÇEK iç genişlikten hesaplanır: React Native'de `width`
   // kenarlık ve iç boşluğu da kapsar. Bunlar düşülmezse satır birkaç piksel
   // taşar, flexWrap kareleri alt alta atar ve bir kısmı görünmez olur.
   const inner = size - BORDER * 2 - PAD * 2;
-  const cell = Math.max(1, Math.floor((inner - GAP) / 2));
+  const cell = Math.max(1, Math.floor((inner - GAP * (cols - 1)) / cols));
   return (
-    <View style={[styles.box, { width: size, height: size, padding: PAD }]}>
+    <View
+      style={[
+        styles.box,
+        { width: size, height: size, padding: PAD },
+        capture && styles.captureBox,
+      ]}
+    >
       <View style={styles.grid}>
         {shown.map((item) => (
           <View key={item.id} style={[styles.cell, { width: cell, height: cell }]}>
@@ -139,7 +154,7 @@ export function OutfitCollage({
         ))}
       </View>
       {/* 4'ten fazla parça varsa kalanı say (küçük önizlemelerde gizli) */}
-      {extra > 0 && size >= 120 ? (
+      {extra > 0 && size >= 120 && !capture ? (
         <View style={styles.moreBadge}>
           <Text style={styles.moreText}>+{extra}</Text>
         </View>
@@ -149,6 +164,7 @@ export function OutfitCollage({
 }
 
 const styles = StyleSheet.create({
+  captureBox: { backgroundColor: '#FFFFFF', borderWidth: 0, borderRadius: 0 },
   box: {
     backgroundColor: colors.card,
     borderRadius: radius.md,

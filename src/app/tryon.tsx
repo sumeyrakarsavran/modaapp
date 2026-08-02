@@ -56,17 +56,24 @@ async function toDataUri(uri: string): Promise<string> {
  * FASHN zaten 864×1296'da işliyor; 1023×1537'lik dosyayı olduğu gibi base64'e
  * çevirmek isteği gereksiz büyütüyor, o yüzden önce küçültülüyor.
  */
-async function modelSourceToDataUri(source: number): Promise<string> {
+async function modelSourceToDataUri(source: number, maxDim: number): Promise<string> {
   const { Asset } = await import('expo-asset');
   const asset = Asset.fromModule(source);
   if (!asset.localUri) await asset.downloadAsync();
   const uri = asset.localUri ?? asset.uri;
-  const small = await resizeForProcessing(uri, asset.width ?? undefined, asset.height ?? undefined, 1296);
+  const small = await resizeForProcessing(uri, asset.width ?? undefined, asset.height ?? undefined, maxDim);
   return toDataUri(small);
 }
 
 /** Kolajın yakalanacağı çözünürlük — FASHN'a gidecek ürün görseli. */
 const COLLAGE_PX = 1024;
+
+/**
+ * Mankeni çıktı çözünürlüğüne göre küçült. Daha büyüğünü göndermenin faydası
+ * yok — FASHN görseli kendi çözünürlüğüne indiriyor — ama base64 gövdesini
+ * büyütüp yüklemeyi uzatıyor.
+ */
+const MODEL_PX: Record<TryOnResolution, number> = { '1k': 1024, '2k': 1536, '4k': 2048 };
 
 export default function TryOn() {
   const params = useLocalSearchParams<{ outfitId?: string }>();
@@ -134,7 +141,7 @@ export default function TryOn() {
       const modelImage = ownModelUri
         ? await toDataUri(ownModelUri)
         : model
-          ? await modelSourceToDataUri(model.source)
+          ? await modelSourceToDataUri(model.source, MODEL_PX[resolution])
           : null;
       if (!modelImage) throw new Error('Manken seçilmedi.');
 
@@ -143,9 +150,12 @@ export default function TryOn() {
       // tek tek göndermeye (her biri ayrı çağrı = ayrı kredi) gerek yok.
       setStatus('Kombin görseli hazırlanıyor…');
       const { captureRef } = await import('react-native-view-shot');
+      // JPEG: kolaj zaten beyaz zemine kompozitleniyor, şeffaflığa gerek yok.
+      // PNG kayıpsız olduğu için fotoğraflı kolajda 1-3 MB tutuyordu; base64'e
+      // çevrilince %33 daha büyüyüp yüklemeyi (mobil veride) çok uzatıyordu.
       const shot = await captureRef(collageRef, {
-        format: 'png',
-        quality: 1,
+        format: 'jpg',
+        quality: 0.92,
         result: 'tmpfile',
       });
       const productImage = await toDataUri(shot);
@@ -384,6 +394,7 @@ export default function TryOn() {
       <View style={styles.offscreen} pointerEvents="none">
         <View ref={collageRef} collapsable={false} style={styles.collage}>
           <OutfitCollage
+            capture
             items={wearable}
             size={COLLAGE_PX}
             layout={outfit?.layout}
