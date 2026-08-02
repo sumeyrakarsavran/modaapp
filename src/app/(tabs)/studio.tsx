@@ -14,7 +14,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
@@ -75,6 +75,11 @@ export default function Studio() {
     addTryOn, pendingTryOn, setPendingTryOn,
   } = useStore();
   const { width } = useWindowDimensions();
+  // Görüntüleyici modalı tüm ekranı kaplıyor (statusBarTranslucent +
+  // navigationBarTranslucent), yani sistem çubuklarının ALTINA da uzanıyor.
+  // Kendi güvenli alan boşluğunu vermezse başlık durum çubuğunun, düğmeler
+  // gezinme çubuğunun arkasında kalıyor.
+  const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>('dressme');
   const [indices, setIndices] = useState<Record<string, number>>({});
   const [locked, setLocked] = useState<Record<string, boolean>>({});
@@ -562,7 +567,12 @@ export default function Studio() {
         navigationBarTranslucent
         onRequestClose={() => setOpenTryon(null)}
       >
-        <View style={styles.viewerWrap}>
+        <View
+          style={[
+            styles.viewerWrap,
+            { paddingTop: spacing.lg + insets.top, paddingBottom: spacing.lg + insets.bottom },
+          ]}
+        >
           <View style={styles.viewerHead}>
             <Text style={[type.subtitle, { color: '#fff', flex: 1 }]} numberOfLines={1}>
               {openTryon?.outfitName ?? 'Sanal giydirme'}
@@ -626,7 +636,7 @@ export default function Studio() {
 
 const styles = StyleSheet.create({
   tryonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  viewerWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', padding: spacing.lg },
+  viewerWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', paddingHorizontal: spacing.lg },
   viewerHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   viewerClose: {
     width: 36,
