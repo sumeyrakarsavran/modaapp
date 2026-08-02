@@ -318,7 +318,7 @@ export default function Today() {
             {archetype.emoji} {archetype.styleName} · {archetype.fish}
           </Text>
         ) : null}
-        <Divider style={{ marginTop: 18 }} />
+        <Divider style={{ marginTop: 14 }} />
 
         {/* Haftalık plan şeridi */}
         <Text style={[luxeType.label, styles.sectionLabel]}>Haftalık plan</Text>
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
     color: luxe.primary,
   },
   container: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 48 },
-  sectionLabel: { marginTop: 26, marginBottom: 10 },
+  sectionLabel: { marginTop: 14, marginBottom: 10 },
 
   // Hafta şeridi
   day: {
