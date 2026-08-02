@@ -281,6 +281,18 @@ export default function Community() {
                 ? router.push('/profile')
                 : router.push({ pathname: '/user/[id]', params: { id: p.userId } })
             }
+            /*
+              Lookbook kapağına dokununca kaynağa git. Başkasının lookbook'u
+              bizim store'umuzda yok — onun profiline gidiliyor (lookbook sekmesi orada).
+            */
+            onOpenLookbook={
+              p.lookbookId
+                ? () =>
+                    p.userId === 'me'
+                      ? router.push({ pathname: '/lookbook/[id]', params: { id: p.lookbookId! } })
+                      : router.push({ pathname: '/user/[id]', params: { id: p.userId } })
+                : undefined
+            }
             onDelete={p.userId === 'me' ? () => deletePost(p.id) : undefined}
           />
         )}

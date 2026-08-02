@@ -215,9 +215,12 @@ export function PostCard({
   onToggleFollow,
   onOpenComments,
   onOpenUser,
+  onOpenLookbook,
   onDelete,
 }: {
   post: CommunityPost;
+  /** Lookbook gönderisine dokunulduğunda o lookbook'u aç */
+  onOpenLookbook?: (post: CommunityPost) => void;
   me: { name: string; username: string; archetypeId?: string; avatarUri?: string };
   followed: boolean;
   onToggleLike: () => void;
@@ -274,7 +277,31 @@ export function PostCard({
 
       {/* Görsel — kapsayıcıya göre esner, asla taşmaz */}
       <View style={styles.mediaWrap}>
-        {post.imageUri ? (
+        {post.outfitSets?.length ? (
+          /*
+            Lookbook: her kombin kendi kolajı (en fazla 4). FluidSpecCollage
+            kullanılıyor — SpecCollage yalnızca silüet çiziyor, persona'lar için.
+            Karta dokununca lookbook sayfası açılıyor.
+          */
+          <Pressable onPress={() => onOpenLookbook?.(post)} disabled={!onOpenLookbook}>
+            <View style={styles.setGrid}>
+              {post.outfitSets.slice(0, 4).map((set, i) => (
+                <View key={i} style={styles.setCell}>
+                  <FluidSpecCollage
+                    garments={set.garments}
+                    frame={set.canvasFrame}
+                    cropToContent={set.cropToContent}
+                  />
+                </View>
+              ))}
+            </View>
+            {post.outfitSets.length > 4 ? (
+              <Text style={styles.setMoreText}>
+                +{post.outfitSets.length - 4} kombin daha — görmek için dokun
+              </Text>
+            ) : null}
+          </Pressable>
+        ) : post.imageUri ? (
           <Image
             source={{ uri: post.imageUri }}
             style={[styles.mediaImg, { aspectRatio: mediaRatio ?? 1 }]}
@@ -362,6 +389,10 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginTop: spacing.md,
   },
+  setGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  /** İki sütun: yüzde genişlik — sabit piksel kapsayıcıya sığmıyordu. */
+  setCell: { width: '48%' },
+  setMoreText: { fontSize: 12, color: colors.aquaDark, fontWeight: '600', marginTop: spacing.sm },
   mediaImg: {
     width: '100%',
     // aspectRatio satır içinde: görselin gerçek oranı yüklendiğinde uygulanır

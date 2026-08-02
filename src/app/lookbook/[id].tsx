@@ -21,7 +21,7 @@ import { ShareModal } from '@/components/ShareModal';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { useStore } from '@/store/useStore';
 import { colors, radius, spacing, type } from '@/theme';
-import type { GarmentSpec, WardrobeItem } from '@/types';
+import type { CommunityOutfitSet, GarmentSpec, WardrobeItem } from '@/types';
 
 export default function LookbookDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -70,23 +70,39 @@ export default function LookbookDetail() {
     }
   };
 
-  const first = lbOutfits[0];
-  const shareGarments: GarmentSpec[] = first
-    ? itemsOf(first.itemIds).map((i) => ({
-        category: i.category,
-        colorId: i.colorId,
-        imageUri: i.imageUri,
-        layout: first.layout?.[i.id],
-      }))
-    : [];
+  const specsOf = (o: (typeof lbOutfits)[number]): GarmentSpec[] =>
+    itemsOf(o.itemIds).map((i) => ({
+      category: i.category,
+      subcategory: i.subcategory,
+      colorId: i.colorId,
+      imageUri: i.imageUri,
+      // Kombin düzeni korunsun — kolaj parçaları oluşturulduğu gibi yerleştirir
+      layout: o.layout?.[i.id],
+    }));
+
+  /**
+   * Lookbook TÜM kombinleriyle paylaşılır.
+   * Önceden yalnızca `lbOutfits[0]` gönderiliyordu; lookbook bir kombin
+   * koleksiyonu olduğu için tek kombin paylaşmak anlamsızdı.
+   */
+  // Her kombin kendi canvas çerçevesi ve kırpma tercihiyle gidiyor —
+  // kullanıcının stüdyoda kurduğu düzen gönderide birebir korunsun.
+  const outfitSets: CommunityOutfitSet[] = lbOutfits
+    .map((o) => ({
+      garments: specsOf(o),
+      canvasFrame: o.canvasFrame,
+      cropToContent: o.cropToContent,
+    }))
+    .filter((s) => s.garments.length > 0);
 
   const doShare = (caption: string) => {
     sharePost({
       kind: 'lookbook',
       caption,
-      garments: shareGarments,
-      canvasFrame: first?.canvasFrame,
-      cropToContent: first?.cropToContent,
+      // Eski kartlar/istemciler için düz liste de dolduruluyor (ilk kombin)
+      garments: outfitSets[0]?.garments ?? [],
+      outfitSets,
+      lookbookId: lb.id,
       archetypeId: profile.bettaArchetypeId,
     });
     setShareOpen(false);
@@ -238,14 +254,20 @@ export default function LookbookDetail() {
         visible={shareOpen}
         defaultCaption={`"${lb.emoji} ${lb.name}" lookbook'um: ${lb.outfitIds.length} kombin 📖`}
         preview={
-          first ? (
-            <OutfitCollage
-              items={itemsOf(first.itemIds)}
-              size={160}
-              layout={first.layout}
-              frame={first.canvasFrame}
-              cropToContent={first.cropToContent}
-            />
+          /* Önizleme paylaşılacakla aynı: ilk dört kombin */
+          lbOutfits.length ? (
+            <View style={styles.sharePreview}>
+              {lbOutfits.slice(0, 4).map((o) => (
+                <OutfitCollage
+                  key={o.id}
+                  items={itemsOf(o.itemIds)}
+                  size={76}
+                  layout={o.layout}
+                  frame={o.canvasFrame}
+                  cropToContent={o.cropToContent}
+                />
+              ))}
+            </View>
           ) : undefined
         }
         onClose={() => setShareOpen(false)}
@@ -256,6 +278,13 @@ export default function LookbookDetail() {
 }
 
 const styles = StyleSheet.create({
+  sharePreview: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'center',
+    maxWidth: 170,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

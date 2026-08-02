@@ -276,12 +276,31 @@ export interface CommunityComment {
   createdAt: string;
 }
 
+/**
+ * Lookbook gönderisindeki TEK kombin.
+ * Çerçeve + kırpma tercihi kombin BAŞINA saklanıyor: düz `GarmentSpec[][]`
+ * bunları taşımadığı için kullanıcının canvas'ta kurduğu düzen bozuluyordu.
+ */
+export interface CommunityOutfitSet {
+  garments: GarmentSpec[];
+  canvasFrame?: { w: number; h: number };
+  cropToContent?: boolean;
+}
+
 export interface CommunityPost {
   id: string;
   userId: string; // 'me' veya persona id
   kind: 'kombin' | 'selfie' | 'lookbook' | 'tryon';
   caption: string;
   garments: GarmentSpec[]; // kolaj için
+  /**
+   * Lookbook gönderilerinde her kombin ayrı bir liste (en fazla 4'ü çizilir).
+   * Lookbook bir KOMBİN KOLEKSİYONU; tek düz `garments` listesi hepsini tek
+   * kolaja karıştırıp kombin kimliğini yok ediyordu.
+   */
+  outfitSets?: CommunityOutfitSet[];
+  /** Lookbook gönderisinin kaynağı — karta dokununca bu sayfa açılıyor. */
+  lookbookId?: string;
   /** Canvas çerçevesi + kırpma tercihi (kombin paylaşımında düzenin aynen korunması için). */
   canvasFrame?: { w: number; h: number };
   cropToContent?: boolean;
