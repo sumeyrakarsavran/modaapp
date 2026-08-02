@@ -279,7 +279,7 @@ export interface CommunityComment {
 export interface CommunityPost {
   id: string;
   userId: string; // 'me' veya persona id
-  kind: 'kombin' | 'selfie' | 'lookbook';
+  kind: 'kombin' | 'selfie' | 'lookbook' | 'tryon';
   caption: string;
   garments: GarmentSpec[]; // kolaj için
   /** Canvas çerçevesi + kırpma tercihi (kombin paylaşımında düzenin aynen korunması için). */

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BettaAvatar } from '@/components/BettaAvatar';
@@ -203,6 +203,7 @@ export function timeAgo(iso: string): string {
 export const KIND_LABEL: Record<CommunityPost['kind'], string> = {
   kombin: '🎨 Kombin',
   selfie: '🤳 Selfie',
+  tryon: '🪞 Sanal deneme',
   lookbook: '📖 Lookbook',
 };
 
@@ -225,6 +226,13 @@ export function PostCard({
   onOpenUser: () => void;
   onDelete?: () => void;
 }) {
+  /**
+   * Gerçek fotoğrafın kendi en-boy oranı.
+   * Kare kutuya `cover` ile basmak dikey görselleri (sanal deneme çıktısı 2:3)
+   * üstten ve alttan kırpıyordu. Görsel yüklenince gerçek oranı öğrenip
+   * kutuyu ona göre kuruyoruz — ne kırpma ne boş bant kalıyor.
+   */
+  const [mediaRatio, setMediaRatio] = useState<number | null>(null);
   const user = resolveUser(post.userId, me);
   const arch = getArchetype(post.archetypeId);
   const likeCount = post.likes + (post.likedByMe ? 1 : 0);
@@ -269,8 +277,14 @@ export function PostCard({
         {post.imageUri ? (
           <Image
             source={{ uri: post.imageUri }}
-            style={styles.mediaImg}
-            contentFit="cover"
+            style={[styles.mediaImg, { aspectRatio: mediaRatio ?? 1 }]}
+            contentFit="contain"
+            onLoad={(e) => {
+              const { width: w, height: h } = e.source ?? {};
+              if (!w || !h) return;
+              // Aşırı uzun/geniş görseller akışı bozmasın diye sınırla
+              setMediaRatio(Math.min(1.4, Math.max(0.6, w / h)));
+            }}
           />
         ) : (
           <FluidSpecCollage
@@ -350,8 +364,9 @@ const styles = StyleSheet.create({
   },
   mediaImg: {
     width: '100%',
-    aspectRatio: 1,
+    // aspectRatio satır içinde: görselin gerçek oranı yüklendiğinde uygulanır
     borderRadius: radius.md,
+    backgroundColor: colors.card,
   },
   fluidCollage: {
     width: '100%',

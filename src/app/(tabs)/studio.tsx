@@ -157,7 +157,7 @@ export default function Studio() {
     const t = shareTryon;
     if (!t) return;
     sharePost({
-      kind: 'selfie',
+      kind: 'tryon',
       caption,
       garments: [],
       imageUri: t.imageUri,
