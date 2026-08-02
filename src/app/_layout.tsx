@@ -1,3 +1,14 @@
+import {
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_700Bold,
+} from '@expo-google-fonts/dm-sans';
+import {
+  PlayfairDisplay_600SemiBold,
+  PlayfairDisplay_600SemiBold_Italic,
+  PlayfairDisplay_700Bold,
+} from '@expo-google-fonts/playfair-display';
+import { useFonts } from 'expo-font';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +31,21 @@ const ROUTE_FOR_PURPOSE = {
 
 export default function RootLayout() {
   const hydrated = useStore((s) => s.hydrated);
+
+  /*
+    Editoryal tipografi (bkz. `src/theme/luxe.ts`).
+    Yükleme BEKLENMİYOR: `useFonts` sonucu bilerek göz ardı ediliyor. Fontlar
+    hazır değilken RN bilinmeyen aileyi sistem fontuna düşürüyor, yani ekran
+    yine çizilir — açılışı font indirmeye bağlamak beyaz ekran riski demek.
+  */
+  useFonts({
+    PlayfairDisplay_700Bold,
+    PlayfairDisplay_600SemiBold,
+    PlayfairDisplay_600SemiBold_Italic,
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_700Bold,
+  });
 
   useEffect(() => {
     if (hydrated) SplashScreen.hideAsync();

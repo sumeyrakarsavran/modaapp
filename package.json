@@ -3,6 +3,8 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo-google-fonts/dm-sans": "^0.4.2",
+    "@expo-google-fonts/playfair-display": "^0.4.2",
     "@expo/ui": "~57.0.8",
     "@expo/vector-icons": "^15.0.2",
     "@imgly/background-removal": "^1.7.0",
