@@ -22,7 +22,7 @@ import { ProfileButton } from '@/components/ProfileButton';
 import { ShareModal } from '@/components/ShareModal';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { persistRemoteImage } from '@/services/photoStore';
-import { TryOnPendingError, waitForJob } from '@/services/tryon';
+import { claimJob, releaseJob, TryOnPendingError, waitForJob } from '@/services/tryon';
 import { useStore } from '@/store/useStore';
 import { BETTA_ARCHETYPES, colors, radius, spacing, type } from '@/theme';
 import type { Category, TryOnRecord, WardrobeItem } from '@/types';
@@ -117,12 +117,16 @@ export default function Studio() {
   useEffect(() => {
     const p = pendingTryOn;
     if (!p || !api.fashnKey || resuming.current) return;
+    // Deneme ekranı bu işi zaten bekliyorsa karışma — yoksa sonuç iki kez
+    // indirilir ve galeriye iki kez eklenir.
+    if (!claimJob(p.jobId)) return;
     resuming.current = true;
     waitForJob(api.fashnKey, p.jobId)
       .then(async (url) => {
         const saved = await persistRemoteImage(url).catch(() => url);
         addTryOn({
           imageUri: saved,
+          jobId: p.jobId,
           modelId: p.modelId,
           outfitId: p.outfitId,
           outfitName: p.outfitName,
@@ -136,6 +140,7 @@ export default function Studio() {
         if ((globalThis as any).__DEV__) console.warn('[tryon devam]', e);
       })
       .finally(() => {
+        releaseJob(p.jobId);
         resuming.current = false;
       });
   }, [pendingTryOn, api.fashnKey, addTryOn, setPendingTryOn]);

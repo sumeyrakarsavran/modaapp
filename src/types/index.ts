@@ -230,6 +230,12 @@ export interface Lookbook {
 export interface TryOnRecord {
   id: string;
   imageUri: string;
+  /**
+   * FASHN iş kimliği. Aynı iş birden çok yerden tamamlanabiliyor (ekran
+   * beklerken Stüdyo sekmesi de arka planda bekliyor) — kayıt bununla
+   * benzersizleştiriliyor, yoksa galeriye iki kez giriyor.
+   */
+  jobId?: string;
   /** Hangi hazır manken kullanıldı (TRYON_MODELS id'si) */
   modelId?: string;
   outfitId?: string;

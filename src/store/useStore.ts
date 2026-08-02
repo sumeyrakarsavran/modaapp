@@ -209,10 +209,15 @@ export const useStore = create<BettaState>()(
       deleteSelfie: (id) => set((s) => ({ selfies: s.selfies.filter((x) => x.id !== id) })),
 
       setPendingTryOn: (pendingTryOn) => set({ pendingTryOn }),
+      // Aynı FASHN işi iki yerden tamamlanabiliyor (deneme ekranı beklerken
+      // Stüdyo sekmesi de arka planda bekliyor). Kimlik zaten kayıtlıysa
+      // yenisini EKLEME, yoksa galeride çift görünüyor.
       addTryOn: (t) =>
-        set((s) => ({
-          tryons: [{ ...t, id: uid(), createdAt: new Date().toISOString() }, ...s.tryons],
-        })),
+        set((s) =>
+          t.jobId && s.tryons.some((x) => x.jobId === t.jobId)
+            ? s
+            : { tryons: [{ ...t, id: uid(), createdAt: new Date().toISOString() }, ...s.tryons] },
+        ),
       updateTryOn: (id, patch) =>
         set((s) => ({ tryons: s.tryons.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
       deleteTryOn: (id) => set((s) => ({ tryons: s.tryons.filter((x) => x.id !== id) })),

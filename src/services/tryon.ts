@@ -197,6 +197,28 @@ export async function startJob(
   return id;
 }
 
+/**
+ * Hangi işi kimin beklediğini tutar.
+ *
+ * Deneme ekranı modal olarak açılıyor, yani altındaki Stüdyo sekmesi canlı
+ * kalıyor ve o da "yarım kalmış iş" görüp AYNI işi beklemeye başlıyordu:
+ * sonuç iki kez indiriliyor, galeriye iki kez ekleniyordu. İşi bekleyen taraf
+ * burada sahipleniyor, diğeri karışmıyor. (Bellek içi: uygulama kapanınca
+ * sıfırlanır, zaten o durumda devam etmesi İSTENEN davranış.)
+ */
+const claimed = new Set<string>();
+
+/** İşi sahiplen. Zaten sahiplenilmişse `false` döner. */
+export function claimJob(jobId: string): boolean {
+  if (claimed.has(jobId)) return false;
+  claimed.add(jobId);
+  return true;
+}
+
+export function releaseJob(jobId: string): void {
+  claimed.delete(jobId);
+}
+
 /** Zaman aşımında iş kimliğini taşır ki sonra devam edilebilsin. */
 export class TryOnPendingError extends Error {
   constructor(public jobId: string) {

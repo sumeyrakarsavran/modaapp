@@ -22,6 +22,8 @@ import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPi
 import { persistGarmentPhoto, persistRemoteImage } from '@/services/photoStore';
 import {
   buildPrompt,
+  claimJob,
+  releaseJob,
   startTryOnMax,
   TRYON_CREDITS,
   TryOnPendingError,
@@ -134,6 +136,7 @@ export default function TryOn() {
 
   const run = async () => {
     const model = TRYON_MODELS.find((m) => m.id === modelId);
+    let startedJobId: string | undefined;
     if (!api.fashnKey || !wearable.length) return;
     setBusy(true);
     setError(null);
@@ -170,6 +173,7 @@ export default function TryOn() {
         resolution,
         mode,
       });
+      startedJobId = jobId;
       setPendingTryOn({
         jobId,
         modelId: ownModelUri ? undefined : modelId,
@@ -179,6 +183,7 @@ export default function TryOn() {
         startedAt: new Date().toISOString(),
       });
 
+      claimJob(jobId);
       const outputUrl = await waitForJob(api.fashnKey, jobId, setStatus);
 
       setStatus('Kaydediliyor…');
@@ -186,6 +191,7 @@ export default function TryOn() {
       setResultUrl(saved);
       addTryOn({
         imageUri: saved,
+        jobId,
         modelId: ownModelUri ? undefined : modelId,
         outfitId: outfit?.id,
         outfitName: outfit?.name,
@@ -200,6 +206,7 @@ export default function TryOn() {
           : (e?.message ?? 'Bilinmeyen hata'),
       );
     } finally {
+      if (startedJobId) releaseJob(startedJobId);
       setBusy(false);
       setStatus('');
     }
