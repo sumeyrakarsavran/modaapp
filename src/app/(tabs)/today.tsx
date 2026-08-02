@@ -16,6 +16,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { BettaFish } from '@/components/BettaFish';
 import { ItemThumb } from '@/components/ItemThumb';
@@ -124,6 +125,41 @@ function LuxeButton({
   );
 }
 
+/**
+ * Sayfa zemini: köşegen gradyan + iki radyal parıltı.
+ * Radyal geçiş için SVG şart — `expo-linear-gradient` yalnızca DOĞRUSAL
+ * gradyan çiziyor, RN'de radial-gradient karşılığı yok.
+ */
+function Backdrop() {
+  return (
+    <View style={styles.backdrop} pointerEvents="none">
+      <LinearGradient
+        colors={['#FFF3EC', '#FFF8F7', '#FFF0EC']}
+        locations={[0, 0.5, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.backdropFill}
+      />
+      <Svg style={styles.backdropFill}>
+        <Defs>
+          {/* Sağ üstte şeftali parıltı */}
+          <RadialGradient id="glowTop" cx="82%" cy="6%" r="70%">
+            <Stop offset="0" stopColor={luxe.primaryContainer} stopOpacity="0.7" />
+            <Stop offset="1" stopColor={luxe.primaryContainer} stopOpacity="0" />
+          </RadialGradient>
+          {/* Sol altta gülkurusu parıltı — derinlik için */}
+          <RadialGradient id="glowBottom" cx="6%" cy="88%" r="62%">
+            <Stop offset="0" stopColor="#F6D9DA" stopOpacity="0.55" />
+            <Stop offset="1" stopColor="#F6D9DA" stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#glowTop)" />
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#glowBottom)" />
+      </Svg>
+    </View>
+  );
+}
+
 /** İnce, iki ucu sönümlenen ayraç (örnekteki `fin-divider`). */
 function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
   return (
@@ -223,6 +259,7 @@ export default function Today() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+      <Backdrop />
       {/* Üst çubuk: avatar · marka · ayarlar */}
       <View style={styles.header}>
         <ProfileButton size={40} />
@@ -611,6 +648,9 @@ export default function Today() {
 }
 
 const styles = StyleSheet.create({
+  /* RN 0.86'da StyleSheet.absoluteFillObject yok — düz obje. */
+  backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+  backdropFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -696,7 +736,11 @@ const styles = StyleSheet.create({
   card: {
     marginTop: 18,
     borderRadius: luxeRadius.lg,
-    backgroundColor: luxe.surface,
+    /*
+      OPAK olmalı: Android'de elevation + yarı saydam zemin birleşince gölge
+      tabakası kartın içine beyaz bir dikdörtgen olarak sızıyor.
+    */
+    backgroundColor: '#FFFCFB',
     borderWidth: 1,
     borderColor: luxe.outlineSoft,
     padding: 18,
