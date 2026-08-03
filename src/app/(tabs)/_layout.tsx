@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useStore } from '@/store/useStore';
 import { colors } from '@/theme';
-import { font, luxe } from '@/theme/luxe';
+import { font, glass, luxe } from '@/theme/luxe';
 
 export default function TabsLayout() {
   const account = useStore((s) => s.account);
@@ -26,22 +26,28 @@ export default function TabsLayout() {
           `sceneStyle` bilerek ESKİ zeminde bırakıldı — henüz yeni tasarıma
           geçmemiş sekmelerin zeminini değiştirmesin.
         */
-        // Aktif/pasif tonlar birbirine yakındı, seçili sekme belli olmuyordu
-        tabBarActiveTintColor: luxe.primaryDeep,
-        tabBarInactiveTintColor: 'rgba(128,117,108,0.6)',
+        /*
+          Aktif sekme örnekteki gibi "hap" içine ALINAMADI: ikonu bir View ile
+          sarmalayınca glif hiç çizilmiyor (hap görünüyor, ikon yok) — cihazda
+          doğrulandı, sarmalayıcı kalkınca ikonlar geri geliyor. Ayrım renkle
+          yapılıyor. Hap isteniyorsa özel `tabBarButton` gerekir.
+        */
+        tabBarActiveTintColor: luxe.primary,
+        tabBarInactiveTintColor: 'rgba(128,116,117,0.55)',
         tabBarStyle: {
-          backgroundColor: '#FFFCFB',
-          borderTopColor: 'rgba(227,192,160,0.45)',
+          backgroundColor: glass.fillStrong,
+          borderTopColor: glass.border,
           borderTopWidth: 1,
-          height: 64 + insets.bottom,
+          height: 68 + insets.bottom,
           paddingTop: 8,
           paddingBottom: insets.bottom,
           elevation: 0,
         },
         tabBarLabelStyle: {
-          fontFamily: font.bodyMedium,
-          fontSize: 10.5,
-          letterSpacing: 0.2,
+          fontFamily: font.label,
+          fontSize: 9,
+          letterSpacing: 1.2,
+          textTransform: 'uppercase',
           paddingBottom: 6,
         },
         tabBarIconStyle: { marginBottom: -2 },
@@ -97,3 +103,4 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+

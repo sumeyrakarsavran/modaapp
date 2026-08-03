@@ -1,81 +1,98 @@
 /**
- * BETTA — editoryal tasarım dili ("luxe").
+ * BETTA — editoryal tasarım dili ("Iridescent Ethereal").
  *
- * Sıcak şeftali/kum paleti ve Playfair Display + DM Sans ikilisi. Kaynak:
- * kullanıcının paylaştığı ROSETAIL örneği; renkler Material 3 token'larından
- * birebir alındı, adlar BETTA'ya uyarlandı.
+ * Kaynak: kullanıcının paylaştığı Rosetail örneği (DESIGN.md). Renkler
+ * Material 3 token'larından birebir alındı, adlar BETTA'ya uyarlandı.
+ * Karakteri: inci beyazı zemin, gülkurusu (mauve) ana renk, pembe/şeftali
+ * konteynerler, cam (glassmorphism) yüzeyler, organik yumuşak köşeler.
  *
  * ⚠️ Bu dosya `src/theme/index.ts`'i DEĞİŞTİRMİYOR, EKLİYOR. Eski okyanus
- * paleti hâlâ tüm ekranlarda çalışıyor; ekranlar teker teker buraya geçiyor
- * (şu an: Bugün). Böylece bir ekranın yeniden giydirilmesi diğerlerini bozmuyor.
+ * paleti hâlâ diğer ekranlarda çalışıyor; ekranlar teker teker buraya geçiyor
+ * (şu an: Bugün + sekme çubuğu).
  */
 
 export const luxe = {
-  /** Zemin — sıcak, pudralı beyaz */
-  bg: '#FFF8F7',
+  /** Zemin — inci beyazı */
+  bg: '#FAF9F8',
   surface: '#FFFFFF',
   /** Kart zeminleri, açıktan koyuya */
-  surfaceLow: '#FFF0EF',
-  surfaceMid: '#FFE9E8',
-  surfaceHigh: '#FFE1E0',
+  surfaceLow: '#F4F3F2',
+  surfaceMid: '#EEEEED',
+  surfaceHigh: '#E9E8E7',
 
-  /** Ana renk — sıcak kahve. Düğmeler, vurgular, marka yazısı. */
-  primary: '#74593F',
-  primaryDeep: '#5A422A',
-  /** Şeftali konteyner — yumuşak bloklar, seçili durumlar */
-  primaryContainer: '#FFDAB9',
-  /** Ten/kum tonu — ayraçlar, ince çerçeveler */
-  primarySoft: '#E3C0A0',
+  /** Ana renk — gülkurusu/mauve. Düğmeler, başlıklar, marka yazısı. */
+  primary: '#70585B',
+  primaryDeep: '#574144',
+  /** Pudra pembe konteyner — yumuşak bloklar, seçili durumlar */
+  primaryContainer: '#FADADD',
+  /** Soluk gül — ince çerçeveler, ayraçlar */
+  primarySoft: '#DEBFC2',
+
+  /** İkincil: sıcak krem/şeftali */
+  secondary: '#685D49',
+  secondaryContainer: '#F0E1C7',
+  onSecondaryContainer: '#6E634F',
+
+  /** Üçüncül: menekşe — iridesan parıltıda kullanılıyor */
+  tertiary: '#67587A',
+  tertiaryContainer: '#EDDBFF',
 
   /** Metin */
-  ink: '#3B080B', // koyu bordo-siyah
-  inkSoft: '#4F453D',
-  outline: '#80756C',
-  outlineSoft: '#D2C4B9',
-
-  /** İkincil/üçüncül */
-  tertiary: '#625F4F', // zeytin gri
-  secondary: '#635D58',
+  ink: '#1A1C1C',
+  inkSoft: '#4F4445',
+  outline: '#807475',
+  outlineSoft: '#D2C3C4',
 
   danger: '#BA1A1A',
   onPrimary: '#FFFFFF',
 
   /** Koyu zemin üstü metin katmanları (hero görselinde) */
   onDark: '#FFFFFF',
-  onDarkSoft: 'rgba(255,255,255,0.82)',
+  onDarkSoft: 'rgba(255,255,255,0.85)',
 
-  /** Bordo — hero perdesi. Kahve tonu kolajı çamurlaştırıyordu. */
-  bordeaux: '#5E1428',
-  overlay: 'rgba(59,8,11,0.5)',
+  /** Hero perdesinin koyu ucu (on-primary-fixed) */
+  scrim: '#281719',
+  overlay: 'rgba(26,28,28,0.45)',
+} as const;
+
+/**
+ * Cam yüzey (glassmorphism). RN'de `backdrop-filter` yok — `expo-blur` da
+ * kurulu değil; yarı saydam beyaz dolgu + açık kenarlıkla taklit ediliyor.
+ * Zemindeki radyal parıltılar altından geçtiği için etki yakın duruyor.
+ */
+export const glass = {
+  fill: 'rgba(255,255,255,0.62)',
+  fillStrong: 'rgba(255,255,255,0.78)',
+  border: 'rgba(255,255,255,0.75)',
 } as const;
 
 /**
  * Font aileleri. `@expo-google-fonts/*` paketlerinden yükleniyor
- * (kök `_layout.tsx`). Yükleme bitmemişse RN sistem fontuna düşer —
- * ekran yine çizilir, sadece tipografi sade görünür.
+ * (kök `_layout.tsx`, yükleme BEKLENİYOR — yoksa metinler sistem fontuyla
+ * ölçülüp kırpılıyor).
+ *
+ * Playfair'in İNCE kesimleri kullanılıyor (400/500): DESIGN.md "airy" duruş
+ * için hafif ağırlık istiyor, kalın kesim editoryal havayı bozuyor.
  */
 export const font = {
-  display: 'PlayfairDisplay_700Bold',
-  displayItalic: 'PlayfairDisplay_600SemiBold_Italic',
-  headline: 'PlayfairDisplay_600SemiBold',
+  display: 'PlayfairDisplay_400Regular',
+  displayItalic: 'PlayfairDisplay_400Regular_Italic',
+  headline: 'PlayfairDisplay_500Medium',
+  headlineItalic: 'PlayfairDisplay_400Regular_Italic',
   body: 'DMSans_400Regular',
   bodyMedium: 'DMSans_500Medium',
   label: 'DMSans_700Bold',
 } as const;
 
-/**
- * Tipografi ölçeği — örnekteki Tailwind ölçeğinin mobil karşılığı.
- * `lineHeight` oranlar piksele çevrildi (RN oran kabul etmiyor).
- */
+/** Tipografi ölçeği — DESIGN.md'deki değerlerin mobil karşılığı. */
 export const luxeType = {
-  /** 32/1.2 — sayfa başlığı */
+  /** 32/40 — sayfa başlığı */
   display: {
     fontFamily: font.display,
     fontSize: 32,
-    lineHeight: 38,
-    color: luxe.ink,
+    lineHeight: 40,
+    color: luxe.primary,
   },
-  /** Başlığın italik ikinci satırı (örnekte "Ethereal Luminary") */
   displayItalic: {
     fontFamily: font.displayItalic,
     fontSize: 32,
@@ -83,21 +100,28 @@ export const luxeType = {
     fontStyle: 'italic' as const,
     color: luxe.primary,
   },
-  /** 24/1.3 — kart başlıkları */
+  /** 24/32 — bölüm ve kart başlıkları */
   headline: {
     fontFamily: font.headline,
     fontSize: 22,
-    lineHeight: 29,
-    color: luxe.ink,
+    lineHeight: 30,
+    color: luxe.primary,
+  },
+  headlineItalic: {
+    fontFamily: font.headlineItalic,
+    fontSize: 22,
+    lineHeight: 30,
+    fontStyle: 'italic' as const,
+    color: luxe.primary,
   },
   /** Hero üstündeki serif başlık */
   heroTitle: {
     fontFamily: font.display,
-    fontSize: 26,
-    lineHeight: 32,
+    fontSize: 28,
+    lineHeight: 34,
     color: luxe.onDark,
   },
-  /** 16/1.6 — gövde */
+  /** 16/24 — gövde */
   body: {
     fontFamily: font.body,
     fontSize: 15,
@@ -110,11 +134,11 @@ export const luxeType = {
     lineHeight: 24,
     color: luxe.ink,
   },
-  /** 12/0.1em/700 uppercase — etiketler, düğme yazıları */
+  /** 14/20/0.05em — etiketler; DESIGN.md: büyük harf + geniş harf aralığı */
   label: {
     fontFamily: font.label,
     fontSize: 11,
-    letterSpacing: 1.1,
+    letterSpacing: 1.6,
     textTransform: 'uppercase' as const,
     color: luxe.outline,
   },
@@ -126,22 +150,38 @@ export const luxeType = {
   },
 } as const;
 
-export const luxeRadius = { sm: 8, md: 12, lg: 16, xl: 24, pill: 999 } as const;
+/** DESIGN.md: keskin köşe yok; kartlar çok yumuşak, düğmeler tam hap. */
+export const luxeRadius = { sm: 10, md: 16, lg: 28, xl: 40, pill: 999 } as const;
 
-/** Kartların yumuşak, dağınık gölgesi — örnekteki `shadow-sm` hissi. */
+/**
+ * Organik "yüzgeç" köşe — örnekteki `fin-curve`.
+ * CSS'teki eliptik yarıçap (`60% 40% ... / ...`) RN'de yok; köşeler farklı
+ * piksel değerleriyle yaklaşık veriliyor, asimetri hissi korunuyor.
+ */
+export const finCurve = {
+  borderTopLeftRadius: 44,
+  borderTopRightRadius: 26,
+  borderBottomRightRadius: 44,
+  borderBottomLeftRadius: 26,
+} as const;
+
+/**
+ * DESIGN.md: klasik gölge yerine "ambient shadow" — çok yayvan, zemin
+ * tonuyla renklenmiş, neredeyse görünmez bir hale.
+ */
 export const luxeShadow = {
   card: {
-    shadowColor: '#74593F',
-    shadowOffset: { width: 0, height: 6 },
+    shadowColor: luxe.primary,
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.07,
-    shadowRadius: 16,
+    shadowRadius: 28,
     elevation: 2,
   },
   hero: {
-    shadowColor: '#74593F',
-    shadowOffset: { width: 0, height: 12 },
+    shadowColor: luxe.primary,
+    shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.16,
-    shadowRadius: 26,
-    elevation: 7,
+    shadowRadius: 40,
+    elevation: 8,
   },
 } as const;

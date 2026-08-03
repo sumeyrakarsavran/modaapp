@@ -18,7 +18,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { BettaFish } from '@/components/BettaFish';
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
@@ -27,7 +26,7 @@ import { localSuggest, type SuggestedOutfit } from '@/services/stylist';
 import { weatherEmoji, weatherLabel } from '@/services/weather';
 import { useStore } from '@/store/useStore';
 import { getArchetype } from '@/theme';
-import { font, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
+import { finCurve, font, glass, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
 import { todayISO } from '@/types';
 
 const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
@@ -41,7 +40,7 @@ function addDays(iso: string, n: number): string {
 }
 
 /**
- * Havaya göre kısa giyim tavsiyesi — örnekteki "Style Forecast" metninin
+ * Havaya göre kısa giyim tavsiyesi — örnekteki "Stylist Insight" metninin
  * karşılığı. Tamamen yerel: API yok, anahtar gerekmiyor.
  */
 function styleAdvice(w?: { tempMax: number; tempMin: number; precipProb: number }): string {
@@ -66,7 +65,7 @@ function styleAdvice(w?: { tempMax: number; tempMin: number; precipProb: number 
   return base + extra;
 }
 
-/** Editoryal düğme — dolu (primary) ya da ana hatlı. */
+/** Editoryal düğme — hap biçimli; dolu (mauve) ya da ince çerçeveli. */
 function LuxeButton({
   title,
   onPress,
@@ -93,11 +92,11 @@ function LuxeButton({
         solid
           ? { backgroundColor: onDark ? luxe.onDark : luxe.primary }
           : {
-              backgroundColor: 'transparent',
+              backgroundColor: onDark ? 'transparent' : glass.fill,
               borderWidth: 1,
-              borderColor: onDark ? 'rgba(255,255,255,0.55)' : luxe.outlineSoft,
+              borderColor: onDark ? 'rgba(255,255,255,0.5)' : luxe.outlineSoft,
             },
-        pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
+        pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] },
         style,
       ]}
     >
@@ -126,83 +125,59 @@ function LuxeButton({
 }
 
 /**
- * Sayfa zemini: köşegen gradyan + iki radyal parıltı.
- * Radyal geçiş için SVG şart — `expo-linear-gradient` yalnızca DOĞRUSAL
- * gradyan çiziyor, RN'de radial-gradient karşılığı yok.
+ * Sayfa zemini: inci beyazı + köşelerden sızan radyal "ışık sızıntıları"
+ * (sol üstte pudra pembe, sağ altta krem, arada menekşe) — örnekteki
+ * `betta-flow-bg`. Radyal geçiş için SVG şart: `expo-linear-gradient`
+ * yalnızca DOĞRUSAL gradyan çiziyor, RN'de radial-gradient karşılığı yok.
  */
 function Backdrop() {
   return (
     <View style={styles.backdrop} pointerEvents="none">
-      <LinearGradient
-        colors={['#FFFAF7', '#FFFCFB', '#FFF8F5']}
-        locations={[0, 0.5, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.backdropFill}
-      />
       <Svg style={styles.backdropFill}>
         <Defs>
-          {/* Sağ üstte şeftali parıltı */}
-          <RadialGradient id="glowTop" cx="82%" cy="6%" r="70%">
-            <Stop offset="0" stopColor={luxe.primaryContainer} stopOpacity="0.4" />
+          <RadialGradient id="leakTop" cx="2%" cy="0%" r="72%">
+            <Stop offset="0" stopColor={luxe.primaryContainer} stopOpacity="0.75" />
             <Stop offset="1" stopColor={luxe.primaryContainer} stopOpacity="0" />
           </RadialGradient>
-          {/* Sol altta gülkurusu parıltı — derinlik için */}
-          <RadialGradient id="glowBottom" cx="6%" cy="88%" r="62%">
-            <Stop offset="0" stopColor="#F6D9DA" stopOpacity="0.3" />
-            <Stop offset="1" stopColor="#F6D9DA" stopOpacity="0" />
+          <RadialGradient id="leakBottom" cx="100%" cy="100%" r="72%">
+            <Stop offset="0" stopColor={luxe.secondaryContainer} stopOpacity="0.7" />
+            <Stop offset="1" stopColor={luxe.secondaryContainer} stopOpacity="0" />
+          </RadialGradient>
+          {/* Menekşe kırıntısı — DESIGN.md'nin istediği iridesan his */}
+          <RadialGradient id="leakMid" cx="88%" cy="24%" r="45%">
+            <Stop offset="0" stopColor={luxe.tertiaryContainer} stopOpacity="0.45" />
+            <Stop offset="1" stopColor={luxe.tertiaryContainer} stopOpacity="0" />
           </RadialGradient>
         </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#glowTop)" />
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#glowBottom)" />
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#leakTop)" />
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#leakMid)" />
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#leakBottom)" />
       </Svg>
     </View>
   );
 }
 
 /**
- * Parlak kart: opak beyaz zemin + içeride köşegen ışık geçişi.
+ * Cam kart (glassmorphism). RN'de `backdrop-filter` yok ve `expo-blur` kurulu
+ * değil; yarı saydam beyaz dolgu + açık kenarlıkla taklit ediliyor. Zemindeki
+ * radyal parıltı altından geçtiği için etki yakın duruyor.
  *
- * Geçiş kartın KENDİ zemini olarak değil, AYRI bir katman olarak çiziliyor ve
- * kırpma (`overflow`) yerine katmana aynı `borderRadius` veriliyor — çünkü
- * gölge (elevation) veren View'a `overflow: 'hidden'` eklenince Android'de
- * çocuklar hiç çizilmiyor. Kart zemini de opak kalmalı: yarı saydam olunca
- * elevation gölgesi kartın içine beyaz dikdörtgen olarak sızıyor.
+ * ⚠️ Gölge (elevation) VERİLMİYOR: dolgu yarı saydam olduğu için Android'de
+ * elevation gölgesi kartın içine beyaz bir dikdörtgen olarak sızıyor
+ * (cihazda görüldü). Derinliği kenarlık ve ton farkı taşıyor — DESIGN.md
+ * zaten gölge yerine "tonal katmanlama" istiyor.
  */
-function LuxeCard({
+function GlassCard({
   children,
-  accent,
+  tint,
   style,
 }: {
   children: React.ReactNode;
-  /** Vurgulu kart (stilistin önerisi) — şeftali tarafa çalar. */
-  accent?: boolean;
+  /** Vurgulu kart — pudra pembeye çalar. */
+  tint?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  return (
-    <View style={[styles.card, accent && styles.cardAccent, style]}>
-      <LinearGradient
-        colors={accent ? ['#FFF6EF', '#FFEADF'] : ['#FFFFFF', '#FFF6F1']}
-        start={{ x: 0.15, y: 0 }}
-        end={{ x: 0.85, y: 1 }}
-        style={styles.cardSheen}
-        pointerEvents="none"
-      />
-      {children}
-    </View>
-  );
-}
-
-/** İnce, iki ucu sönümlenen ayraç (örnekteki `fin-divider`). */
-function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
-  return (
-    <LinearGradient
-      colors={['transparent', luxe.primarySoft, 'transparent']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 0 }}
-      style={[{ height: 1, opacity: 0.7 }, style]}
-    />
-  );
+  return <View style={[styles.glassCard, tint && styles.glassCardTint, style]}>{children}</View>;
 }
 
 export default function Today() {
@@ -267,8 +242,12 @@ export default function Today() {
         day: 'numeric',
         month: 'long',
       });
+  /** Örnekteki "Look Completion" karşılığı — uydurma değil, gerçek plan sayısı. */
+  const plannedDays = weekDates.filter((d) =>
+    plans.some((p) => p.date === d && (p.outfitId || p.itemIds?.length)),
+  ).length;
 
-  /** Şehir arama alanı — hem ilk kurulumda hem "Değiştir"de aynı görünüm. */
+  /** Şehir arama alanı — hem ilk kurulumda hem "değiştir"de aynı görünüm. */
   const cityForm = (placeholder: string) => (
     <View style={styles.cityRow}>
       <TextInput
@@ -293,98 +272,60 @@ export default function Today() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
       <Backdrop />
+
       {/* Üst çubuk: avatar · marka · ayarlar */}
       <View style={styles.header}>
-        <ProfileButton size={40} />
-        <Text style={styles.wordmark}>BETTA</Text>
+        <ProfileButton size={36} />
+        <Text style={styles.wordmark}>Betta</Text>
         <Pressable
           onPress={() => router.push('/settings')}
           hitSlop={8}
           style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
         >
-          <Ionicons name="settings-outline" size={22} color={luxe.primary} />
+          <Ionicons name="settings-outline" size={21} color={luxe.primary} />
         </Pressable>
       </View>
-      <Divider />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Karşılama */}
-        <Text style={luxeType.display}>Tekrar hoş geldin,</Text>
-        <Text style={luxeType.displayItalic}>
-          {profile.name || archetype?.styleName || 'Betta'}
-        </Text>
+        {/* Başlık + hava rozeti */}
+        <View style={styles.titleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={luxeType.label}>Bugün</Text>
+            <Text style={[luxeType.display, { marginTop: 8 }]}>
+              {profile.name ? `${profile.name} için` : 'Günün'}
+            </Text>
+            <Text style={luxeType.displayItalic}>seçki</Text>
+          </View>
+
+          {/* Hava rozeti — organik köşeli cam blok; dokununca şehir değişir */}
+          <Pressable
+            onPress={() => setAskCity((v) => !v)}
+            style={({ pressed }) => [styles.weatherBlob, pressed && { opacity: 0.85 }]}
+          >
+            {hasLocation && todayWeather ? (
+              <>
+                <View style={{ alignItems: 'flex-end', flexShrink: 1 }}>
+                  <Text style={styles.weatherTemp}>{todayWeather.tempMax}°</Text>
+                  <Text style={styles.weatherCity} numberOfLines={1}>
+                    {profile.city}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 24 }}>{weatherEmoji(todayWeather.weatherCode)}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.weatherCity}>Şehir{'\n'}seç</Text>
+                <Text style={{ fontSize: 22 }}>🌤️</Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+
         {archetype ? (
-          <Text style={[luxeType.label, { marginTop: 8 }]}>
+          <Text style={[luxeType.caption, { marginTop: 12 }]}>
             {archetype.emoji} {archetype.styleName} · {archetype.fish}
           </Text>
         ) : null}
-        <Divider style={{ marginTop: 14 }} />
-
-        {/* Haftalık plan şeridi */}
-        <Text style={[luxeType.label, styles.sectionLabel]}>Haftalık plan</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingRight: 20 }}
-        >
-          {weekDates.map((date, i) => {
-            const d = new Date(`${date}T12:00:00`);
-            const w = week[i];
-            const planned = plans.some((p) => p.date === date && (p.outfitId || p.itemIds?.length));
-            const active = date === selectedDate;
-            return (
-              <Pressable
-                key={date}
-                onPress={() => {
-                  setSelectedDate(date);
-                  setSuggestion(null);
-                }}
-                style={[styles.day, active && styles.dayActive]}
-              >
-                <Text style={[styles.dayName, active && { color: luxe.onPrimary }]}>
-                  {DAY_NAMES[d.getDay()]}
-                </Text>
-                <Text style={[styles.dayNum, active && { color: luxe.onPrimary }]}>
-                  {d.getDate()}
-                </Text>
-                {w ? (
-                  <>
-                    <Text style={{ fontSize: 13 }}>{weatherEmoji(w.weatherCode)}</Text>
-                    <Text style={[styles.dayTemp, active && { color: luxe.onPrimary }]}>
-                      {w.tempMax}°
-                      <Text
-                        style={[
-                          styles.dayTempMin,
-                          active && { color: 'rgba(255,255,255,0.72)' },
-                        ]}
-                      >
-                        {' '}
-                        {w.tempMin}°
-                      </Text>
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={{ fontSize: 13 }}> </Text>
-                    <Text style={styles.dayTemp}> </Text>
-                  </>
-                )}
-                <View
-                  style={[
-                    styles.planDot,
-                    {
-                      backgroundColor: planned
-                        ? active
-                          ? luxe.primaryContainer
-                          : luxe.primary
-                        : 'transparent',
-                    },
-                  ]}
-                />
-              </Pressable>
-            );
-          })}
-        </ScrollView>
 
         {/* HERO — seçili günün kombini */}
         {planItems.length ? (
@@ -396,188 +337,140 @@ export default function Today() {
           */
           <View style={[styles.hero, { height: heroSize }]}>
             <View style={styles.heroClip}>
-            {/*
-              Kolaja dokununca kombin sayfası. Gevşek parça planında (kombin
-              kaydedilmemiş, sadece parça listesi) gidilecek sayfa yok — o
-              durumda dokunma kapalı.
-            */}
-            <Pressable
-              style={styles.heroArt}
-              disabled={!planOutfit}
-              onPress={() =>
-                planOutfit &&
-                router.push({ pathname: '/outfit/[id]', params: { id: planOutfit.id } })
-              }
-            >
-            {planOutfit ? (
-              <OutfitCollage
-                items={planItems}
-                size={heroSize}
-                layout={planOutfit.layout}
-                frame={planOutfit.canvasFrame}
-                cropToContent={planOutfit.cropToContent}
+              {/*
+                Kolaja dokununca kombin sayfası. Gevşek parça planında (kombin
+                kaydedilmemiş, sadece parça listesi) gidilecek sayfa yok — o
+                durumda dokunma kapalı.
+              */}
+              <Pressable
+                style={styles.heroArt}
+                disabled={!planOutfit}
+                onPress={() =>
+                  planOutfit &&
+                  router.push({ pathname: '/outfit/[id]', params: { id: planOutfit.id } })
+                }
+              >
+                {planOutfit ? (
+                  <OutfitCollage
+                    items={planItems}
+                    size={heroSize}
+                    layout={planOutfit.layout}
+                    frame={planOutfit.canvasFrame}
+                    cropToContent={planOutfit.cropToContent}
+                  />
+                ) : (
+                  <OutfitCollage items={planItems} size={heroSize} />
+                )}
+              </Pressable>
+
+              {/*
+                Perde BORDO: nötr koyu ton (siyah/mürdüm) beyaz kolajın üstünde
+                griye düşüp görüntüyü çamurlaştırıyor. Bordo hem paletteki
+                pembe/mauve ile akraba hem de parçaları griye çevirmiyor.
+              */}
+              <LinearGradient
+                colors={['transparent', 'rgba(94,20,40,0.24)', 'rgba(94,20,40,0.62)']}
+                locations={[0.36, 0.62, 1]}
+                style={styles.heroShade}
+                pointerEvents="none"
               />
-            ) : (
-              <OutfitCollage items={planItems} size={heroSize} />
-            )}
-            </Pressable>
-            {/*
-              Perde BORDO ve hafif: kahve tonu kolajı çamurlaştırıyordu, açık
-              perde ise alt parçaları (ayakkabıyı) yutuyordu. Hafif bordo ile
-              parçalar görünür kalıyor, beyaz yazı da okunuyor.
-            */}
-            <LinearGradient
-              colors={['transparent', 'rgba(94,20,40,0.26)', 'rgba(94,20,40,0.62)']}
-              locations={[0.34, 0.6, 1]}
-              style={styles.heroShade}
-              pointerEvents="none"
-            />
-            {/*
-              Etiket görselin SOL ÜST köşesinde; satır sarmalı ŞART, çünkü
-              `alignSelf: 'flex-start'` ile rozet metinden dar ölçülüp yazıyı
-              soldan kırpıyordu ("...OMBİNİ").
-            */}
-            <View style={styles.heroTag} pointerEvents="none">
-              <View style={styles.heroPill}>
-                <Text style={styles.heroPillText} numberOfLines={1}>
-                  {selectedLabel}
+
+              {/*
+                Etiket sol üstte; satır sarmalı ŞART, çünkü
+                `alignSelf: 'flex-start'` ile rozet metinden dar ölçülüp yazıyı
+                soldan kırpıyordu ("...OMBİNİ").
+              */}
+              <View style={styles.heroTag} pointerEvents="none">
+                <View style={styles.heroPill}>
+                  <Text style={styles.heroPillText} numberOfLines={1}>
+                    {selectedLabel}
+                  </Text>
+                </View>
+              </View>
+
+              {/*
+                `box-none`: bant, düğmeleri dışındaki yerlerde dokunuşu ALTTAKİ
+                kolaja geçirsin — yoksa kartın alt yarısı tıklanamaz oluyor.
+              */}
+              <View style={styles.heroBody} pointerEvents="box-none">
+                <Text style={[luxeType.heroTitle, styles.heroShadowText]} numberOfLines={2}>
+                  {planOutfit?.name ?? `${planItems.length} parça`}
                 </Text>
-              </View>
-            </View>
-            {/*
-              `box-none`: bant, düğmeleri dışındaki yerlerde dokunuşu ALTTAKİ
-              kolaja geçirsin — yoksa kartın alt yarısı tıklanamaz oluyor.
-            */}
-            <View style={styles.heroBody} pointerEvents="box-none">
-              <Text style={[luxeType.heroTitle, styles.heroShadowText]} numberOfLines={2}>
-                {planOutfit?.name ?? `${planItems.length} parça`}
-              </Text>
-              <Text style={[styles.heroSub, styles.heroShadowText]} numberOfLines={1}>
-                {planItems
-                  .map((it) => it!.name)
-                  .filter(Boolean)
-                  .join(' · ')}
-                {selectedWeather
-                  ? `  ${weatherEmoji(selectedWeather.weatherCode)} ${selectedWeather.tempMax}°`
-                  : ''}
-              </Text>
-              <View style={styles.heroActions}>
-                {isToday && planOutfit ? (
+                <Text style={[styles.heroSub, styles.heroShadowText]} numberOfLines={1}>
+                  {planItems
+                    .map((it) => it!.name)
+                    .filter(Boolean)
+                    .join(' · ')}
+                  {selectedWeather
+                    ? `  ${weatherEmoji(selectedWeather.weatherCode)} ${selectedWeather.tempMax}°`
+                    : ''}
+                </Text>
+                <View style={styles.heroActions}>
+                  {isToday && planOutfit ? (
+                    <LuxeButton
+                      onDark
+                      title="Bugün bunu giydim"
+                      onPress={() => {
+                        wearOutfit(planOutfit.id, today);
+                        clearPlan(today);
+                      }}
+                    />
+                  ) : null}
+                  {isToday && !planOutfit && selectedPlan?.itemIds?.length ? (
+                    <LuxeButton
+                      onDark
+                      title="Bugün bunu giydim"
+                      onPress={() => {
+                        logWear(selectedPlan.itemIds!, today);
+                        clearPlan(today);
+                      }}
+                    />
+                  ) : null}
                   <LuxeButton
                     onDark
-                    title="Bugün bunu giydim"
-                    onPress={() => {
-                      wearOutfit(planOutfit.id, today);
-                      clearPlan(today);
-                    }}
+                    variant="outline"
+                    title="Planı kaldır"
+                    onPress={() => clearPlan(selectedDate)}
                   />
-                ) : null}
-                {isToday && !planOutfit && selectedPlan?.itemIds?.length ? (
-                  <LuxeButton
-                    onDark
-                    title="Bugün bunu giydim"
-                    onPress={() => {
-                      logWear(selectedPlan.itemIds!, today);
-                      clearPlan(today);
-                    }}
-                  />
-                ) : null}
-                <LuxeButton
-                  onDark
-                  variant="outline"
-                  title="Planı kaldır"
-                  onPress={() => clearPlan(selectedDate)}
-                />
+                </View>
               </View>
-            </View>
             </View>
           </View>
         ) : (
-          <View style={styles.heroEmpty}>
-            <LinearGradient
-              colors={['#FFF9F4', '#FFEDE4']}
-              start={{ x: 0.15, y: 0 }}
-              end={{ x: 0.85, y: 1 }}
-              style={styles.heroEmptySheen}
-              pointerEvents="none"
-            />
+          <GlassCard tint style={{ marginTop: 22 }}>
             <Text style={[luxeType.label, { color: luxe.primary }]}>{selectedLabel}</Text>
-            <Text style={[luxeType.headline, { marginTop: 6 }]}>Bu gün için plan yok</Text>
-            <Text style={[luxeType.body, { marginTop: 6 }]}>
+            <Text style={[luxeType.headlineItalic, { marginTop: 8 }]}>Bu gün için plan yok</Text>
+            <Text style={[luxeType.body, { marginTop: 8 }]}>
               Kombinlerinden birini seç ya da gardırobundan sana bir öneri çıkaralım.
             </Text>
             <View style={styles.rowWrap}>
               <LuxeButton title="Kombinlerimden seç" onPress={() => setPickerOpen(true)} />
               <LuxeButton variant="outline" title="🎲 Bana öner" onPress={shuffle} />
             </View>
-          </View>
+          </GlassCard>
         )}
 
-        {/* Stilistin önerisi */}
-        {suggestion && suggestedItems.length ? (
-          <LuxeCard accent>
-            <Text style={[luxeType.label, { color: luxe.primary }]}>Stilistin önerisi</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8, marginTop: 12 }}
-            >
-              {suggestedItems.map((it) => (
-                <ItemThumb key={it.id} item={it} size={84} showName />
+        {/* Stilistin yorumu */}
+        <GlassCard style={{ marginTop: 22 }}>
+          <View style={styles.insightGlow} pointerEvents="none" />
+          <Text style={{ fontSize: 22 }}>✨</Text>
+          <Text style={[luxeType.headlineItalic, { marginTop: 12 }]}>Stilistin yorumu</Text>
+          <Text style={[luxeType.body, { marginTop: 10 }]}>{styleAdvice(todayWeather)}</Text>
+
+          {/* Etiketler: arketipin stil anahtar kelimeleri — uydurma değil */}
+          {archetype ? (
+            <View style={styles.chipRow}>
+              {archetype.keywords.slice(0, 3).map((k) => (
+                <View key={k} style={styles.chip}>
+                  <Text style={styles.chipText}>#{k}</Text>
+                </View>
               ))}
-            </ScrollView>
-            <Text style={[luxeType.body, { marginTop: 12 }]}>{suggestion.reason}</Text>
-            <View style={styles.rowWrap}>
-              <LuxeButton title="Bugüne planla" onPress={saveSuggestionAsOutfit} />
-              <LuxeButton variant="outline" title="🎲 Başka öner" onPress={shuffle} />
-              <LuxeButton variant="outline" title="Vazgeç" onPress={() => setSuggestion(null)} />
             </View>
-          </LuxeCard>
-        ) : null}
-
-        {/* Stil raporu (hava durumu) */}
-        <LuxeCard>
-          <View style={styles.forecastHead}>
-            <Text style={{ fontSize: 30 }}>
-              {todayWeather ? weatherEmoji(todayWeather.weatherCode) : '🌤️'}
-            </Text>
-            <View style={{ flex: 1 }}>
-              <Text style={luxeType.label}>Stil raporu</Text>
-              {/*
-                Derece ve şehir AYRI satırlarda: tek satıra sıkıştırınca
-                Playfair'in geniş rakamlarıyla sarıp "Değiştir" düğmesine
-                giriyordu.
-              */}
-              {hasLocation && todayWeather ? (
-                <>
-                  <Text style={[luxeType.headline, { fontSize: 20 }]} numberOfLines={1}>
-                    {todayWeather.tempMax}° / {todayWeather.tempMin}°
-                  </Text>
-                  <Text style={luxeType.caption} numberOfLines={1}>
-                    {weatherLabel(todayWeather.weatherCode)}
-                    {profile.city ? ` · ${profile.city}` : ''}
-                  </Text>
-                </>
-              ) : (
-                <Text style={[luxeType.headline, { fontSize: 20 }]}>Hava durumu</Text>
-              )}
-            </View>
-            {hasLocation && todayWeather ? (
-              <Pressable
-                onPress={() => setAskCity((v) => !v)}
-                hitSlop={6}
-                style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={styles.chipText}>Değiştir</Text>
-              </Pressable>
-            ) : null}
-          </View>
-
-          <Text style={[luxeType.body, { marginTop: 14 }]}>{styleAdvice(todayWeather)}</Text>
+          ) : null}
 
           {/* Konum yoksa: şehir arama + konum izni */}
           {!hasLocation || (askCity && !todayWeather) ? (
-            <View style={{ marginTop: 14 }}>
+            <View style={{ marginTop: 16 }}>
               {cityForm('Şehir adı (örn. İstanbul)')}
               <Pressable
                 onPress={async () => {
@@ -596,48 +489,140 @@ export default function Today() {
             </View>
           ) : null}
 
-          {/* Konum varken "Değiştir" */}
+          {/* Konum varken hava rozetine dokununca */}
           {askCity && hasLocation && todayWeather ? (
-            <View style={{ marginTop: 14 }}>{cityForm('Yeni şehir')}</View>
+            <View style={{ marginTop: 16 }}>
+              <Text style={[luxeType.caption, { marginBottom: 10 }]}>
+                {weatherLabel(todayWeather.weatherCode)} · {todayWeather.tempMax}° /{' '}
+                {todayWeather.tempMin}°
+              </Text>
+              {cityForm('Yeni şehir')}
+            </View>
           ) : null}
-        </LuxeCard>
+        </GlassCard>
 
+        {/* Haftanın doluluğu */}
+        <GlassCard style={{ marginTop: 16 }}>
+          <View style={styles.progressHead}>
+            <Text style={luxeType.label}>Haftanın doluluğu</Text>
+            <Text style={styles.progressValue}>{Math.round((plannedDays / 7) * 100)}%</Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <LinearGradient
+              colors={[luxe.primary, luxe.primarySoft]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.progressFill, { width: `${(plannedDays / 7) * 100}%` }]}
+            />
+          </View>
+          <Text style={[luxeType.caption, styles.progressNote]}>
+            7 günün {plannedDays} tanesi planlı
+          </Text>
+        </GlassCard>
+
+        {/* Haftalık plan */}
+        <Text style={[luxeType.headline, styles.sectionTitle]}>Haftalık plan</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 12, paddingRight: 20, paddingVertical: 4 }}
+        >
+          {weekDates.map((date, i) => {
+            const d = new Date(`${date}T12:00:00`);
+            const w = week[i];
+            const planned = plans.some((p) => p.date === date && (p.outfitId || p.itemIds?.length));
+            const active = date === selectedDate;
+            return (
+              <Pressable
+                key={date}
+                onPress={() => {
+                  setSelectedDate(date);
+                  setSuggestion(null);
+                }}
+                style={[styles.day, active && styles.dayActive]}
+              >
+                <Text style={[styles.dayName, active && { color: luxe.primary }]}>
+                  {DAY_NAMES[d.getDay()]}
+                </Text>
+                <Text style={[styles.dayNum, active && { color: luxe.primary }]}>
+                  {d.getDate()}
+                </Text>
+                {w ? (
+                  <>
+                    <Text style={{ fontSize: 13 }}>{weatherEmoji(w.weatherCode)}</Text>
+                    <Text style={[styles.dayTemp, active && { color: luxe.primary }]}>
+                      {w.tempMax}°<Text style={styles.dayTempMin}> {w.tempMin}°</Text>
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={{ fontSize: 13 }}> </Text>
+                    <Text style={styles.dayTemp}> </Text>
+                  </>
+                )}
+                <View
+                  style={[
+                    styles.planDot,
+                    { backgroundColor: planned ? luxe.primary : 'transparent' },
+                  ]}
+                />
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {/* Stilistin önerisi */}
+        {suggestion && suggestedItems.length ? (
+          <GlassCard tint style={{ marginTop: 16 }}>
+            <Text style={[luxeType.label, { color: luxe.primary }]}>Stilistin önerisi</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10, marginTop: 14 }}
+            >
+              {suggestedItems.map((it) => (
+                <ItemThumb key={it.id} item={it} size={84} showName />
+              ))}
+            </ScrollView>
+            <Text style={[luxeType.body, { marginTop: 14 }]}>{suggestion.reason}</Text>
+            <View style={styles.rowWrap}>
+              <LuxeButton title="Bugüne planla" onPress={saveSuggestionAsOutfit} />
+              <LuxeButton variant="outline" title="🎲 Başka öner" onPress={shuffle} />
+              <LuxeButton variant="outline" title="Vazgeç" onPress={() => setSuggestion(null)} />
+            </View>
+          </GlassCard>
+        ) : null}
 
         {/* AI stilist */}
-        <View style={styles.stylist}>
-          <LinearGradient
-            colors={['#FFF7F1', '#FFE7DA']}
-            start={{ x: 0.15, y: 0 }}
-            end={{ x: 0.85, y: 1 }}
-            style={styles.heroEmptySheen}
-            pointerEvents="none"
-          />
-          <View style={styles.stylistGlow} pointerEvents="none" />
-          <Text style={luxeType.headline}>AI Stilist'e danış</Text>
-          <Text style={[luxeType.body, { marginTop: 8 }]}>
-            Gardırobundaki parçalardan bugünkü enerjine uyanları seçmesi için sor:
-            "Yarın toplantım var, ne giysem?"
+        <GlassCard tint style={{ marginTop: 16 }}>
+          <View style={styles.insightGlow} pointerEvents="none" />
+          <Text style={{ fontSize: 22 }}>✨</Text>
+          <Text style={[luxeType.headlineItalic, { marginTop: 12 }]}>AI Stilist'e danış</Text>
+          <Text style={[luxeType.body, { marginTop: 10 }]}>
+            Gardırobundaki parçalardan bugünkü enerjine uyanları seçmesi için sor: "Yarın
+            toplantım var, ne giysem?"
           </Text>
-          <View style={styles.stylistRow}>
-            <LuxeButton title="Sohbete başla ✨" onPress={() => router.push('/stylist')} />
-            <BettaFish size={52} color={luxe.primarySoft} />
-          </View>
-        </View>
+          <LuxeButton
+            title="Sohbete başla"
+            onPress={() => router.push('/stylist')}
+            style={{ marginTop: 18, alignSelf: 'flex-start' }}
+          />
+        </GlassCard>
 
         {/* Gardırop boşsa */}
         {activeItems.length === 0 ? (
-          <LuxeCard style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 34 }}>🐟</Text>
-            <Text style={[luxeType.headline, { marginTop: 8 }]}>Gardırobun bomboş</Text>
-            <Text style={[luxeType.body, { textAlign: 'center', marginTop: 6 }]}>
+          <GlassCard style={{ marginTop: 16, alignItems: 'center' }}>
+            <Text style={{ fontSize: 32 }}>🐟</Text>
+            <Text style={[luxeType.headlineItalic, { marginTop: 10 }]}>Gardırobun bomboş</Text>
+            <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
               Önce Gardırop sekmesinden birkaç parça ekle, akvaryumu dolduralım.
             </Text>
             <LuxeButton
               title="Parça ekle"
               onPress={() => router.push('/item/new')}
-              style={{ marginTop: 14 }}
+              style={{ marginTop: 16 }}
             />
-          </LuxeCard>
+          </GlassCard>
         ) : null}
       </ScrollView>
 
@@ -658,14 +643,16 @@ export default function Today() {
             <ScrollView>
               {outfits.length === 0 ? (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                  <Text style={{ fontSize: 34 }}>🎨</Text>
-                  <Text style={[luxeType.headline, { marginTop: 8 }]}>Henüz kombin yok</Text>
-                  <Text style={[luxeType.body, { textAlign: 'center', marginTop: 6 }]}>
+                  <Text style={{ fontSize: 32 }}>🎨</Text>
+                  <Text style={[luxeType.headlineItalic, { marginTop: 10 }]}>
+                    Henüz kombin yok
+                  </Text>
+                  <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
                     Stüdyo'dan ilk kombinini oluştur.
                   </Text>
                   <LuxeButton
                     title="Stüdyoya git"
-                    style={{ marginTop: 14 }}
+                    style={{ marginTop: 16 }}
                     onPress={() => {
                       setPickerOpen(false);
                       router.push('/(tabs)/studio');
@@ -694,7 +681,7 @@ export default function Today() {
                           frame={o.canvasFrame}
                           cropToContent={o.cropToContent}
                         />
-                        <Text style={[luxeType.caption, { marginTop: 4 }]} numberOfLines={1}>
+                        <Text style={[luxeType.caption, { marginTop: 6 }]} numberOfLines={1}>
                           {o.name}
                         </Text>
                       </Pressable>
@@ -714,194 +701,195 @@ const styles = StyleSheet.create({
   /* RN 0.86'da StyleSheet.absoluteFillObject yok — düz obje. */
   backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   backdropFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
+  /** Marka: italik serif — örnekteki ince, zarif duruş */
   wordmark: {
-    fontFamily: font.display,
-    fontSize: 22,
-    letterSpacing: 4,
+    fontFamily: font.displayItalic,
+    fontStyle: 'italic',
+    fontSize: 26,
     color: luxe.primary,
   },
-  container: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 48 },
-  sectionLabel: { marginTop: 14, marginBottom: 10 },
+  container: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 56 },
 
-  // Hafta şeridi
-  day: {
-    width: 64,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: luxeRadius.md,
-    backgroundColor: luxe.surface,
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  /** Organik köşeli cam hava rozeti (örnekteki `fin-curve`) */
+  weatherBlob: {
+    ...finCurve,
+    backgroundColor: glass.fillStrong,
     borderWidth: 1,
-    borderColor: luxe.outlineSoft,
-    gap: 2,
+    borderColor: glass.border,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    maxWidth: 168,
   },
-  dayActive: { backgroundColor: luxe.primary, borderColor: luxe.primary },
-  dayName: { fontFamily: font.label, fontSize: 10.5, letterSpacing: 0.8, color: luxe.outline },
-  dayNum: { fontFamily: font.headline, fontSize: 18, color: luxe.ink },
-  dayTemp: { fontFamily: font.bodyMedium, fontSize: 11, color: luxe.ink },
-  dayTempMin: { color: luxe.outline },
-  planDot: { width: 5, height: 5, borderRadius: 3, marginTop: 3 },
+  weatherTemp: { fontFamily: font.display, fontSize: 26, lineHeight: 32, color: luxe.primary },
+  weatherCity: {
+    fontFamily: font.label,
+    fontSize: 9.5,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    color: luxe.inkSoft,
+    textAlign: 'right',
+  },
 
   // Hero
-  /** Yalnızca gölge — kırpma YOK (bkz. hero JSX'indeki not). */
-  hero: { marginTop: 18, borderRadius: luxeRadius.xl, backgroundColor: luxe.surface, ...luxeShadow.hero },
-  /** Yalnızca kırpma — gölge YOK. */
+  hero: {
+    marginTop: 22,
+    borderRadius: luxeRadius.xl,
+    backgroundColor: luxe.surface,
+    ...luxeShadow.hero,
+  },
   heroClip: { flex: 1, borderRadius: luxeRadius.xl, overflow: 'hidden' },
   heroArt: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 },
   heroShade: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
-  heroBody: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 20 },
+  heroTag: { position: 'absolute', top: 18, left: 18, flexDirection: 'row' },
+  heroPill: {
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.7)',
+    borderRadius: luxeRadius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  heroPillText: {
+    fontFamily: font.label,
+    fontSize: 9.5,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    color: luxe.primaryDeep,
+  },
+  heroBody: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 22 },
+  heroSub: { fontFamily: font.body, fontSize: 13, color: luxe.onDarkSoft, marginTop: 6 },
   /*
-    Perde bilerek HAFİF (kombin görünsün diye), o yüzden beyaz yazı yer yere
-    açık zemine denk geliyor. Perdeyi koyulaştırmak yerine yazıya gölge:
-    okunurluk geliyor, kolaj kararmıyor.
+    Perde bilerek HAFİF (kombin görünsün, ayakkabı yutulmasın diye), o yüzden
+    beyaz yazı yer yer açık zemine denk geliyor. Perdeyi koyulaştırmak yerine
+    yazıya gölge: okunurluk geliyor, kolaj kararmıyor.
   */
   heroShadowText: {
     textShadowColor: 'rgba(94,20,40,0.55)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 10,
   },
-  heroTag: { position: 'absolute', top: 16, left: 16, flexDirection: 'row' },
-  heroPill: {
-    /*
-      Şeftali ama YARI SAYDAM: dolu renk rozeti kolajdan koparıyor, saydam
-      beyaz ise açık zeminde kayboluyordu. Bu ikisinin arası.
-    */
-    backgroundColor: 'rgba(255,218,185,0.62)',
-    borderRadius: luxeRadius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  heroPillText: {
-    fontFamily: font.label,
-    fontSize: 10,
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
-    color: luxe.primaryDeep,
-  },
-  heroSub: { fontFamily: font.body, fontSize: 13, color: luxe.onDarkSoft, marginTop: 4 },
-  heroActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  heroEmpty: {
-    marginTop: 18,
-    borderRadius: luxeRadius.xl,
-    backgroundColor: luxe.surfaceLow,
-    borderWidth: 1,
-    borderColor: luxe.primaryContainer,
-    padding: 22,
-  },
-  heroEmptySheen: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: luxeRadius.xl,
-  },
+  heroActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
 
-  // Kartlar
-  card: {
-    marginTop: 18,
+  // Cam kartlar
+  glassCard: {
     borderRadius: luxeRadius.lg,
-    /*
-      OPAK olmalı: Android'de elevation + yarı saydam zemin birleşince gölge
-      tabakası kartın içine beyaz bir dikdörtgen olarak sızıyor.
-    */
-    backgroundColor: '#FFFCFB',
+    backgroundColor: glass.fill,
     borderWidth: 1,
-    borderColor: 'rgba(227,192,160,0.5)',
-    padding: 18,
-    ...luxeShadow.card,
-    shadowOpacity: 0.12,
-    shadowRadius: 22,
-    elevation: 3,
-  },
-  /** İçerideki ışık geçişi — kartla aynı yuvarlaklık, kırpma gerekmiyor. */
-  cardSheen: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: luxeRadius.lg,
-  },
-  cardAccent: { borderColor: luxe.primarySoft, backgroundColor: luxe.surfaceLow },
-  forecastHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-
-  // AI stilist
-  stylist: {
-    marginTop: 18,
-    borderRadius: luxeRadius.xl,
-    backgroundColor: luxe.surfaceMid,
-    borderWidth: 1,
-    borderColor: luxe.primaryContainer,
+    borderColor: glass.border,
     padding: 22,
     overflow: 'hidden',
   },
-  stylistGlow: {
+  glassCardTint: { backgroundColor: 'rgba(250,218,221,0.4)' },
+  /** Kartın köşesinden sızan pembe hale */
+  insightGlow: {
     position: 'absolute',
-    right: -60,
-    top: -60,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    right: -50,
+    top: -50,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     backgroundColor: luxe.primaryContainer,
-    opacity: 0.45,
+    opacity: 0.5,
   },
-  stylistRow: {
-    flexDirection: 'row',
+
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 },
+  chip: {
+    borderRadius: luxeRadius.pill,
+    backgroundColor: 'rgba(240,225,199,0.6)',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  chipText: { fontFamily: font.bodyMedium, fontSize: 12, color: luxe.onSecondaryContainer },
+
+  // İlerleme
+  progressHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  progressValue: { fontFamily: font.display, fontSize: 20, color: luxe.primary },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    marginTop: 16,
+    overflow: 'hidden',
+  },
+  progressFill: { height: '100%', borderRadius: 3 },
+  progressNote: { marginTop: 12, fontStyle: 'italic' },
+
+  sectionTitle: { marginTop: 26, marginBottom: 14 },
+
+  // Hafta şeridi
+  day: {
+    width: 76,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 18,
+    paddingVertical: 16,
+    borderRadius: luxeRadius.lg,
+    backgroundColor: glass.fill,
+    borderWidth: 1,
+    borderColor: glass.border,
+    gap: 3,
   },
+  /** Seçili gün: organik köşe + pudra pembe (örnekteki aktif gün kartı) */
+  dayActive: {
+    ...finCurve,
+    backgroundColor: 'rgba(250,218,221,0.8)',
+    borderColor: luxe.primarySoft,
+  },
+  dayName: {
+    fontFamily: font.label,
+    fontSize: 9.5,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: luxe.outline,
+  },
+  dayNum: { fontFamily: font.display, fontSize: 22, lineHeight: 28, color: luxe.ink },
+  dayTemp: { fontFamily: font.bodyMedium, fontSize: 11, color: luxe.inkSoft },
+  dayTempMin: { color: luxe.outline },
+  planDot: { width: 5, height: 5, borderRadius: 3, marginTop: 4 },
 
   // Düğme
   btn: {
     borderRadius: luxeRadius.pill,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnText: { fontFamily: font.label, fontSize: 11, letterSpacing: 1.1, textTransform: 'uppercase' },
-  rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
-
-  chip: {
-    borderRadius: luxeRadius.pill,
-    borderWidth: 1,
-    borderColor: luxe.outlineSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  chipText: {
+  btnText: {
     fontFamily: font.label,
-    fontSize: 10,
-    letterSpacing: 1,
+    fontSize: 10.5,
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
-    color: luxe.primary,
   },
+  rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 18 },
 
   // Şehir formu
-  cityRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  cityRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   cityInput: {
     flex: 1,
     borderWidth: 1,
     borderColor: luxe.outlineSoft,
     borderRadius: luxeRadius.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
     fontFamily: font.body,
     fontSize: 14.5,
     color: luxe.ink,
-    backgroundColor: luxe.bg,
+    backgroundColor: 'rgba(255,255,255,0.75)',
   },
-  linkBtn: { alignSelf: 'flex-start', marginTop: 10, paddingVertical: 4 },
+  linkBtn: { alignSelf: 'flex-start', marginTop: 12, paddingVertical: 4 },
   linkBtnText: { fontFamily: font.bodyMedium, fontSize: 14, color: luxe.primary },
-  errorText: { fontFamily: font.body, fontSize: 12.5, color: luxe.danger, marginTop: 6 },
+  errorText: { fontFamily: font.body, fontSize: 12.5, color: luxe.danger, marginTop: 8 },
 
   // Kombin seçici
   modalWrap: { flex: 1, backgroundColor: luxe.overlay, justifyContent: 'flex-end' },
@@ -909,14 +897,14 @@ const styles = StyleSheet.create({
     backgroundColor: luxe.bg,
     borderTopLeftRadius: luxeRadius.xl,
     borderTopRightRadius: luxeRadius.xl,
-    padding: 20,
+    padding: 22,
     maxHeight: '75%',
   },
   modalHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  outfitGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 24 },
+  outfitGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, paddingBottom: 24 },
 });

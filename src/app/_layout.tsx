@@ -4,9 +4,9 @@ import {
   DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans';
 import {
-  PlayfairDisplay_600SemiBold,
-  PlayfairDisplay_600SemiBold_Italic,
-  PlayfairDisplay_700Bold,
+  PlayfairDisplay_400Regular,
+  PlayfairDisplay_400Regular_Italic,
+  PlayfairDisplay_500Medium,
 } from '@expo-google-fonts/playfair-display';
 import { useFonts } from 'expo-font';
 import { router, Stack } from 'expo-router';
@@ -43,9 +43,9 @@ export default function RootLayout() {
     Bu yüzden 3 saniyelik emniyet süresi — o an gelen neyse onunla çizilir.
   */
   const [fontsLoaded] = useFonts({
-    PlayfairDisplay_700Bold,
-    PlayfairDisplay_600SemiBold,
-    PlayfairDisplay_600SemiBold_Italic,
+    PlayfairDisplay_400Regular,
+    PlayfairDisplay_400Regular_Italic,
+    PlayfairDisplay_500Medium,
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_700Bold,
