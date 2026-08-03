@@ -396,7 +396,19 @@ export default function Today() {
           */
           <View style={[styles.hero, { height: heroSize }]}>
             <View style={styles.heroClip}>
-            <View style={styles.heroArt}>
+            {/*
+              Kolaja dokununca kombin sayfası. Gevşek parça planında (kombin
+              kaydedilmemiş, sadece parça listesi) gidilecek sayfa yok — o
+              durumda dokunma kapalı.
+            */}
+            <Pressable
+              style={styles.heroArt}
+              disabled={!planOutfit}
+              onPress={() =>
+                planOutfit &&
+                router.push({ pathname: '/outfit/[id]', params: { id: planOutfit.id } })
+              }
+            >
             {planOutfit ? (
               <OutfitCollage
                 items={planItems}
@@ -408,7 +420,7 @@ export default function Today() {
             ) : (
               <OutfitCollage items={planItems} size={heroSize} />
             )}
-            </View>
+            </Pressable>
             {/*
               Perde BORDO ve hafif: kahve tonu kolajı çamurlaştırıyordu, açık
               perde ise alt parçaları (ayakkabıyı) yutuyordu. Hafif bordo ile
@@ -425,14 +437,18 @@ export default function Today() {
               `alignSelf: 'flex-start'` ile rozet metinden dar ölçülüp yazıyı
               soldan kırpıyordu ("...OMBİNİ").
             */}
-            <View style={styles.heroTag}>
+            <View style={styles.heroTag} pointerEvents="none">
               <View style={styles.heroPill}>
                 <Text style={styles.heroPillText} numberOfLines={1}>
                   {selectedLabel}
                 </Text>
               </View>
             </View>
-            <View style={styles.heroBody}>
+            {/*
+              `box-none`: bant, düğmeleri dışındaki yerlerde dokunuşu ALTTAKİ
+              kolaja geçirsin — yoksa kartın alt yarısı tıklanamaz oluyor.
+            */}
+            <View style={styles.heroBody} pointerEvents="box-none">
               <Text style={[luxeType.heroTitle, styles.heroShadowText]} numberOfLines={2}>
                 {planOutfit?.name ?? `${planItems.length} parça`}
               </Text>
