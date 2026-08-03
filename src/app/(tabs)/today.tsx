@@ -840,22 +840,20 @@ const styles = StyleSheet.create({
     width: 78,
     alignItems: 'center',
     paddingVertical: 13,
-    borderRadius: luxeRadius.lg,
     backgroundColor: glass.fill,
     borderWidth: 1,
+    borderColor: glass.border,
     /*
-      Görünür çerçeve: beyaz kenarlık (glass.border) açık zeminde kayboluyor,
-      kartların sınırı seçilmiyordu. Örnekteki cam kart hissini koruyacak
-      kadar ince, ama belli olan bir mauve çizgi.
+      Organik ("yamuk") köşe TÜM günlerde — örnekteki `fin-curve`. Yalnızca
+      seçili günde olduğunda şerit mekanik duruyordu.
     */
-    borderColor: 'rgba(112,88,91,0.16)',
+    ...finCurve,
     gap: 4,
   },
-  /** Seçili gün: organik köşe + ÇOK hafif pembe (örnekte primary-container/30) */
+  /** Seçili gün: aynı organik biçim + çok hafif pembe (primary-container/30) */
   dayActive: {
-    ...finCurve,
-    backgroundColor: 'rgba(250,218,221,0.45)',
-    borderColor: 'rgba(112,88,91,0.15)',
+    backgroundColor: 'rgba(250,218,221,0.5)',
+    borderColor: 'rgba(222,191,194,0.7)',
   },
   dayName: {
     fontFamily: font.label,
