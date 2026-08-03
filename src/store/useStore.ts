@@ -95,10 +95,14 @@ interface BettaState {
   resetAll: () => void;
 }
 
+/** Varsayılan şehir — hava durumu kutusu ilk açılışta boş kalmasın. */
+export const DEFAULT_CITY = { city: 'İstanbul', lat: 41.0082, lon: 28.9784 };
+
 const emptyProfile: Profile = {
   name: '',
   username: '',
   onboarded: false,
+  ...DEFAULT_CITY,
 };
 
 export const useStore = create<BettaState>()(
@@ -309,14 +313,19 @@ export const useStore = create<BettaState>()(
        * taşınır ve dış giyim ayrımı `jacket` ALT TÜRÜ olarak korunur, yoksa
        * eski parçalar geçersiz bir kategoriye işaret edip listelerden düşerdi.
        *
+       * v4: şehir seçilmemiş kayıtlara varsayılan şehir (İstanbul) yazılır —
+       * `persist` kaydedilmiş profili olduğu gibi geri koyduğu için başlangıç
+       * değerindeki varsayılan eski kullanıcılara ULAŞMIYOR.
+       *
        * v3: lookbook gönderilerindeki `outfitSets` düz `GarmentSpec[][]` iken
        * `{ garments, canvasFrame, cropToContent }` nesnesine geçti (canvas
        * düzeni kombin başına saklanabilsin diye). Eski kayıtlar sarılmazsa
        * `set.garments` undefined kalıp akış çöküyor.
        */
-      version: 3,
+      version: 4,
       migrate: (persisted, from) => {
         const state = persisted as {
+          profile?: { lat?: number; lon?: number; city?: string };
           items?: { category: string; subcategory?: string }[];
           posts?: { outfitSets?: unknown[] }[];
         };
@@ -335,6 +344,9 @@ export const useStore = create<BettaState>()(
               Array.isArray(set) ? { garments: set } : set,
             );
           }
+        }
+        if (from < 4 && state?.profile && state.profile.lat == null) {
+          Object.assign(state.profile, DEFAULT_CITY);
         }
         return state as never;
       },

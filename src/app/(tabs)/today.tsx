@@ -631,7 +631,16 @@ export default function Today() {
         {/* Stilistin yorumu */}
         <GlassCard style={{ marginTop: 22 }}>
           <View style={styles.insightGlow} pointerEvents="none" />
-          <Text style={{ fontSize: 22 }}>✨</Text>
+          <View style={styles.insightHead}>
+            <Text style={{ fontSize: 22 }}>✨</Text>
+            {todayWeather ? (
+              <Text style={styles.insightMeta} numberOfLines={1}>
+                {weatherEmoji(todayWeather.weatherCode)} {profile.city} ·{' '}
+                {weatherLabel(todayWeather.weatherCode)} {todayWeather.tempMax}°/
+                {todayWeather.tempMin}°
+              </Text>
+            ) : null}
+          </View>
           <Text style={[luxeType.headlineItalic, { marginTop: 12 }]}>Stilistin yorumu</Text>
           <Text style={[luxeType.body, { marginTop: 10 }]}>{styleAdvice(todayWeather)}</Text>
 
@@ -646,8 +655,13 @@ export default function Today() {
             </View>
           ) : null}
 
-          {/* Konum yoksa: şehir arama + konum izni */}
-          {!hasLocation || (askCity && !todayWeather) ? (
+          {/*
+            Şehir değiştirme HER ZAMAN burada: sağ üstteki hava rozetine
+            dokununca açılıyor. Varsayılan şehir (İstanbul) atandığı için
+            "konum yok" durumu artık oluşmuyor, ama özellik kaybolmasın diye
+            tek bir blokta toplandı — konum düğmesi de içinde.
+          */}
+          {askCity || !hasLocation ? (
             <View style={{ marginTop: 16 }}>
               {cityForm('Şehir adı (örn. İstanbul)')}
               <Pressable
@@ -664,17 +678,6 @@ export default function Today() {
                 )}
               </Pressable>
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            </View>
-          ) : null}
-
-          {/* Konum varken hava rozetine dokununca */}
-          {askCity && hasLocation && todayWeather ? (
-            <View style={{ marginTop: 16 }}>
-              <Text style={[luxeType.caption, { marginBottom: 10 }]}>
-                {weatherLabel(todayWeather.weatherCode)} · {todayWeather.tempMax}° /{' '}
-                {todayWeather.tempMin}°
-              </Text>
-              {cityForm('Yeni şehir')}
             </View>
           ) : null}
         </GlassCard>
@@ -926,6 +929,19 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
 
+  insightHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  insightMeta: {
+    flexShrink: 1,
+    fontFamily: font.bodyMedium,
+    fontSize: 11.5,
+    color: luxe.outline,
+    textAlign: 'right',
+  },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 },
   chip: {
     borderRadius: luxeRadius.pill,
