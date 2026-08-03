@@ -135,22 +135,21 @@ function Backdrop() {
     <View style={styles.backdrop} pointerEvents="none">
       <Svg style={styles.backdropFill}>
         <Defs>
-          <RadialGradient id="leakTop" cx="2%" cy="0%" r="72%">
-            <Stop offset="0" stopColor={luxe.primaryContainer} stopOpacity="0.75" />
-            <Stop offset="1" stopColor={luxe.primaryContainer} stopOpacity="0" />
+          {/*
+            Örnekteki `betta-flow-bg` ile AYNI: sol üstte #FBDBDE, sağ altta
+            #F0E1C7, ikisi de %40 ve %50'de sönümleniyor. Daha yoğun tonlar ve
+            araya eklenen menekşe zemini örnekten uzaklaştırıyordu.
+          */}
+          <RadialGradient id="leakTop" cx="0%" cy="0%" r="50%">
+            <Stop offset="0" stopColor="#FBDBDE" stopOpacity="0.4" />
+            <Stop offset="1" stopColor="#FBDBDE" stopOpacity="0" />
           </RadialGradient>
-          <RadialGradient id="leakBottom" cx="100%" cy="100%" r="72%">
-            <Stop offset="0" stopColor={luxe.secondaryContainer} stopOpacity="0.7" />
-            <Stop offset="1" stopColor={luxe.secondaryContainer} stopOpacity="0" />
-          </RadialGradient>
-          {/* Menekşe kırıntısı — DESIGN.md'nin istediği iridesan his */}
-          <RadialGradient id="leakMid" cx="88%" cy="24%" r="45%">
-            <Stop offset="0" stopColor={luxe.tertiaryContainer} stopOpacity="0.45" />
-            <Stop offset="1" stopColor={luxe.tertiaryContainer} stopOpacity="0" />
+          <RadialGradient id="leakBottom" cx="100%" cy="100%" r="50%">
+            <Stop offset="0" stopColor="#F0E1C7" stopOpacity="0.4" />
+            <Stop offset="1" stopColor="#F0E1C7" stopOpacity="0" />
           </RadialGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#leakTop)" />
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#leakMid)" />
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#leakBottom)" />
       </Svg>
     </View>
@@ -291,10 +290,8 @@ export default function Today() {
         <View style={styles.titleRow}>
           <View style={{ flex: 1 }}>
             <Text style={luxeType.label}>Bugün</Text>
-            <Text style={[luxeType.display, { marginTop: 8 }]}>
-              {profile.name ? `${profile.name} için` : 'Günün'}
-            </Text>
-            <Text style={luxeType.displayItalic}>seçki</Text>
+            <Text style={[luxeType.display, { marginTop: 8 }]}>Hoş geldin,</Text>
+            <Text style={luxeType.displayItalic}>{profile.name || 'Betta'}</Text>
           </View>
 
           {/* Hava rozeti — organik köşeli cam blok; dokununca şehir değişir */}
@@ -326,6 +323,57 @@ export default function Today() {
             {archetype.emoji} {archetype.styleName} · {archetype.fish}
           </Text>
         ) : null}
+
+        {/* Haftalık plan */}
+        <Text style={[luxeType.headline, styles.sectionTitle]}>Haftalık plan</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 12, paddingRight: 20, paddingVertical: 4 }}
+        >
+          {weekDates.map((date, i) => {
+            const d = new Date(`${date}T12:00:00`);
+            const w = week[i];
+            const planned = plans.some((p) => p.date === date && (p.outfitId || p.itemIds?.length));
+            const active = date === selectedDate;
+            return (
+              <Pressable
+                key={date}
+                onPress={() => {
+                  setSelectedDate(date);
+                  setSuggestion(null);
+                }}
+                style={[styles.day, active && styles.dayActive]}
+              >
+                <Text style={[styles.dayName, active && { color: luxe.primary }]}>
+                  {DAY_NAMES[d.getDay()]}
+                </Text>
+                <Text style={[styles.dayNum, active && { color: luxe.primary }]}>
+                  {d.getDate()}
+                </Text>
+                {w ? (
+                  <>
+                    <Text style={{ fontSize: 13 }}>{weatherEmoji(w.weatherCode)}</Text>
+                    <Text style={[styles.dayTemp, active && { color: luxe.primary }]}>
+                      {w.tempMax}°<Text style={styles.dayTempMin}> {w.tempMin}°</Text>
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={{ fontSize: 13 }}> </Text>
+                    <Text style={styles.dayTemp}> </Text>
+                  </>
+                )}
+                <View
+                  style={[
+                    styles.planDot,
+                    { backgroundColor: planned ? luxe.primary : 'transparent' },
+                  ]}
+                />
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
         {/* HERO — seçili günün kombini */}
         {planItems.length ? (
@@ -520,56 +568,6 @@ export default function Today() {
           </Text>
         </GlassCard>
 
-        {/* Haftalık plan */}
-        <Text style={[luxeType.headline, styles.sectionTitle]}>Haftalık plan</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 12, paddingRight: 20, paddingVertical: 4 }}
-        >
-          {weekDates.map((date, i) => {
-            const d = new Date(`${date}T12:00:00`);
-            const w = week[i];
-            const planned = plans.some((p) => p.date === date && (p.outfitId || p.itemIds?.length));
-            const active = date === selectedDate;
-            return (
-              <Pressable
-                key={date}
-                onPress={() => {
-                  setSelectedDate(date);
-                  setSuggestion(null);
-                }}
-                style={[styles.day, active && styles.dayActive]}
-              >
-                <Text style={[styles.dayName, active && { color: luxe.primary }]}>
-                  {DAY_NAMES[d.getDay()]}
-                </Text>
-                <Text style={[styles.dayNum, active && { color: luxe.primary }]}>
-                  {d.getDate()}
-                </Text>
-                {w ? (
-                  <>
-                    <Text style={{ fontSize: 13 }}>{weatherEmoji(w.weatherCode)}</Text>
-                    <Text style={[styles.dayTemp, active && { color: luxe.primary }]}>
-                      {w.tempMax}°<Text style={styles.dayTempMin}> {w.tempMin}°</Text>
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={{ fontSize: 13 }}> </Text>
-                    <Text style={styles.dayTemp}> </Text>
-                  </>
-                )}
-                <View
-                  style={[
-                    styles.planDot,
-                    { backgroundColor: planned ? luxe.primary : 'transparent' },
-                  ]}
-                />
-              </Pressable>
-            );
-          })}
-        </ScrollView>
 
         {/* Stilistin önerisi */}
         {suggestion && suggestedItems.length ? (
@@ -829,21 +827,25 @@ const styles = StyleSheet.create({
   sectionTitle: { marginTop: 26, marginBottom: 14 },
 
   // Hafta şeridi
+  /*
+    Örnekteki gün kartı: geniş (min 130px), bol iç boşluklu, 2.5rem yuvarlak
+    cam kutu. Dar ve uzun hâli hap gibi görünüp örnekten uzaklaşıyordu.
+  */
   day: {
-    width: 76,
+    width: 104,
     alignItems: 'center',
-    paddingVertical: 16,
-    borderRadius: luxeRadius.lg,
+    paddingVertical: 20,
+    borderRadius: luxeRadius.xl,
     backgroundColor: glass.fill,
     borderWidth: 1,
     borderColor: glass.border,
-    gap: 3,
+    gap: 4,
   },
-  /** Seçili gün: organik köşe + pudra pembe (örnekteki aktif gün kartı) */
+  /** Seçili gün: organik köşe + ÇOK hafif pembe (örnekte primary-container/30) */
   dayActive: {
     ...finCurve,
-    backgroundColor: 'rgba(250,218,221,0.8)',
-    borderColor: luxe.primarySoft,
+    backgroundColor: 'rgba(250,218,221,0.45)',
+    borderColor: 'rgba(112,88,91,0.15)',
   },
   dayName: {
     fontFamily: font.label,
