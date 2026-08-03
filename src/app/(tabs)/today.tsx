@@ -994,11 +994,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.9)',
     padding: 22,
     overflow: 'hidden',
-    shadowColor: luxe.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 22,
-    elevation: 5,
+    /*
+      Android'de gölgenin görünürlüğü `elevation`'a bağlı; 5'te neredeyse
+      farkedilmiyordu. shadow* değerleri iOS içindir.
+    */
+    shadowColor: '#4A2F33',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.28,
+    shadowRadius: 24,
+    elevation: 14,
   },
   glassCardTint: { backgroundColor: '#FDF3F4' },
   /** Hacim veren ışık geçişi — kartla aynı yuvarlaklık, kırpma gerekmiyor. */
