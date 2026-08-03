@@ -850,21 +850,23 @@ const styles = StyleSheet.create({
     width: 78,
     alignItems: 'center',
     paddingVertical: 13,
-    backgroundColor: glass.fill,
-    borderWidth: 1,
-    borderColor: glass.border,
     /*
-      Organik ("yamuk") köşe TÜM günlerde — örnekteki `fin-curve`. Yalnızca
-      seçili günde olduğunda şerit mekanik duruyordu.
+      Seçili OLMAYAN gün: soluk, çerçevesiz, yumuşak köşeli kart — örnekteki
+      TUE/WED kartları. Yamukluk yalnızca seçili günde.
     */
-    ...finCurve,
-    ...finTilt,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderRadius: luxeRadius.lg,
     gap: 4,
   },
-  /** Seçili gün: aynı organik biçim + çok hafif pembe (primary-container/30) */
+  /**
+   * Seçili gün: pudra pembe, yamuk ve hafif eğik blob (örnekteki MON).
+   * Gölge YOK — eğimle birlikte Android gölgeyi DÖNMEMİŞ bir dikdörtgen
+   * olarak çiziyor ve kartın arkasında gri kutu çıkıyor (cihazda görüldü).
+   */
   dayActive: {
-    backgroundColor: 'rgba(250,218,221,0.5)',
-    borderColor: 'rgba(222,191,194,0.7)',
+    backgroundColor: '#F4E6E6',
+    ...finCurve,
+    ...finTilt,
   },
   dayName: {
     fontFamily: font.label,
