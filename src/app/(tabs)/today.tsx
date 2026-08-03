@@ -399,7 +399,7 @@ export default function Today() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 10, paddingRight: 20, paddingVertical: 4 }}
+          contentContainerStyle={{ gap: 6, paddingRight: 20, paddingVertical: 4 }}
         >
           {weekDates.map((date, i) => {
             const d = new Date(`${date}T12:00:00`);
@@ -903,16 +903,16 @@ const styles = StyleSheet.create({
   */
   day: {
     // Kareye yakın oran: dar-uzun kutuda blob yaprağa dönüşüyor
-    width: 92,
+    width: 88,
     alignItems: 'center',
     /*
       Dikey boşluk bilerek cömert: blob kartın köşelerini yiyor, içerik
       kutunun en üstüne/altına dayanınca (özellikle nokta) biçimin dışında
       kalıyor. İçerik kabaca kartın %18–%82 aralığında duruyor.
     */
-    /* Kareye yakın oran: uzun kutuda blob yaprağa dönüşüyor. */
-    paddingTop: 10,
-    paddingBottom: 10,
+    /* Kareden BİRAZ uzun: tam karede blob fazla toparlak duruyor. */
+    paddingTop: 14,
+    paddingBottom: 14,
     /*
       Seçili OLMAYAN gün: soluk, çerçevesiz, yumuşak köşeli kart — örnekteki
       TUE/WED kartları. Yamukluk yalnızca seçili günde.
