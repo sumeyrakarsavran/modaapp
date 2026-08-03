@@ -16,7 +16,16 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, {
+  Defs,
+  FeDropShadow,
+  Filter,
+  G,
+  Path,
+  RadialGradient,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
@@ -26,16 +35,7 @@ import { localSuggest, type SuggestedOutfit } from '@/services/stylist';
 import { weatherEmoji, weatherLabel } from '@/services/weather';
 import { useStore } from '@/store/useStore';
 import { getArchetype } from '@/theme';
-import {
-  finCurve,
-  finTilt,
-  font,
-  glass,
-  luxe,
-  luxeRadius,
-  luxeShadow,
-  luxeType,
-} from '@/theme/luxe';
+import { font, glass, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
 import { todayISO } from '@/types';
 
 const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
@@ -162,6 +162,63 @@ function Backdrop() {
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#leakBottom)" />
       </Svg>
     </View>
+  );
+}
+
+/**
+ * Örnekteki `fin-curve`'ün BİREBİR karşılığı.
+ *
+ *   border-radius: 60% 40% 70% 30% / 30% 60% 40% 70%;
+ *
+ * Bu ELİPTİK köşe: her köşenin iki yarıçapı var (yatay = genişliğin yüzdesi,
+ * dikey = yüksekliğin yüzdesi). RN'in `borderRadius`'ında karşılığı yok —
+ * dört köşeye farklı piksel vermek yaklaşık bile değil, biçim "dijital"
+ * duruyor. SVG'de tam karşılığı var: eliptik yay (`A rx ry ...`).
+ *
+ * Köşe yarıçapları (viewBox 100×100, yani doğrudan yüzde):
+ *   sol üst  rx 60 ry 30   ·  sağ üst  rx 40 ry 60
+ *   sağ alt  rx 70 ry 40   ·  sol alt  rx 30 ry 70
+ * Her kenarda yarıçaplar toplamı tam %100 olduğu için düz kenar HİÇ kalmıyor;
+ * biçmin organik görünmesinin sebebi bu.
+ *
+ * `preserveAspectRatio="none"`: yüzdeler CSS'te olduğu gibi kutunun
+ * ölçüsüne esner.
+ *
+ * Gölge de SVG filtresiyle (`FeDropShadow`): RN'in gölgesi görünümün
+ * DİKDÖRTGEN dış hattını kullanıyor, blobun arkasında gri bir kutu çıkıyor
+ * (cihazda görüldü). Filtre gerçek biçmi takip ediyor.
+ * Yol viewBox'ın İÇİNE çekiliyor (`translate(6,5) scale(0.88)`): kenara
+ * dayandığında hem biçmin ucu hem gölgesi SVG sınırında kırpılıyor ve alt
+ * taraf DÜZ KESİLMİŞ gibi duruyordu. Kalan boşluk gölgenin yeri.
+ */
+function FinBlob({ color, shadow }: { color: string; shadow?: boolean }) {
+  return (
+    <Svg
+      /*
+        Ölçü YERLEŞİMDEN geliyor (mutlak konum), `width/height="100%"` DEĞİL:
+        gün kartının yüksekliği içerikten belirlendiği için yüzde çözülemiyor,
+        SVG kendi en-boy oranına düşüp blob kartın altını boş bırakıyordu.
+      */
+      style={styles.blob}
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      pointerEvents="none"
+    >
+      {shadow ? (
+        <Defs>
+          <Filter id="finShadow" x="-30%" y="-30%" width="170%" height="170%">
+            <FeDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#70585B" floodOpacity="0.28" />
+          </Filter>
+        </Defs>
+      ) : null}
+      <G transform="translate(6,5) scale(0.88)">
+        <Path
+          d="M60 0 A40 60 0 0 1 100 60 A70 40 0 0 1 30 100 A30 70 0 0 1 0 30 A60 30 0 0 1 60 0 Z"
+          fill={color}
+          filter={shadow ? 'url(#finShadow)' : undefined}
+        />
+      </G>
+    </Svg>
   );
 }
 
@@ -311,6 +368,7 @@ export default function Today() {
             onPress={() => setAskCity((v) => !v)}
             style={({ pressed }) => [styles.weatherBlob, pressed && { opacity: 0.85 }]}
           >
+            <FinBlob shadow color={glass.fillStrong} />
             {hasLocation && todayWeather ? (
               <>
                 <View style={{ alignItems: 'flex-end', flexShrink: 1 }}>
@@ -357,6 +415,7 @@ export default function Today() {
                 }}
                 style={[styles.day, active && styles.dayActive]}
               >
+                {active ? <FinBlob shadow color="#F4E6E6" /> : null}
                 <Text style={[styles.dayName, active && { color: luxe.primary }]}>
                   {DAY_NAMES[d.getDay()]}
                 </Text>
@@ -365,14 +424,14 @@ export default function Today() {
                 </Text>
                 {w ? (
                   <>
-                    <Text style={{ fontSize: 13 }}>{weatherEmoji(w.weatherCode)}</Text>
+                    <Text style={{ fontSize: 11 }}>{weatherEmoji(w.weatherCode)}</Text>
                     <Text style={[styles.dayTemp, active && { color: luxe.primary }]}>
                       {w.tempMax}°<Text style={styles.dayTempMin}> {w.tempMin}°</Text>
                     </Text>
                   </>
                 ) : (
                   <>
-                    <Text style={{ fontSize: 13 }}> </Text>
+                    <Text style={{ fontSize: 11 }}> </Text>
                     <Text style={styles.dayTemp}> </Text>
                   </>
                 )}
@@ -732,12 +791,8 @@ const styles = StyleSheet.create({
   hello: { fontSize: 26, lineHeight: 33 },
   helloName: { fontSize: 26, lineHeight: 34 },
   /** Organik köşeli cam hava rozeti (örnekteki `fin-curve`) */
+  /** Biçimi `FinBlob` çiziyor — zemin ve kenarlık burada yok. */
   weatherBlob: {
-    ...finCurve,
-    ...finTilt,
-    backgroundColor: glass.fillStrong,
-    borderWidth: 1,
-    borderColor: glass.border,
     paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -847,38 +902,39 @@ const styles = StyleSheet.create({
     cam kutu. Dar ve uzun hâli hap gibi görünüp örnekten uzaklaşıyordu.
   */
   day: {
-    width: 78,
+    // Kareye yakın oran: dar-uzun kutuda blob yaprağa dönüşüyor
+    width: 92,
     alignItems: 'center',
-    paddingVertical: 13,
+    /*
+      Dikey boşluk bilerek cömert: blob kartın köşelerini yiyor, içerik
+      kutunun en üstüne/altına dayanınca (özellikle nokta) biçimin dışında
+      kalıyor. İçerik kabaca kartın %18–%82 aralığında duruyor.
+    */
+    /* Kareye yakın oran: uzun kutuda blob yaprağa dönüşüyor. */
+    paddingTop: 10,
+    paddingBottom: 10,
     /*
       Seçili OLMAYAN gün: soluk, çerçevesiz, yumuşak köşeli kart — örnekteki
       TUE/WED kartları. Yamukluk yalnızca seçili günde.
     */
     backgroundColor: 'rgba(255,255,255,0.55)',
     borderRadius: luxeRadius.lg,
-    gap: 4,
+    gap: 1,
   },
-  /**
-   * Seçili gün: pudra pembe, yamuk ve hafif eğik blob (örnekteki MON).
-   * Gölge YOK — eğimle birlikte Android gölgeyi DÖNMEMİŞ bir dikdörtgen
-   * olarak çiziyor ve kartın arkasında gri kutu çıkıyor (cihazda görüldü).
-   */
-  dayActive: {
-    backgroundColor: '#F4E6E6',
-    ...finCurve,
-    ...finTilt,
-  },
+  /** Seçili gün: zemin ve köşe yok — biçimi `HandDrawnBlob` çiziyor. */
+  dayActive: { backgroundColor: 'transparent', borderRadius: 0 },
+  blob: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 },
   dayName: {
     fontFamily: font.label,
-    fontSize: 9.5,
+    fontSize: 9,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
     color: luxe.outline,
   },
-  dayNum: { fontFamily: font.display, fontSize: 19, lineHeight: 25, color: luxe.ink },
-  dayTemp: { fontFamily: font.bodyMedium, fontSize: 11, color: luxe.inkSoft },
+  dayNum: { fontFamily: font.display, fontSize: 17, lineHeight: 21, color: luxe.ink },
+  dayTemp: { fontFamily: font.bodyMedium, fontSize: 10, color: luxe.inkSoft },
   dayTempMin: { color: luxe.outline },
-  planDot: { width: 5, height: 5, borderRadius: 3, marginTop: 4 },
+  planDot: { width: 6, height: 6, borderRadius: 3, marginTop: 3 },
 
   // Düğme
   btn: {
