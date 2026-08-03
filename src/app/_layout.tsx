@@ -12,7 +12,7 @@ import { useFonts } from 'expo-font';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RECOVERED_PARAMS, recoverPendingPhoto } from '@/services/photoPicker';
@@ -34,11 +34,15 @@ export default function RootLayout() {
 
   /*
     Editoryal tipografi (bkz. `src/theme/luxe.ts`).
-    Yükleme BEKLENMİYOR: `useFonts` sonucu bilerek göz ardı ediliyor. Fontlar
-    hazır değilken RN bilinmeyen aileyi sistem fontuna düşürüyor, yani ekran
-    yine çizilir — açılışı font indirmeye bağlamak beyaz ekran riski demek.
+
+    Fontlar BEKLENİYOR. Beklemeden çizince metinler SİSTEM fontuyla ölçülüp
+    Playfair/DM Sans ile boyanıyor; yeni font daha geniş olduğu için yazılar
+    kutularına sığmıyor ve kırpılıyor ("BETTA"→"BETT", "Pzt"→"Pz"). RN ölçümü
+    font gelince tazelemiyor.
+    Ama beklemenin de bir sınırı var: font hiç yüklenmezse uygulama açılmaz.
+    Bu yüzden 3 saniyelik emniyet süresi — o an gelen neyse onunla çizilir.
   */
-  useFonts({
+  const [fontsLoaded] = useFonts({
     PlayfairDisplay_700Bold,
     PlayfairDisplay_600SemiBold,
     PlayfairDisplay_600SemiBold_Italic,
@@ -46,10 +50,16 @@ export default function RootLayout() {
     DMSans_500Medium,
     DMSans_700Bold,
   });
+  const [fontWaitOver, setFontWaitOver] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setFontWaitOver(true), 3000);
+    return () => clearTimeout(t);
+  }, []);
+  const typographyReady = fontsLoaded || fontWaitOver;
 
   useEffect(() => {
-    if (hydrated) SplashScreen.hideAsync();
-  }, [hydrated]);
+    if (hydrated && typographyReady) SplashScreen.hideAsync();
+  }, [hydrated, typographyReady]);
 
   /**
    * Android: kamera/kırpma sırasında sistem uygulamayı öldürdüyse, yeniden
@@ -78,7 +88,7 @@ export default function RootLayout() {
     });
   }, [hydrated]);
 
-  if (!hydrated) return null;
+  if (!hydrated || !typographyReady) return null;
 
   return (
     <SafeAreaProvider>
