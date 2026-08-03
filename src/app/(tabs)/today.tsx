@@ -289,13 +289,6 @@ export default function Today() {
         {/* Başlık + hava rozeti */}
         <View style={styles.titleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={luxeType.label}>
-              {new Date().toLocaleDateString('tr-TR', {
-                day: 'numeric',
-                month: 'long',
-                weekday: 'long',
-              })}
-            </Text>
             {/* Ölçüler bilerek temadan küçük: üst blok kısalınca kombin
                 sayfaya girer girmez görünüyor. */}
             <Text style={[luxeType.display, styles.hello]}>Hoş geldin,</Text>
@@ -727,7 +720,7 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 56 },
 
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
-  hello: { marginTop: 6, fontSize: 26, lineHeight: 33 },
+  hello: { fontSize: 26, lineHeight: 33 },
   helloName: { fontSize: 26, lineHeight: 34 },
   /** Organik köşeli cam hava rozeti (örnekteki `fin-curve`) */
   weatherBlob: {
@@ -850,7 +843,12 @@ const styles = StyleSheet.create({
     borderRadius: luxeRadius.lg,
     backgroundColor: glass.fill,
     borderWidth: 1,
-    borderColor: glass.border,
+    /*
+      Görünür çerçeve: beyaz kenarlık (glass.border) açık zeminde kayboluyor,
+      kartların sınırı seçilmiyordu. Örnekteki cam kart hissini koruyacak
+      kadar ince, ama belli olan bir mauve çizgi.
+    */
+    borderColor: 'rgba(112,88,91,0.16)',
     gap: 4,
   },
   /** Seçili gün: organik köşe + ÇOK hafif pembe (örnekte primary-container/30) */
