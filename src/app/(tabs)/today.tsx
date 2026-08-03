@@ -76,6 +76,7 @@ function LuxeButton({
   variant = 'solid',
   onDark,
   loading,
+  icon,
   style,
 }: {
   title: string;
@@ -84,9 +85,18 @@ function LuxeButton({
   /** Koyu zemin (hero) üstünde kullanılacaksa açık renklere geçer */
   onDark?: boolean;
   loading?: boolean;
+  /** İnce çizgi ikon — emoji YERİNE (bkz. dosya başındaki not) */
+  icon?: React.ComponentProps<typeof Ionicons>['name'];
   style?: StyleProp<ViewStyle>;
 }) {
   const solid = variant === 'solid';
+  const fg = solid
+    ? onDark
+      ? luxe.primary
+      : luxe.onPrimary
+    : onDark
+      ? luxe.onDark
+      : luxe.primary;
   return (
     <Pressable
       onPress={onPress}
@@ -105,24 +115,12 @@ function LuxeButton({
       ]}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={solid ? luxe.onPrimary : luxe.primary} />
+        <ActivityIndicator size="small" color={fg} />
       ) : (
-        <Text
-          style={[
-            styles.btnText,
-            {
-              color: solid
-                ? onDark
-                  ? luxe.primary
-                  : luxe.onPrimary
-                : onDark
-                  ? luxe.onDark
-                  : luxe.primary,
-            },
-          ]}
-        >
-          {title}
-        </Text>
+        <View style={styles.btnRow}>
+          {icon ? <Ionicons name={icon} size={14} color={fg} /> : null}
+          <Text style={[styles.btnText, { color: fg }]}>{title}</Text>
+        </View>
       )}
     </Pressable>
   );
@@ -575,7 +573,7 @@ export default function Today() {
             </Text>
             <View style={styles.rowWrap}>
               <LuxeButton title="Kombinlerimden seç" onPress={() => setPickerOpen(true)} />
-              <LuxeButton variant="outline" title="🎲 Bana öner" onPress={shuffle} />
+              <LuxeButton variant="outline" icon="sparkles-outline" title="Bana öner" onPress={shuffle} />
             </View>
           </GlassCard>
         )}
@@ -596,7 +594,7 @@ export default function Today() {
             <Text style={[luxeType.body, { marginTop: 14 }]}>{suggestion.reason}</Text>
             <View style={styles.rowWrap}>
               <LuxeButton title="Bugüne planla" onPress={saveSuggestionAsOutfit} />
-              <LuxeButton variant="outline" title="🎲 Başka öner" onPress={shuffle} />
+              <LuxeButton variant="outline" icon="refresh-outline" title="Başka öner" onPress={shuffle} />
               <LuxeButton variant="outline" title="Vazgeç" onPress={() => setSuggestion(null)} />
             </View>
           </GlassCard>
@@ -606,7 +604,7 @@ export default function Today() {
         <GlassCard style={{ marginTop: 22 }}>
           <View style={styles.insightGlow} pointerEvents="none" />
           <View style={styles.insightHead}>
-            <Text style={{ fontSize: 22 }}>✨</Text>
+            <Ionicons name="sparkles-outline" size={20} color={luxe.primary} />
             {/* Buraya dokunmak da şehir değiştirmeyi açar. */}
             {todayWeather ? (
               <Pressable
@@ -662,7 +660,7 @@ export default function Today() {
         {/* AI stilist */}
         <GlassCard tint style={{ marginTop: 16 }}>
           <View style={styles.insightGlow} pointerEvents="none" />
-          <Text style={{ fontSize: 22 }}>✨</Text>
+          <Ionicons name="sparkles-outline" size={20} color={luxe.primary} />
           <Text style={[luxeType.headlineItalic, { marginTop: 12 }]}>AI Stilist'e danış</Text>
           <Text style={[luxeType.body, { marginTop: 10 }]}>
             Gardırobundaki parçalardan bugünkü enerjine uyanları seçmesi için sor: "Yarın
@@ -678,7 +676,7 @@ export default function Today() {
         {/* Gardırop boşsa */}
         {activeItems.length === 0 ? (
           <GlassCard style={{ marginTop: 16, alignItems: 'center' }}>
-            <Text style={{ fontSize: 32 }}>🐟</Text>
+            <Ionicons name="shirt-outline" size={30} color={luxe.primarySoft} />
             <Text style={[luxeType.headlineItalic, { marginTop: 10 }]}>Gardırobun bomboş</Text>
             <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
               Önce Gardırop sekmesinden birkaç parça ekle, akvaryumu dolduralım.
@@ -743,7 +741,10 @@ export default function Today() {
               {loading ? (
                 <ActivityIndicator size="small" color={luxe.primary} />
               ) : (
-                <Text style={styles.linkBtnText}>📍 Konumumu kullan</Text>
+                <View style={styles.btnRow}>
+                  <Ionicons name="navigate-outline" size={15} color={luxe.primary} />
+                  <Text style={styles.linkBtnText}>Konumumu kullan</Text>
+                </View>
               )}
             </Pressable>
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -789,7 +790,7 @@ export default function Today() {
               {pickerTab === 'selfie' ? (
                 selfies.length === 0 ? (
                   <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                    <Text style={{ fontSize: 32 }}>🤳</Text>
+                    <Ionicons name="camera-outline" size={30} color={luxe.primarySoft} />
                     <Text style={[luxeType.headlineItalic, { marginTop: 10 }]}>
                       Henüz selfie yok
                     </Text>
@@ -827,7 +828,7 @@ export default function Today() {
                 )
               ) : outfits.length === 0 ? (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                  <Text style={{ fontSize: 32 }}>🎨</Text>
+                  <Ionicons name="color-palette-outline" size={30} color={luxe.primarySoft} />
                   <Text style={[luxeType.headlineItalic, { marginTop: 10 }]}>
                     Henüz kombin yok
                   </Text>
@@ -1128,6 +1129,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  btnRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   btnText: {
     fontFamily: font.label,
     fontSize: 10.5,
