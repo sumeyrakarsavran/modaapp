@@ -159,11 +159,18 @@ export const luxeRadius = { sm: 10, md: 16, lg: 28, xl: 40, pill: 999 } as const
  * piksel değerleriyle yaklaşık veriliyor, asimetri hissi korunuyor.
  */
 export const finCurve = {
-  borderTopLeftRadius: 44,
-  borderTopRightRadius: 26,
-  borderBottomRightRadius: 44,
-  borderBottomLeftRadius: 26,
+  /*
+    Köşeler bilerek DÖRDÜ DE FARKLI: eşit çiftler verince biçim simetrik bir
+    "yaprak" gibi duruyor, örnekteki elle çizilmiş yamuk his kayboluyordu.
+  */
+  borderTopLeftRadius: 52,
+  borderTopRightRadius: 20,
+  borderBottomRightRadius: 40,
+  borderBottomLeftRadius: 30,
 } as const;
+
+/** Biçimi hafifçe yatırır — "yamuk yumuk" hissi CSS'teki eliptik yarıçapın yerini tutar. */
+export const finTilt = { transform: [{ rotate: '-2deg' }] } as const;
 
 /**
  * DESIGN.md: klasik gölge yerine "ambient shadow" — çok yayvan, zemin

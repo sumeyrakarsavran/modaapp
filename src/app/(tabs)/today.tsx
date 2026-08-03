@@ -26,7 +26,16 @@ import { localSuggest, type SuggestedOutfit } from '@/services/stylist';
 import { weatherEmoji, weatherLabel } from '@/services/weather';
 import { useStore } from '@/store/useStore';
 import { getArchetype } from '@/theme';
-import { finCurve, font, glass, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
+import {
+  finCurve,
+  finTilt,
+  font,
+  glass,
+  luxe,
+  luxeRadius,
+  luxeShadow,
+  luxeType,
+} from '@/theme/luxe';
 import { todayISO } from '@/types';
 
 const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
@@ -725,6 +734,7 @@ const styles = StyleSheet.create({
   /** Organik köşeli cam hava rozeti (örnekteki `fin-curve`) */
   weatherBlob: {
     ...finCurve,
+    ...finTilt,
     backgroundColor: glass.fillStrong,
     borderWidth: 1,
     borderColor: glass.border,
@@ -848,6 +858,7 @@ const styles = StyleSheet.create({
       seçili günde olduğunda şerit mekanik duruyordu.
     */
     ...finCurve,
+    ...finTilt,
     gap: 4,
   },
   /** Seçili gün: aynı organik biçim + çok hafif pembe (primary-container/30) */
