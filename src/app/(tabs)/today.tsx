@@ -558,7 +558,10 @@ export default function Today() {
         ) : (
           <GlassCard tint style={{ marginTop: 22 }}>
             <Text style={[luxeType.label, { color: luxe.primary }]}>{selectedLabel}</Text>
-            <Text style={[luxeType.headlineItalic, { marginTop: 8 }]}>Bu gün için plan yok</Text>
+            {/* "Bugün" HER ZAMAN bitişik; başka günler için ayrı metin. */}
+            <Text style={[luxeType.headlineItalic, { marginTop: 8 }]}>
+              {isToday ? 'Bugün için plan yok' : 'Henüz plan yok'}
+            </Text>
             <Text style={[luxeType.body, { marginTop: 8 }]}>
               Kombinlerinden birini seç ya da gardırobundan sana bir öneri çıkaralım.
             </Text>
@@ -568,6 +571,28 @@ export default function Today() {
             </View>
           </GlassCard>
         )}
+
+        {/* Stilistin önerisi */}
+        {suggestion && suggestedItems.length ? (
+          <GlassCard tint style={{ marginTop: 16 }}>
+            <Text style={[luxeType.label, { color: luxe.primary }]}>Stilistin önerisi</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10, marginTop: 14 }}
+            >
+              {suggestedItems.map((it) => (
+                <ItemThumb key={it.id} item={it} size={84} showName />
+              ))}
+            </ScrollView>
+            <Text style={[luxeType.body, { marginTop: 14 }]}>{suggestion.reason}</Text>
+            <View style={styles.rowWrap}>
+              <LuxeButton title="Bugüne planla" onPress={saveSuggestionAsOutfit} />
+              <LuxeButton variant="outline" title="🎲 Başka öner" onPress={shuffle} />
+              <LuxeButton variant="outline" title="Vazgeç" onPress={() => setSuggestion(null)} />
+            </View>
+          </GlassCard>
+        ) : null}
 
         {/* Stilistin yorumu */}
         <GlassCard style={{ marginTop: 22 }}>
@@ -640,27 +665,6 @@ export default function Today() {
         </GlassCard>
 
 
-        {/* Stilistin önerisi */}
-        {suggestion && suggestedItems.length ? (
-          <GlassCard tint style={{ marginTop: 16 }}>
-            <Text style={[luxeType.label, { color: luxe.primary }]}>Stilistin önerisi</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, marginTop: 14 }}
-            >
-              {suggestedItems.map((it) => (
-                <ItemThumb key={it.id} item={it} size={84} showName />
-              ))}
-            </ScrollView>
-            <Text style={[luxeType.body, { marginTop: 14 }]}>{suggestion.reason}</Text>
-            <View style={styles.rowWrap}>
-              <LuxeButton title="Bugüne planla" onPress={saveSuggestionAsOutfit} />
-              <LuxeButton variant="outline" title="🎲 Başka öner" onPress={shuffle} />
-              <LuxeButton variant="outline" title="Vazgeç" onPress={() => setSuggestion(null)} />
-            </View>
-          </GlassCard>
-        ) : null}
 
         {/* AI stilist */}
         <GlassCard tint style={{ marginTop: 16 }}>
