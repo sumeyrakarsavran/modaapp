@@ -180,7 +180,28 @@ function GlassCard({
   tint?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  return <View style={[styles.glassCard, tint && styles.glassCardTint, style]}>{children}</View>;
+  return (
+    <View style={[styles.glassCard, tint && styles.glassCardTint, style]}>
+      {/*
+        Hacim (3B) hissi: köşegen bir ışık geçişi — sol üstte aydınlık, sağ
+        altta tona çalan. Kartın KENDİ zemini değil AYRI katman ve kırpma
+        yerine aynı `borderRadius` veriliyor; gölge veren görünüme
+        `overflow: 'hidden'` eklenince Android'de çocuklar çizilmiyor.
+      */}
+      <LinearGradient
+        colors={
+          tint
+            ? ['rgba(255,255,255,0.92)', 'rgba(250,218,221,0.55)']
+            : ['rgba(255,255,255,0.96)', 'rgba(240,225,199,0.32)']
+        }
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={styles.cardSheen}
+        pointerEvents="none"
+      />
+      {children}
+    </View>
+  );
 }
 
 export default function Today() {
@@ -963,13 +984,32 @@ const styles = StyleSheet.create({
   // Cam kartlar
   glassCard: {
     borderRadius: luxeRadius.lg,
-    backgroundColor: glass.fill,
+    /*
+      Zemin OPAK: yarı saydamken gölge (elevation) eklenemiyordu — Android'de
+      gölge tabakası kartın içine beyaz bir dikdörtgen olarak sızıyor
+      (cihazda görüldü). Derinlik için opak zemin + yayvan gölge şart.
+    */
+    backgroundColor: '#FFFDFD',
     borderWidth: 1,
-    borderColor: glass.border,
+    borderColor: 'rgba(255,255,255,0.9)',
     padding: 22,
     overflow: 'hidden',
+    shadowColor: luxe.primary,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 22,
+    elevation: 5,
   },
-  glassCardTint: { backgroundColor: 'rgba(250,218,221,0.4)' },
+  glassCardTint: { backgroundColor: '#FDF3F4' },
+  /** Hacim veren ışık geçişi — kartla aynı yuvarlaklık, kırpma gerekmiyor. */
+  cardSheen: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: luxeRadius.lg,
+  },
   /** Kartın köşesinden sızan pembe hale */
   insightGlow: {
     position: 'absolute',
