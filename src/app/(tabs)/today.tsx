@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -15,7 +17,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, {
   Defs,
   FeDropShadow,
@@ -278,6 +280,26 @@ export default function Today() {
     useStore();
   const { week, todayWeather, loading, error, useDeviceLocation, useCity } = useWeather();
   const { width } = useWindowDimensions();
+  /*
+    Modallar KENDİ güvenli alanını yönetmeli: `edgeToEdgeEnabled` ile
+    uygulama sistem çubuklarının ARKASINA çiziyor, tam ekran modal
+    SafeAreaView'ın dışında kalıyor ve içerik alt çubuğun altına giriyor.
+  */
+  const insets = useSafeAreaInsets();
+  /*
+    Klavye AÇIKKEN `insets.bottom` EKLENMEZ: KeyboardAvoidingView'ın eklediği
+    klavye yüksekliği alt çubuğu zaten kapsıyor, üstüne inset binince arada
+    boşluk kalıyor.
+  */
+  const [keyboardUp, setKeyboardUp] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardUp(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardUp(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const today = todayISO();
   const [selectedDate, setSelectedDate] = useState(today);
@@ -633,12 +655,19 @@ export default function Today() {
           <View style={styles.insightGlow} pointerEvents="none" />
           <View style={styles.insightHead}>
             <Text style={{ fontSize: 22 }}>✨</Text>
+            {/* Buraya dokunmak da şehir değiştirmeyi açar. */}
             {todayWeather ? (
-              <Text style={styles.insightMeta} numberOfLines={1}>
-                {weatherEmoji(todayWeather.weatherCode)} {profile.city} ·{' '}
-                {weatherLabel(todayWeather.weatherCode)} {todayWeather.tempMax}°/
-                {todayWeather.tempMin}°
-              </Text>
+              <Pressable
+                onPress={() => setAskCity(true)}
+                hitSlop={6}
+                style={({ pressed }) => [{ flexShrink: 1 }, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={styles.insightMeta} numberOfLines={1}>
+                  {weatherEmoji(todayWeather.weatherCode)} {profile.city} ·{' '}
+                  {weatherLabel(todayWeather.weatherCode)} {todayWeather.tempMax}°/
+                  {todayWeather.tempMin}°
+                </Text>
+              </Pressable>
             ) : null}
           </View>
           <Text style={[luxeType.headlineItalic, { marginTop: 12 }]}>Stilistin yorumu</Text>
@@ -655,31 +684,6 @@ export default function Today() {
             </View>
           ) : null}
 
-          {/*
-            Şehir değiştirme HER ZAMAN burada: sağ üstteki hava rozetine
-            dokununca açılıyor. Varsayılan şehir (İstanbul) atandığı için
-            "konum yok" durumu artık oluşmuyor, ama özellik kaybolmasın diye
-            tek bir blokta toplandı — konum düğmesi de içinde.
-          */}
-          {askCity || !hasLocation ? (
-            <View style={{ marginTop: 16 }}>
-              {cityForm('Şehir adı (örn. İstanbul)')}
-              <Pressable
-                onPress={async () => {
-                  if (await useDeviceLocation()) setAskCity(false);
-                }}
-                disabled={loading}
-                style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.6 }]}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color={luxe.primary} />
-                ) : (
-                  <Text style={styles.linkBtnText}>📍 Konumumu kullan</Text>
-                )}
-              </Pressable>
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            </View>
-          ) : null}
         </GlassCard>
 
         {/* Haftanın doluluğu */}
@@ -736,10 +740,76 @@ export default function Today() {
         ) : null}
       </ScrollView>
 
+      {/*
+        Şehir değiştirme PENCEREDE: form daha önce aşağıdaki kartın içinde
+        açılıyordu, rozete dokunan kullanıcı ekranda hiçbir şey görmüyordu.
+      */}
+      <Modal
+        visible={askCity}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setAskCity(false)}
+      >
+        {/* `behavior="padding"` HER İKİ platformda da şart: edge-to-edge iken
+            sistem pencereyi klavye için yeniden boyutlandırmıyor. */}
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+          <Pressable style={styles.cityWrap} onPress={() => setAskCity(false)}>
+            <Pressable
+              style={[
+                styles.cityCard,
+                { paddingBottom: 22 + (keyboardUp ? 0 : insets.bottom) },
+              ]}
+              onPress={() => {}}
+            >
+            <View style={styles.modalHead}>
+              <Text style={luxeType.headline}>Şehir değiştir</Text>
+              <Pressable
+                onPress={() => setAskCity(false)}
+                hitSlop={8}
+                style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={styles.chipText}>Kapat</Text>
+              </Pressable>
+            </View>
+            {todayWeather ? (
+              <Text style={[luxeType.caption, { marginBottom: 14 }]}>
+                Şu an: {weatherEmoji(todayWeather.weatherCode)} {profile.city} ·{' '}
+                {weatherLabel(todayWeather.weatherCode)} {todayWeather.tempMax}°/
+                {todayWeather.tempMin}°
+              </Text>
+            ) : null}
+            {cityForm('Şehir adı (örn. İstanbul)')}
+            <Pressable
+              onPress={async () => {
+                if (await useDeviceLocation()) setAskCity(false);
+              }}
+              disabled={loading}
+              style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.6 }]}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={luxe.primary} />
+              ) : (
+                <Text style={styles.linkBtnText}>📍 Konumumu kullan</Text>
+              )}
+            </Pressable>
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Kombin seçici */}
-      <Modal visible={pickerOpen} animationType="slide" transparent>
+      <Modal
+        visible={pickerOpen}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+      >
         <View style={styles.modalWrap}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { paddingBottom: 22 + insets.bottom }]}>
             <View style={styles.modalHead}>
               <Text style={luxeType.headline}>Kombin seç</Text>
               <Pressable
@@ -1057,6 +1127,16 @@ const styles = StyleSheet.create({
   linkBtn: { alignSelf: 'flex-start', marginTop: 12, paddingVertical: 4 },
   linkBtnText: { fontFamily: font.bodyMedium, fontSize: 14, color: luxe.primary },
   errorText: { fontFamily: font.body, fontSize: 12.5, color: luxe.danger, marginTop: 8 },
+
+  // Şehir penceresi
+  /* Alttan açılan sayfa — dokunulan yere yakın ve tanıdık bir kalıp. */
+  cityWrap: { flex: 1, backgroundColor: luxe.overlay, justifyContent: 'flex-end' },
+  cityCard: {
+    backgroundColor: luxe.bg,
+    borderTopLeftRadius: luxeRadius.xl,
+    borderTopRightRadius: luxeRadius.xl,
+    padding: 22,
+  },
 
   // Kombin seçici
   modalWrap: { flex: 1, backgroundColor: luxe.overlay, justifyContent: 'flex-end' },
