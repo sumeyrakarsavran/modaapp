@@ -187,38 +187,66 @@ function Backdrop() {
  * Gölge de SVG filtresiyle (`FeDropShadow`): RN'in gölgesi görünümün
  * DİKDÖRTGEN dış hattını kullanıyor, blobun arkasında gri bir kutu çıkıyor
  * (cihazda görüldü). Filtre gerçek biçmi takip ediyor.
- * Yol viewBox'ın İÇİNE çekiliyor (`translate(6,5) scale(0.88)`): kenara
- * dayandığında hem biçmin ucu hem gölgesi SVG sınırında kırpılıyor ve alt
- * taraf DÜZ KESİLMİŞ gibi duruyordu. Kalan boşluk gölgenin yeri.
+ * Yol kutuya TAM oturuyor; gölge payı görünümü dışarı taşırarak açılıyor
+ * (ölçü `onLayout` ile alınıp viewBox payı hesaplanıyor). Yolu küçültmek
+ * denendi ama o zaman biçim CSS'ten sapıyor.
  */
 function FinBlob({ color, shadow }: { color: string; shadow?: boolean }) {
+  /*
+    Gölge payı. SVG'yi kartın DIŞINA taşırmak işe yaramıyor: Android
+    çocuğu ebeveyn sınırında kırpıyor, gölge soldan ve alttan kesiliyordu
+    (cihazda görüldü). Bu yüzden pay kartın İÇİNDE: dokunma kutusu bu kadar
+    büyüyor, blob ise iç dikdörtgene çiziliyor.
+  */
+  const M = 18;
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  /*
+    viewBox payı ÖLÇÜLEREK hesaplanıyor, göz kararı değil: yüzde cinsinden
+    pay = 100 * M / kartBoyutu. Böylece yolun 0–100 aralığı kartın tam
+    sınırlarına oturuyor, kalan yer de gölgenin oluyor.
+  */
+  const cw = box ? box.w - 2 * M : 0;
+  const ch = box ? box.h - 2 * M : 0;
+  const mx = cw > 0 ? (100 * M) / cw : 0;
+  const my = ch > 0 ? (100 * M) / ch : 0;
+
   return (
-    <Svg
-      /*
-        Ölçü YERLEŞİMDEN geliyor (mutlak konum), `width/height="100%"` DEĞİL:
-        gün kartının yüksekliği içerikten belirlendiği için yüzde çözülemiyor,
-        SVG kendi en-boy oranına düşüp blob kartın altını boş bırakıyordu.
-      */
+    <View
       style={styles.blob}
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
       pointerEvents="none"
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setBox((b) => (b && b.w === width && b.h === height ? b : { w: width, h: height }));
+      }}
     >
-      {shadow ? (
-        <Defs>
-          <Filter id="finShadow" x="-30%" y="-30%" width="170%" height="170%">
-            <FeDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#70585B" floodOpacity="0.28" />
-          </Filter>
-        </Defs>
+      {box && cw > 0 && ch > 0 ? (
+        <Svg
+          width={box.w}
+          height={box.h}
+          viewBox={`${-mx} ${-my} ${100 + 2 * mx} ${100 + 2 * my}`}
+          preserveAspectRatio="none"
+        >
+          {shadow ? (
+            <Defs>
+              <Filter id="finShadow" x="-40%" y="-40%" width="180%" height="180%">
+                <FeDropShadow
+                  dx="0"
+                  dy={my * 0.3}
+                  stdDeviation={my * 0.42}
+                  floodColor="#70585B"
+                  floodOpacity="0.3"
+                />
+              </Filter>
+            </Defs>
+          ) : null}
+          <Path
+            d="M60 0 A40 60 0 0 1 100 60 A70 40 0 0 1 30 100 A30 70 0 0 1 0 30 A60 30 0 0 1 60 0 Z"
+            fill={color}
+            filter={shadow ? 'url(#finShadow)' : undefined}
+          />
+        </Svg>
       ) : null}
-      <G transform="translate(6,5) scale(0.88)">
-        <Path
-          d="M60 0 A40 60 0 0 1 100 60 A70 40 0 0 1 30 100 A30 70 0 0 1 0 30 A60 30 0 0 1 60 0 Z"
-          fill={color}
-          filter={shadow ? 'url(#finShadow)' : undefined}
-        />
-      </G>
-    </Svg>
+    </View>
   );
 }
 
@@ -399,7 +427,7 @@ export default function Today() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 6, paddingRight: 20, paddingVertical: 4 }}
+          contentContainerStyle={{ gap: 0, paddingRight: 20 }}
         >
           {weekDates.map((date, i) => {
             const d = new Date(`${date}T12:00:00`);
@@ -415,7 +443,13 @@ export default function Today() {
                 }}
                 style={[styles.day, active && styles.dayActive]}
               >
-                {active ? <FinBlob shadow color="#F4E6E6" /> : null}
+                {active ? (
+                  <FinBlob shadow color="#F4E6E6" />
+                ) : (
+                  /* Zemin kutuya değil İÇ dikdörtgene: kutu gölge payı kadar
+                     büyük, zemini kutuya verince kart şişik görünüyor. */
+                  <View style={styles.dayPlain} pointerEvents="none" />
+                )}
                 <Text style={[styles.dayName, active && { color: luxe.primary }]}>
                   {DAY_NAMES[d.getDay()]}
                 </Text>
@@ -556,7 +590,7 @@ export default function Today() {
             </View>
           </View>
         ) : (
-          <GlassCard tint style={{ marginTop: 22 }}>
+          <GlassCard tint style={styles.heroEmpty}>
             <Text style={[luxeType.label, { color: luxe.primary }]}>{selectedLabel}</Text>
             {/* "Bugün" HER ZAMAN bitişik; başka günler için ayrı metin. */}
             <Text style={[luxeType.headlineItalic, { marginTop: 8 }]}>
@@ -795,14 +829,23 @@ const styles = StyleSheet.create({
   hello: { fontSize: 26, lineHeight: 33 },
   helloName: { fontSize: 26, lineHeight: 34 },
   /** Organik köşeli cam hava rozeti (örnekteki `fin-curve`) */
-  /** Biçimi `FinBlob` çiziyor — zemin ve kenarlık burada yok. */
+  /**
+   * Biçimi `FinBlob` çiziyor — zemin ve kenarlık burada yok.
+   * İç boşluk gölge payını (FinBlob'daki M = 18) İÇERİR: blob kutunun
+   * içine çizildiği için pay eklenmezse yazı biçimin dışına taşıyor.
+   */
   weatherBlob: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    /* Gölge payı kutuyu her yönden 18 büyütüyor; negatif kenar boşluğu
+       rozeti eski yerine geri çekiyor. */
+    marginTop: -18,
+    marginRight: -18,
+    marginBottom: -18,
+    paddingHorizontal: 16 + 18,
+    paddingVertical: 12 + 18,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    maxWidth: 168,
+    maxWidth: 168 + 36,
   },
   weatherTemp: { fontFamily: font.display, fontSize: 23, lineHeight: 29, color: luxe.primary },
   weatherCity: {
@@ -815,12 +858,19 @@ const styles = StyleSheet.create({
   },
 
   // Hero
+  /*
+    Üst boşluk PLANLI ve PLANSIZ durumda AYNI olmalı — farklıydı ve kart
+    kombin seçilince yukarı zıplayıp gün şeridini kesiyordu.
+    Şeridin gölge payı (18px) altta zaten boşluk bıraktığı için değer negatif.
+  */
   hero: {
-    marginTop: 14,
+    marginTop: -4,
     borderRadius: luxeRadius.xl,
     backgroundColor: luxe.surface,
     ...luxeShadow.hero,
   },
+  /** Plansız durum: hero ile AYNI üst boşluk. */
+  heroEmpty: { marginTop: -4 },
   heroClip: { flex: 1, borderRadius: luxeRadius.xl, overflow: 'hidden' },
   heroArt: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 },
   heroShade: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
@@ -898,7 +948,12 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 3 },
   progressNote: { marginTop: 12, fontStyle: 'italic' },
 
-  sectionTitle: { marginTop: 16, marginBottom: 10, fontSize: 19, lineHeight: 26 },
+  /*
+    Negatif alt boşluk: gün kartları gölge payı (18px) kadar içeriden
+    başlıyor, normal boşluk bunun üstüne binince arada kocaman bir aralık
+    kalıyordu.
+  */
+  sectionTitle: { marginTop: 16, marginBottom: -10, fontSize: 19, lineHeight: 26 },
 
   // Hafta şeridi
   /*
@@ -906,8 +961,13 @@ const styles = StyleSheet.create({
     cam kutu. Dar ve uzun hâli hap gibi görünüp örnekten uzaklaşıyordu.
   */
   day: {
-    // Kareye yakın oran: dar-uzun kutuda blob yaprağa dönüşüyor
-    width: 88,
+    /*
+      Ölçüler gölge payını (FinBlob'daki M = 18) İÇERİR: görünen kart
+      88 geniş, kutu her yönden 18 fazla. Yatay negatif kenar boşluğu bu
+      fazlalığı yutuyor ki kartlar arası görünen aralık 6px kalsın.
+    */
+    width: 88 + 36,
+    marginHorizontal: -15,
     alignItems: 'center',
     /*
       Dikey boşluk bilerek cömert: blob kartın köşelerini yiyor, içerik
@@ -915,17 +975,25 @@ const styles = StyleSheet.create({
       kalıyor. İçerik kabaca kartın %18–%82 aralığında duruyor.
     */
     /* Kareden BİRAZ uzun: tam karede blob fazla toparlak duruyor. */
-    paddingTop: 14,
-    paddingBottom: 14,
+    paddingTop: 14 + 18,
+    paddingBottom: 14 + 18,
     /*
       Seçili OLMAYAN gün: soluk, çerçevesiz, yumuşak köşeli kart — örnekteki
       TUE/WED kartları. Yamukluk yalnızca seçili günde.
     */
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderRadius: luxeRadius.lg,
     gap: 1,
   },
-  /** Seçili gün: zemin ve köşe yok — biçimi `HandDrawnBlob` çiziyor. */
+  /** Seçili olmayan günün zemini — gölge payı kadar içeride. */
+  dayPlain: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    top: 18,
+    bottom: 18,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderRadius: luxeRadius.lg,
+  },
+  /** Seçili gün: zemin ve köşe yok — biçimi `FinBlob` çiziyor. */
   dayActive: { backgroundColor: 'transparent', borderRadius: 0 },
   blob: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 },
   dayName: {
