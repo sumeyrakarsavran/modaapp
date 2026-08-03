@@ -165,6 +165,8 @@ export interface PlanEntry {
   date: string;
   outfitId?: string;
   itemIds?: string[];
+  /** Güne kombin yerine bir selfie planlanabilir (gerçek fotoğraf). */
+  selfieId?: string;
   note?: string;
 }
 

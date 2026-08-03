@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -18,17 +19,9 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, {
-  Defs,
-  FeDropShadow,
-  Filter,
-  G,
-  Path,
-  RadialGradient,
-  Rect,
-  Stop,
-} from 'react-native-svg';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { FinBlob } from '@/components/FinBlob';
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
@@ -168,91 +161,6 @@ function Backdrop() {
 }
 
 /**
- * Örnekteki `fin-curve`'ün BİREBİR karşılığı.
- *
- *   border-radius: 60% 40% 70% 30% / 30% 60% 40% 70%;
- *
- * Bu ELİPTİK köşe: her köşenin iki yarıçapı var (yatay = genişliğin yüzdesi,
- * dikey = yüksekliğin yüzdesi). RN'in `borderRadius`'ında karşılığı yok —
- * dört köşeye farklı piksel vermek yaklaşık bile değil, biçim "dijital"
- * duruyor. SVG'de tam karşılığı var: eliptik yay (`A rx ry ...`).
- *
- * Köşe yarıçapları (viewBox 100×100, yani doğrudan yüzde):
- *   sol üst  rx 60 ry 30   ·  sağ üst  rx 40 ry 60
- *   sağ alt  rx 70 ry 40   ·  sol alt  rx 30 ry 70
- * Her kenarda yarıçaplar toplamı tam %100 olduğu için düz kenar HİÇ kalmıyor;
- * biçmin organik görünmesinin sebebi bu.
- *
- * `preserveAspectRatio="none"`: yüzdeler CSS'te olduğu gibi kutunun
- * ölçüsüne esner.
- *
- * Gölge de SVG filtresiyle (`FeDropShadow`): RN'in gölgesi görünümün
- * DİKDÖRTGEN dış hattını kullanıyor, blobun arkasında gri bir kutu çıkıyor
- * (cihazda görüldü). Filtre gerçek biçmi takip ediyor.
- * Yol kutuya TAM oturuyor; gölge payı görünümü dışarı taşırarak açılıyor
- * (ölçü `onLayout` ile alınıp viewBox payı hesaplanıyor). Yolu küçültmek
- * denendi ama o zaman biçim CSS'ten sapıyor.
- */
-function FinBlob({ color, shadow }: { color: string; shadow?: boolean }) {
-  /*
-    Gölge payı. SVG'yi kartın DIŞINA taşırmak işe yaramıyor: Android
-    çocuğu ebeveyn sınırında kırpıyor, gölge soldan ve alttan kesiliyordu
-    (cihazda görüldü). Bu yüzden pay kartın İÇİNDE: dokunma kutusu bu kadar
-    büyüyor, blob ise iç dikdörtgene çiziliyor.
-  */
-  const M = 18;
-  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
-  /*
-    viewBox payı ÖLÇÜLEREK hesaplanıyor, göz kararı değil: yüzde cinsinden
-    pay = 100 * M / kartBoyutu. Böylece yolun 0–100 aralığı kartın tam
-    sınırlarına oturuyor, kalan yer de gölgenin oluyor.
-  */
-  const cw = box ? box.w - 2 * M : 0;
-  const ch = box ? box.h - 2 * M : 0;
-  const mx = cw > 0 ? (100 * M) / cw : 0;
-  const my = ch > 0 ? (100 * M) / ch : 0;
-
-  return (
-    <View
-      style={styles.blob}
-      pointerEvents="none"
-      onLayout={(e) => {
-        const { width, height } = e.nativeEvent.layout;
-        setBox((b) => (b && b.w === width && b.h === height ? b : { w: width, h: height }));
-      }}
-    >
-      {box && cw > 0 && ch > 0 ? (
-        <Svg
-          width={box.w}
-          height={box.h}
-          viewBox={`${-mx} ${-my} ${100 + 2 * mx} ${100 + 2 * my}`}
-          preserveAspectRatio="none"
-        >
-          {shadow ? (
-            <Defs>
-              <Filter id="finShadow" x="-40%" y="-40%" width="180%" height="180%">
-                <FeDropShadow
-                  dx="0"
-                  dy={my * 0.3}
-                  stdDeviation={my * 0.42}
-                  floodColor="#70585B"
-                  floodOpacity="0.3"
-                />
-              </Filter>
-            </Defs>
-          ) : null}
-          <Path
-            d="M60 0 A40 60 0 0 1 100 60 A70 40 0 0 1 30 100 A30 70 0 0 1 0 30 A60 30 0 0 1 60 0 Z"
-            fill={color}
-            filter={shadow ? 'url(#finShadow)' : undefined}
-          />
-        </Svg>
-      ) : null}
-    </View>
-  );
-}
-
-/**
  * Cam kart (glassmorphism). RN'de `backdrop-filter` yok ve `expo-blur` kurulu
  * değil; yarı saydam beyaz dolgu + açık kenarlıkla taklit ediliyor. Zemindeki
  * radyal parıltı altından geçtiği için etki yakın duruyor.
@@ -276,7 +184,7 @@ function GlassCard({
 }
 
 export default function Today() {
-  const { profile, items, outfits, plans, setPlan, clearPlan, wearOutfit, logWear, addOutfit } =
+  const { profile, items, outfits, selfies, plans, setPlan, clearPlan, wearOutfit, logWear, addOutfit } =
     useStore();
   const { week, todayWeather, loading, error, useDeviceLocation, useCity } = useWeather();
   const { width } = useWindowDimensions();
@@ -305,6 +213,7 @@ export default function Today() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [suggestion, setSuggestion] = useState<SuggestedOutfit | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerTab, setPickerTab] = useState<'kombin' | 'selfie'>('kombin');
   const [cityInput, setCityInput] = useState('');
   const [askCity, setAskCity] = useState(false);
 
@@ -321,7 +230,18 @@ export default function Today() {
   const planOutfit = selectedPlan?.outfitId
     ? outfits.find((o) => o.id === selectedPlan.outfitId)
     : undefined;
-  const planItems = (planOutfit?.itemIds ?? selectedPlan?.itemIds ?? [])
+  /*
+    Güne selfie de planlanabiliyor. Selfie bir kombine bağlıysa parçalar
+    oradan geliyor — böylece "bugün bunu giydim" giyim kaydını doğru tutuyor.
+  */
+  const planSelfie = selectedPlan?.selfieId
+    ? selfies.find((sf) => sf.id === selectedPlan.selfieId)
+    : undefined;
+  const selfieOutfit = planSelfie?.outfitId
+    ? outfits.find((o) => o.id === planSelfie.outfitId)
+    : undefined;
+  const heroOutfit = planOutfit ?? selfieOutfit;
+  const planItems = (heroOutfit?.itemIds ?? selectedPlan?.itemIds ?? [])
     .map((id) => items.find((i) => i.id === id))
     .filter(Boolean) as NonNullable<ReturnType<typeof items.find>>[];
 
@@ -359,7 +279,7 @@ export default function Today() {
       });
   /** Örnekteki "Look Completion" karşılığı — uydurma değil, gerçek plan sayısı. */
   const plannedDays = weekDates.filter((d) =>
-    plans.some((p) => p.date === d && (p.outfitId || p.itemIds?.length)),
+    plans.some((p) => p.date === d && (p.outfitId || p.selfieId || p.itemIds?.length)),
   ).length;
 
   /** Şehir arama alanı — hem ilk kurulumda hem "değiştir"de aynı görünüm. */
@@ -454,7 +374,9 @@ export default function Today() {
           {weekDates.map((date, i) => {
             const d = new Date(`${date}T12:00:00`);
             const w = week[i];
-            const planned = plans.some((p) => p.date === date && (p.outfitId || p.itemIds?.length));
+            const planned = plans.some(
+              (p) => p.date === date && (p.outfitId || p.selfieId || p.itemIds?.length),
+            );
             const active = date === selectedDate;
             return (
               <Pressable
@@ -503,7 +425,7 @@ export default function Today() {
         </ScrollView>
 
         {/* HERO — seçili günün kombini */}
-        {planItems.length ? (
+        {planItems.length || planSelfie ? (
           /*
             Gölge veren View ile kırpan View AYRI olmalı: Android'de
             elevation + borderRadius + overflow aynı görünümde birleşince
@@ -519,19 +441,26 @@ export default function Today() {
               */}
               <Pressable
                 style={styles.heroArt}
-                disabled={!planOutfit}
+                disabled={!heroOutfit}
                 onPress={() =>
-                  planOutfit &&
-                  router.push({ pathname: '/outfit/[id]', params: { id: planOutfit.id } })
+                  heroOutfit &&
+                  router.push({ pathname: '/outfit/[id]', params: { id: heroOutfit.id } })
                 }
               >
-                {planOutfit ? (
+                {planSelfie ? (
+                  /* Gerçek insan fotoğrafı — `cover` kalabilir (bkz. AGENTS.md). */
+                  <Image
+                    source={{ uri: planSelfie.imageUri }}
+                    style={{ width: heroSize, height: heroSize }}
+                    contentFit="cover"
+                  />
+                ) : heroOutfit ? (
                   <OutfitCollage
                     items={planItems}
                     size={heroSize}
-                    layout={planOutfit.layout}
-                    frame={planOutfit.canvasFrame}
-                    cropToContent={planOutfit.cropToContent}
+                    layout={heroOutfit.layout}
+                    frame={heroOutfit.canvasFrame}
+                    cropToContent={heroOutfit.cropToContent}
                   />
                 ) : (
                   <OutfitCollage items={planItems} size={heroSize} />
@@ -569,7 +498,9 @@ export default function Today() {
               */}
               <View style={styles.heroBody} pointerEvents="box-none">
                 <Text style={[luxeType.heroTitle, styles.heroShadowText]} numberOfLines={2}>
-                  {planOutfit?.name ?? `${planItems.length} parça`}
+                  {planOutfit?.name ??
+                    planSelfie?.note ??
+                    (planSelfie ? 'Selfie' : `${planItems.length} parça`)}
                 </Text>
                 <Text style={[styles.heroSub, styles.heroShadowText]} numberOfLines={1}>
                   {planItems
@@ -581,17 +512,17 @@ export default function Today() {
                     : ''}
                 </Text>
                 <View style={styles.heroActions}>
-                  {isToday && planOutfit ? (
+                  {isToday && heroOutfit ? (
                     <LuxeButton
                       onDark
                       title="Bugün bunu giydim"
                       onPress={() => {
-                        wearOutfit(planOutfit.id, today);
+                        wearOutfit(heroOutfit.id, today);
                         clearPlan(today);
                       }}
                     />
                   ) : null}
-                  {isToday && !planOutfit && selectedPlan?.itemIds?.length ? (
+                  {isToday && !heroOutfit && selectedPlan?.itemIds?.length ? (
                     <LuxeButton
                       onDark
                       title="Bugün bunu giydim"
@@ -811,7 +742,20 @@ export default function Today() {
         <View style={styles.modalWrap}>
           <View style={[styles.modalCard, { paddingBottom: 22 + insets.bottom }]}>
             <View style={styles.modalHead}>
-              <Text style={luxeType.headline}>Kombin seç</Text>
+              {/* Kombin ve selfie YAN YANA: gün planına ikisi de atanabiliyor. */}
+              <View style={styles.tabRow}>
+                {(['kombin', 'selfie'] as const).map((t) => (
+                  <Pressable
+                    key={t}
+                    onPress={() => setPickerTab(t)}
+                    style={[styles.tab, pickerTab === t && styles.tabActive]}
+                  >
+                    <Text style={[styles.tabText, pickerTab === t && styles.tabTextActive]}>
+                      {t === 'kombin' ? 'Kombin seç' : 'Selfie seç'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
               <Pressable
                 onPress={() => setPickerOpen(false)}
                 hitSlop={8}
@@ -821,7 +765,46 @@ export default function Today() {
               </Pressable>
             </View>
             <ScrollView>
-              {outfits.length === 0 ? (
+              {pickerTab === 'selfie' ? (
+                selfies.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                    <Text style={{ fontSize: 32 }}>🤳</Text>
+                    <Text style={[luxeType.headlineItalic, { marginTop: 10 }]}>
+                      Henüz selfie yok
+                    </Text>
+                    <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
+                      Gardırop sekmesindeki Selfie'ler bölümünden ekleyebilirsin.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.outfitGrid}>
+                    {selfies.map((sf) => (
+                      <Pressable
+                        key={sf.id}
+                        onPress={() => {
+                          setPlan({ date: selectedDate, selfieId: sf.id });
+                          setPickerOpen(false);
+                        }}
+                        style={{ alignItems: 'center', width: 130 }}
+                      >
+                        {/* Gerçek insan fotoğrafı — `cover` (bkz. AGENTS.md). */}
+                        <Image
+                          source={{ uri: sf.imageUri }}
+                          style={styles.selfieThumb}
+                          contentFit="cover"
+                        />
+                        <Text style={[luxeType.caption, { marginTop: 6 }]} numberOfLines={1}>
+                          {sf.note ||
+                            new Date(`${sf.date}T12:00:00`).toLocaleDateString('tr-TR', {
+                              day: 'numeric',
+                              month: 'short',
+                            })}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )
+              ) : outfits.length === 0 ? (
                 <View style={{ alignItems: 'center', paddingVertical: 32 }}>
                   <Text style={{ fontSize: 32 }}>🎨</Text>
                   <Text style={[luxeType.headlineItalic, { marginTop: 10 }]}>
@@ -1081,7 +1064,6 @@ const styles = StyleSheet.create({
   },
   /** Seçili gün: zemin ve köşe yok — biçimi `FinBlob` çiziyor. */
   dayActive: { backgroundColor: 'transparent', borderRadius: 0 },
-  blob: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 },
   dayName: {
     fontFamily: font.label,
     fontSize: 9,
@@ -1137,6 +1119,19 @@ const styles = StyleSheet.create({
     borderTopRightRadius: luxeRadius.xl,
     padding: 22,
   },
+
+  // Seçici sekmeleri
+  tabRow: { flexDirection: 'row', gap: 8, flexShrink: 1 },
+  tab: {
+    borderRadius: luxeRadius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: glass.fill,
+  },
+  tabActive: { backgroundColor: luxe.primaryContainer },
+  tabText: { fontFamily: font.bodyMedium, fontSize: 13, color: luxe.outline },
+  tabTextActive: { color: luxe.primaryDeep },
+  selfieThumb: { width: 130, height: 130, borderRadius: luxeRadius.md },
 
   // Kombin seçici
   modalWrap: { flex: 1, backgroundColor: luxe.overlay, justifyContent: 'flex-end' },

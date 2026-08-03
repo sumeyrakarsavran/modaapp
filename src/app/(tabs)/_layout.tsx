@@ -1,7 +1,10 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import React from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FinBlob } from '@/components/FinBlob';
 import { useStore } from '@/store/useStore';
 import { colors } from '@/theme';
 import { font, glass, luxe } from '@/theme/luxe';
@@ -27,12 +30,15 @@ export default function TabsLayout() {
           geçmemiş sekmelerin zeminini değiştirmesin.
         */
         /*
-          Aktif sekme örnekteki gibi "hap" içine ALINAMADI: ikonu bir View ile
-          sarmalayınca glif hiç çizilmiyor (hap görünüyor, ikon yok) — cihazda
-          doğrulandı, sarmalayıcı kalkınca ikonlar geri geliyor. Ayrım renkle
-          yapılıyor. Hap isteniyorsa özel `tabBarButton` gerekir.
+          Aktif sekme örnekteki gibi yamuk pembe bir blobun içinde.
+          `tabBarIcon`'u bir View ile sarmalamak ÇALIŞMIYOR: sekme çubuğunun
+          sabit yükseklikli ikon kabı sarmalayıcıyı kırpıyor, glif hiç
+          görünmüyor (cihazda doğrulandı). Bunun yerine `tabBarButton` ile
+          öğenin TAMAMI devralınıyor; blob ikon+etiketin arkasında ayrı bir
+          katman olarak duruyor.
         */
-        tabBarActiveTintColor: luxe.primary,
+        tabBarButton: (props) => <TabButton {...props} />,
+        tabBarActiveTintColor: luxe.primaryDeep,
         tabBarInactiveTintColor: 'rgba(128,116,117,0.55)',
         tabBarStyle: {
           backgroundColor: glass.fillStrong,
@@ -104,3 +110,35 @@ export default function TabsLayout() {
   );
 }
 
+/**
+ * Sekme öğesinin tamamı: seçiliyken ikon+etiketin arkasına yamuk pembe blob.
+ * `accessibilityState.selected` react-navigation'ın seçili sekme işareti.
+ */
+function TabButton(props: Record<string, any>) {
+  const { children, onPress, onLongPress } = props;
+  /*
+    Seçili işareti sürüme göre `aria-selected` VEYA
+    `accessibilityState.selected` olarak geliyor; ikisi de okunuyor.
+    Yalnızca birine bakınca hiçbir sekme seçili görünmüyordu (cihazda test
+    edildi: blob hiç çizilmedi).
+  */
+  const focused = !!(props['aria-selected'] ?? props.accessibilityState?.selected);
+  return (
+    <Pressable
+      onPress={onPress ?? undefined}
+      onLongPress={onLongPress ?? undefined}
+      style={styles.tabBtn}
+      android_ripple={null}
+    >
+      <View style={styles.tabInner}>
+        {focused ? <FinBlob color="rgba(250,218,221,0.8)" /> : null}
+        {children}
+      </View>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  tabBtn: { flex: 1, alignItems: 'stretch', justifyContent: 'center' },
+  tabInner: { alignSelf: 'stretch', marginHorizontal: 3, paddingVertical: 7, alignItems: 'center' },
+});
