@@ -289,9 +289,19 @@ export default function Today() {
         {/* Başlık + hava rozeti */}
         <View style={styles.titleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={luxeType.label}>Bugün</Text>
-            <Text style={[luxeType.display, { marginTop: 8 }]}>Hoş geldin,</Text>
-            <Text style={luxeType.displayItalic}>{profile.name || 'Betta'}</Text>
+            <Text style={luxeType.label}>
+              {new Date().toLocaleDateString('tr-TR', {
+                day: 'numeric',
+                month: 'long',
+                weekday: 'long',
+              })}
+            </Text>
+            {/* Ölçüler bilerek temadan küçük: üst blok kısalınca kombin
+                sayfaya girer girmez görünüyor. */}
+            <Text style={[luxeType.display, styles.hello]}>Hoş geldin,</Text>
+            <Text style={[luxeType.displayItalic, styles.helloName]}>
+              {profile.name || 'Betta'}
+            </Text>
           </View>
 
           {/* Hava rozeti — organik köşeli cam blok; dokununca şehir değişir */}
@@ -319,7 +329,7 @@ export default function Today() {
         </View>
 
         {archetype ? (
-          <Text style={[luxeType.caption, { marginTop: 12 }]}>
+          <Text style={[luxeType.caption, { marginTop: 8, fontSize: 12 }]}>
             {archetype.emoji} {archetype.styleName} · {archetype.fish}
           </Text>
         ) : null}
@@ -329,7 +339,7 @@ export default function Today() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 12, paddingRight: 20, paddingVertical: 4 }}
+          contentContainerStyle={{ gap: 10, paddingRight: 20, paddingVertical: 4 }}
         >
           {weekDates.map((date, i) => {
             const d = new Date(`${date}T12:00:00`);
@@ -705,32 +715,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 10,
+    paddingBottom: 6,
   },
   /** Marka: italik serif — örnekteki ince, zarif duruş */
   wordmark: {
     fontFamily: font.displayItalic,
     fontStyle: 'italic',
-    fontSize: 26,
+    fontSize: 23,
     color: luxe.primary,
   },
-  container: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 56 },
+  container: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 56 },
 
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  hello: { marginTop: 6, fontSize: 26, lineHeight: 33 },
+  helloName: { fontSize: 26, lineHeight: 34 },
   /** Organik köşeli cam hava rozeti (örnekteki `fin-curve`) */
   weatherBlob: {
     ...finCurve,
     backgroundColor: glass.fillStrong,
     borderWidth: 1,
     borderColor: glass.border,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     maxWidth: 168,
   },
-  weatherTemp: { fontFamily: font.display, fontSize: 26, lineHeight: 32, color: luxe.primary },
+  weatherTemp: { fontFamily: font.display, fontSize: 23, lineHeight: 29, color: luxe.primary },
   weatherCity: {
     fontFamily: font.label,
     fontSize: 9.5,
@@ -742,7 +754,7 @@ const styles = StyleSheet.create({
 
   // Hero
   hero: {
-    marginTop: 22,
+    marginTop: 14,
     borderRadius: luxeRadius.xl,
     backgroundColor: luxe.surface,
     ...luxeShadow.hero,
@@ -824,7 +836,7 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 3 },
   progressNote: { marginTop: 12, fontStyle: 'italic' },
 
-  sectionTitle: { marginTop: 26, marginBottom: 14 },
+  sectionTitle: { marginTop: 16, marginBottom: 10, fontSize: 19, lineHeight: 26 },
 
   // Hafta şeridi
   /*
@@ -832,10 +844,10 @@ const styles = StyleSheet.create({
     cam kutu. Dar ve uzun hâli hap gibi görünüp örnekten uzaklaşıyordu.
   */
   day: {
-    width: 104,
+    width: 78,
     alignItems: 'center',
-    paddingVertical: 20,
-    borderRadius: luxeRadius.xl,
+    paddingVertical: 13,
+    borderRadius: luxeRadius.lg,
     backgroundColor: glass.fill,
     borderWidth: 1,
     borderColor: glass.border,
@@ -854,7 +866,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: luxe.outline,
   },
-  dayNum: { fontFamily: font.display, fontSize: 22, lineHeight: 28, color: luxe.ink },
+  dayNum: { fontFamily: font.display, fontSize: 19, lineHeight: 25, color: luxe.ink },
   dayTemp: { fontFamily: font.bodyMedium, fontSize: 11, color: luxe.inkSoft },
   dayTempMin: { color: luxe.outline },
   planDot: { width: 5, height: 5, borderRadius: 3, marginTop: 4 },
