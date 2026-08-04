@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -18,18 +20,18 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ItemThumb } from '@/components/ItemThumb';
+import { GarmentArt } from '@/components/GarmentArt';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
 import { ShareModal } from '@/components/ShareModal';
-import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { resizeForProcessing } from '@/services/imageResize';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
 import { persistGarmentPhoto } from '@/services/photoStore';
 import { useStore } from '@/store/useStore';
-import { colors, radius, spacing, type } from '@/theme';
+import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
 import {
   CATEGORIES,
+  ITEM_COLORS,
   subcategoriesOf,
   todayISO,
   type Category,
@@ -41,13 +43,218 @@ type Section = 'parcalar' | 'kombinler' | 'selfiler' | 'lookbooklar';
 
 const LOOKBOOK_EMOJIS = ['📖', '🌊', '🌙', '🔥', '🌸', '⚡', '🎨', '☁️', '✨', '🐟'];
 
+/** Askıdaki kartın ölçüsü; raf yüksekliği buna göre hesaplanıyor. */
+const CARD_W = 148;
+const CARD_IMG_H = Math.round((CARD_W * 4) / 3);
+/** Askı kancasının yüksekliği — boru bu hizada geçiyor. */
+const HOOK_H = 30;
+
+const colorLabel = (id: string) => ITEM_COLORS.find((c) => c.id === id)?.label ?? '';
+
+/**
+ * Askıdaki tek parça.
+ *
+ * Örnekteki `hanger:hover` davranışının dokunmatik karşılığı: basılınca askı
+ * hafifçe aşağı süzülüp yana yatıyor, bırakınca yaylanarak yerine dönüyor.
+ * RN'in kendi `Animated`'ı kullanılıyor — Reanimated'ın babel eklentisi bu
+ * projede kurulu değil, `withSpring` sessizce çalışmazdı.
+ */
+function Hanger({ item, onPress }: { item: WardrobeItem; onPress: () => void }) {
+  const swing = useRef(new Animated.Value(0)).current;
+  const to = (v: number) =>
+    Animated.spring(swing, {
+      toValue: v,
+      useNativeDriver: true,
+      friction: 5,
+      tension: 90,
+    }).start();
+
+  return (
+    <Animated.View
+      style={{
+        transform: [
+          { translateY: swing.interpolate({ inputRange: [0, 1], outputRange: [0, 10] }) },
+          { rotate: swing.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '2.5deg'] }) },
+        ],
+      }}
+    >
+      <Pressable onPressIn={() => to(1)} onPressOut={() => to(0)} onPress={onPress}>
+        {/* Kanca: alt kenarı olmayan yarım halka, boruya asılıyormuş gibi */}
+        <View style={styles.hook} />
+        <View style={styles.card}>
+          <View style={styles.cardImg}>
+            {item.imageUri ? (
+              /*
+                Gerçek kıyafet fotoğrafları HER ZAMAN `contain`: arka planı
+                silinmiş uzun/dar parçaları (elbise, palto) `cover` kırpıyor.
+              */
+              <Image
+                source={{ uri: item.imageUri }}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="contain"
+              />
+            ) : (
+              <GarmentArt
+                category={item.category}
+                subcategory={item.subcategory}
+                colorId={item.colorId}
+                size={CARD_W * 0.6}
+              />
+            )}
+            {item.favorite ? (
+              <View style={styles.favDot}>
+                <Ionicons name="heart" size={11} color={luxe.onPrimary} />
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.cardMeta}>
+            <Text style={styles.cardName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={styles.cardColor} numberOfLines={1}>
+              {colorLabel(item.colorId)}
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/** Bir kategorinin askılığı: başlık + parça sayısı + boru + yatay raf. */
+function Rack({
+  title,
+  items,
+  onOpen,
+}: {
+  title: string;
+  items: WardrobeItem[];
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <View style={{ marginBottom: 26 }}>
+      <View style={styles.rackHead}>
+        <Text style={styles.rackTitle}>{title}</Text>
+        <Text style={styles.rackCount}>{items.length} PARÇA</Text>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.rack}
+      >
+        {/* Metal boru — kancaların arkasından geçiyor */}
+        <LinearGradient
+          colors={[luxe.outlineSoft, luxe.surfaceHigh, luxe.outlineSoft]}
+          style={styles.rail}
+          pointerEvents="none"
+        />
+        {items.map((it) => (
+          <Hanger key={it.id} item={it} onPress={() => onOpen(it.id)} />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+/** Hap biçimli filtre; seçiliyken iridesan geçiş. */
+function PillChip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.pill, pressed && { opacity: 0.8 }]}>
+      {active ? (
+        <LinearGradient
+          colors={iridescent.soft}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.pillFill}
+          pointerEvents="none"
+        />
+      ) : null}
+      <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Boş durum — emoji yerine ince çizgi ikon. */
+function Empty({
+  icon,
+  title,
+  message,
+  action,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  title: string;
+  message: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <View style={styles.empty}>
+      <Ionicons name={icon} size={30} color={luxe.outlineSoft} />
+      <Text style={[luxeType.headlineItalic, { marginTop: 12 }]}>{title}</Text>
+      <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>{message}</Text>
+      {action ? <View style={{ marginTop: 16 }}>{action}</View> : null}
+    </View>
+  );
+}
+
+/** Editoryal düğme — Bugün sayfasındakiyle aynı dil. */
+function LuxeButton({
+  title,
+  onPress,
+  icon,
+  variant = 'solid',
+  disabled,
+  style,
+}: {
+  title?: string;
+  onPress: () => void;
+  icon?: React.ComponentProps<typeof Ionicons>['name'];
+  variant?: 'solid' | 'outline' | 'danger';
+  disabled?: boolean;
+  style?: any;
+}) {
+  const solid = variant === 'solid';
+  const fg = solid ? luxe.onPrimary : variant === 'danger' ? luxe.danger : luxe.primary;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.btn,
+        solid
+          ? { backgroundColor: luxe.primary }
+          : {
+              backgroundColor: glass.fill,
+              borderWidth: 1,
+              borderColor: variant === 'danger' ? luxe.danger : luxe.outlineSoft,
+            },
+        disabled && { opacity: 0.4 },
+        pressed && { opacity: 0.82 },
+        style,
+      ]}
+    >
+      <View style={styles.btnRow}>
+        {icon ? <Ionicons name={icon} size={14} color={fg} /> : null}
+        {title ? <Text style={[styles.btnText, { color: fg }]}>{title}</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
 export default function Wardrobe() {
   const {
     items, outfits, selfies, lookbooks,
     addSelfie, deleteSelfie, addLookbook, sharePost,
   } = useStore();
   const { width } = useWindowDimensions();
-  // Lookbook modalı alt sistem çubuğunun altında kalmasın
+  // Modallar alt sistem çubuğunun altında kalmasın
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const [section, setSection] = useState<Section>('parcalar');
@@ -70,7 +277,7 @@ export default function Wardrobe() {
   const [lbEmoji, setLbEmoji] = useState('📖');
 
   const cols = width > 700 ? 5 : 3;
-  const thumb = (Math.min(width, 700) - spacing.lg * 2 - spacing.sm * (cols - 1)) / cols;
+  const thumb = (Math.min(width, 700) - 20 * 2 - 8 * (cols - 1)) / cols;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('tr');
@@ -86,6 +293,17 @@ export default function Wardrobe() {
       return true;
     });
   }, [items, category, subcats, query, onlyFav, showArchived]);
+
+  /** Askılıklar kategoriye göre gruplanır — örnekteki "Üst Giyim / Alt Giyim" bölümleri. */
+  const racks = useMemo(
+    () =>
+      CATEGORIES.map((c) => ({
+        id: c.id,
+        label: c.label,
+        items: filtered.filter((i) => i.category === c.id),
+      })).filter((r) => r.items.length > 0),
+    [filtered],
+  );
 
   /** Selfie ekle — kırpma açık (dikey kadraj), kalıcı kopya saklanır. */
   const saveSelfiePhoto = async (photo: PickedPhoto) => {
@@ -159,36 +377,32 @@ export default function Wardrobe() {
   };
 
   const SectionTab = ({ id, label }: { id: Section; label: string }) => (
-    <Pressable
-      onPress={() => setSection(id)}
-      style={[styles.sectionTab, section === id && styles.sectionTabActive]}
-    >
-      <Text style={[styles.sectionTabText, section === id && { color: '#fff' }]}>
-        {label} · {counts[id]}
-      </Text>
-    </Pressable>
+    <PillChip label={`${label} · ${counts[id]}`} active={section === id} onPress={() => setSection(id)} />
   );
 
+  const openItem = (id: string) => router.push({ pathname: '/item/[id]', params: { id } });
+
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={type.display}>Gardırop</Text>
+          <Text style={luxeType.display}>Gardırop</Text>
+          <Text style={styles.subtitle}>Küratörlüğünü yaptığın stil evreni.</Text>
         </View>
         {section === 'parcalar' ? (
-          <Button small title="+ Ekle" onPress={() => router.push('/item/new')} />
+          <LuxeButton icon="add" title="Ekle" onPress={() => router.push('/item/new')} />
         ) : section === 'kombinler' ? (
-          <Button small title="+ Kombin" onPress={() => router.push('/(tabs)/studio')} />
+          <LuxeButton icon="add" title="Kombin" onPress={() => router.push('/(tabs)/studio')} />
         ) : section === 'selfiler' ? (
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <Button small title="📷" onPress={() => takeSelfie(true)} />
-            <Button small variant="secondary" title="🖼️" onPress={() => takeSelfie(false)} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <LuxeButton icon="camera-outline" onPress={() => takeSelfie(true)} />
+            <LuxeButton icon="images-outline" variant="outline" onPress={() => takeSelfie(false)} />
           </View>
         ) : (
-          <Button small title="+ Lookbook" onPress={() => setLbModal(true)} />
+          <LuxeButton icon="add" title="Lookbook" onPress={() => setLbModal(true)} />
         )}
-        <View style={{ marginLeft: spacing.sm }}>
-          <ProfileButton />
+        <View style={{ marginLeft: 10 }}>
+          <ProfileButton size={36} />
         </View>
       </View>
 
@@ -197,11 +411,7 @@ export default function Wardrobe() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.sectionTabsBar}
-        contentContainerStyle={{
-          gap: spacing.sm,
-          paddingHorizontal: spacing.lg,
-          alignItems: 'center',
-        }}
+        contentContainerStyle={{ gap: 8, paddingHorizontal: 20, alignItems: 'center' }}
       >
         <SectionTab id="parcalar" label="Parçalar" />
         <SectionTab id="kombinler" label="Kombinler" />
@@ -214,112 +424,99 @@ export default function Wardrobe() {
         <>
           <View style={styles.searchRow}>
             <View style={styles.searchBox}>
-              <Ionicons name="search" size={16} color={colors.inkFaint} />
+              <Ionicons name="search" size={16} color={luxe.outline} />
               <TextInput
                 value={query}
                 onChangeText={setQuery}
                 placeholder="Ara: isim, marka, etiket…"
-                placeholderTextColor={colors.inkFaint}
+                placeholderTextColor={luxe.outline}
                 style={styles.searchInput}
               />
             </View>
             <Pressable onPress={() => setOnlyFav((v) => !v)} style={styles.iconBtn}>
               <Ionicons
                 name={onlyFav ? 'heart' : 'heart-outline'}
-                size={20}
-                color={onlyFav ? colors.coral : colors.inkSoft}
+                size={19}
+                color={onlyFav ? luxe.primary : luxe.outline}
               />
             </Pressable>
             <Pressable onPress={() => setShowArchived((v) => !v)} style={styles.iconBtn}>
               <Ionicons
                 name={showArchived ? 'archive' : 'archive-outline'}
-                size={19}
-                color={showArchived ? colors.aquaDark : colors.inkSoft}
+                size={18}
+                color={showArchived ? luxe.primary : luxe.outline}
               />
             </Pressable>
           </View>
-          <View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipRow}
-            >
-              <Chip
-                label="Hepsi"
-                emoji="🌊"
-                active={category === 'hepsi'}
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipBar}
+            contentContainerStyle={styles.chipRow}
+          >
+            <PillChip
+              label="Hepsi"
+              active={category === 'hepsi'}
+              onPress={() => {
+                setCategory('hepsi');
+                setSubcats([]);
+              }}
+            />
+            {CATEGORIES.map((c) => (
+              <PillChip
+                key={c.id}
+                label={c.label}
+                active={category === c.id}
                 onPress={() => {
-                  setCategory('hepsi');
+                  setCategory(c.id);
+                  // Kategori değişince eski alt tür seçimi anlamsız kalır
                   setSubcats([]);
                 }}
               />
-              {CATEGORIES.map((c) => (
-                <Chip
-                  key={c.id}
-                  label={c.label}
-                  emoji={c.emoji}
-                  active={category === c.id}
-                  onPress={() => {
-                    setCategory(c.id);
-                    // Kategori değişince eski alt tür seçimi anlamsız kalır
-                    setSubcats([]);
-                  }}
-                />
-              ))}
-            </ScrollView>
-          </View>
+            ))}
+          </ScrollView>
 
           {/* Alt tür filtresi — çoklu seçim, yalnızca bir kategori seçiliyken */}
           {category !== 'hepsi' && subcategoriesOf(category).length > 0 ? (
-            <View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.chipRow}
-              >
-                {subcategoriesOf(category).map((s) => (
-                  <Chip
-                    key={s.id}
-                    label={s.label}
-                    active={subcats.includes(s.id)}
-                    onPress={() =>
-                      setSubcats((prev) =>
-                        prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id],
-                      )
-                    }
-                  />
-                ))}
-              </ScrollView>
-            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipBar}
+              contentContainerStyle={styles.chipRow}
+            >
+              {subcategoriesOf(category).map((s) => (
+                <PillChip
+                  key={s.id}
+                  label={s.label}
+                  active={subcats.includes(s.id)}
+                  onPress={() =>
+                    setSubcats((prev) =>
+                      prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id],
+                    )
+                  }
+                />
+              ))}
+            </ScrollView>
           ) : null}
+
           {filtered.length === 0 ? (
-            <EmptyState
-              emoji={showArchived ? '🗄️' : '🐟'}
+            <Empty
+              icon={showArchived ? 'archive-outline' : 'shirt-outline'}
               title={showArchived ? 'Arşiv boş' : 'Burada henüz bir şey yok'}
               message={showArchived ? 'Arşivlediğin parçalar burada görünür.' : 'İlk parçanı ekle.'}
               action={
                 !showArchived ? (
-                  <Button small title="+ Parça ekle" onPress={() => router.push('/item/new')} />
+                  <LuxeButton icon="add" title="Parça ekle" onPress={() => router.push('/item/new')} />
                 ) : undefined
               }
             />
           ) : (
-            <FlatList
-              key={`items-${cols}`}
-              data={filtered}
-              numColumns={cols}
-              keyExtractor={(i) => i.id}
-              contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm }}
-              columnWrapperStyle={{ gap: spacing.sm }}
-              renderItem={({ item }) => (
-                <ItemThumb
-                  item={item}
-                  size={thumb}
-                  showName
-                  onPress={() => router.push({ pathname: '/item/[id]', params: { id: item.id } })}
-                />
-              )}
-            />
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 40 }}>
+              {racks.map((r) => (
+                <Rack key={r.id} title={r.label} items={r.items} onOpen={openItem} />
+              ))}
+            </ScrollView>
           )}
         </>
       ) : null}
@@ -327,11 +524,11 @@ export default function Wardrobe() {
       {/* ————— KOMBİNLER ————— */}
       {section === 'kombinler' ? (
         outfits.length === 0 ? (
-          <EmptyState
-            emoji="🎨"
+          <Empty
+            icon="color-palette-outline"
             title="Henüz kombin yok"
             message={'Stüdyo\'daki "Giydir beni" ya da Canvas ile ilk kombinini oluştur.'}
-            action={<Button small title="Stüdyoya git" onPress={() => router.push('/(tabs)/studio')} />}
+            action={<LuxeButton title="Stüdyoya git" onPress={() => router.push('/(tabs)/studio')} />}
           />
         ) : (
           <FlatList
@@ -339,8 +536,8 @@ export default function Wardrobe() {
             data={outfits}
             keyExtractor={(o) => o.id}
             numColumns={2}
-            contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
-            columnWrapperStyle={{ gap: spacing.lg }}
+            contentContainerStyle={{ padding: 20, gap: 18 }}
+            columnWrapperStyle={{ gap: 18 }}
             renderItem={({ item: o }) => {
               const its = o.itemIds
                 .map((x) => items.find((i) => i.id === x))
@@ -350,11 +547,13 @@ export default function Wardrobe() {
                   style={{ flex: 1, maxWidth: '48%' }}
                   onPress={() => router.push({ pathname: '/outfit/[id]', params: { id: o.id } })}
                 >
-                  <OutfitCollage items={its} size={(width - spacing.lg * 3) / 2} layout={o.layout} frame={o.canvasFrame} cropToContent={o.cropToContent} />
-                  <Text style={[type.caption, { marginTop: 4 }]} numberOfLines={1}>
-                    {o.favorite ? '❤️ ' : ''}
-                    {o.name}
-                  </Text>
+                  <OutfitCollage items={its} size={(width - 20 * 3) / 2} layout={o.layout} frame={o.canvasFrame} cropToContent={o.cropToContent} />
+                  <View style={styles.outfitMeta}>
+                    {o.favorite ? <Ionicons name="heart" size={12} color={luxe.primary} /> : null}
+                    <Text style={[luxeType.caption, { flexShrink: 1 }]} numberOfLines={1}>
+                      {o.name}
+                    </Text>
+                  </View>
                 </Pressable>
               );
             }}
@@ -365,14 +564,19 @@ export default function Wardrobe() {
       {/* ————— SELFIE'LER ————— */}
       {section === 'selfiler' ? (
         selfies.length === 0 ? (
-          <EmptyState
-            emoji="🤳"
+          <Empty
+            icon="camera-outline"
             title="Henüz selfie yok"
             message="Günün kombiniyle ayna selfie'si çek, gardırobun canlı arşivin olsun."
             action={
-              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                <Button small title="📷 Çek" onPress={() => takeSelfie(true)} />
-                <Button small variant="secondary" title="🖼️ Galeriden" onPress={() => takeSelfie(false)} />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <LuxeButton icon="camera-outline" title="Çek" onPress={() => takeSelfie(true)} />
+                <LuxeButton
+                  icon="images-outline"
+                  variant="outline"
+                  title="Galeriden"
+                  onPress={() => takeSelfie(false)}
+                />
               </View>
             }
           />
@@ -382,16 +586,17 @@ export default function Wardrobe() {
             data={selfies}
             numColumns={cols}
             keyExtractor={(s) => s.id}
-            contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm }}
-            columnWrapperStyle={{ gap: spacing.sm }}
+            contentContainerStyle={{ padding: 20, gap: 8 }}
+            columnWrapperStyle={{ gap: 8 }}
             renderItem={({ item: s }) => (
               <Pressable onPress={() => setOpenSelfie(s)}>
+                {/* Gerçek insan fotoğrafı — `cover` kalabilir */}
                 <Image
                   source={{ uri: s.imageUri }}
-                  style={{ width: thumb, height: thumb * 1.25, borderRadius: radius.md }}
+                  style={{ width: thumb, height: thumb * 1.25, borderRadius: luxeRadius.md }}
                   contentFit="cover"
                 />
-                <Text style={type.tiny}>{s.date}</Text>
+                <Text style={[luxeType.caption, { fontSize: 11, marginTop: 4 }]}>{s.date}</Text>
               </Pressable>
             )}
           />
@@ -401,18 +606,20 @@ export default function Wardrobe() {
       {/* ————— LOOKBOOK'LAR ————— */}
       {section === 'lookbooklar' ? (
         lookbooks.length === 0 ? (
-          <EmptyState
-            emoji="📖"
+          <Empty
+            icon="book-outline"
             title="Henüz lookbook yok"
             message='Kombinlerini temalara ayır: "Ofis", "Yaz tatili", "Konser geceleri"…'
-            action={<Button small title="+ İlk lookbook'unu oluştur" onPress={() => setLbModal(true)} />}
+            action={
+              <LuxeButton icon="add" title="İlk lookbook'unu oluştur" onPress={() => setLbModal(true)} />
+            }
           />
         ) : (
           <FlatList
             key="lookbooks"
             data={lookbooks}
             keyExtractor={(l) => l.id}
-            contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}
+            contentContainerStyle={{ padding: 20, gap: 12 }}
             renderItem={({ item: lb }) => {
               const firstOutfit = outfits.find((o) => lb.outfitIds.includes(o.id));
               const its = firstOutfit
@@ -429,21 +636,23 @@ export default function Wardrobe() {
                     <OutfitCollage items={its} size={84} layout={firstOutfit?.layout} frame={firstOutfit?.canvasFrame} cropToContent={firstOutfit?.cropToContent} />
                   ) : (
                     <View style={styles.lbEmpty}>
-                      <Text style={{ fontSize: 30 }}>{lb.emoji}</Text>
+                      <Text style={{ fontSize: 28 }}>{lb.emoji}</Text>
                     </View>
                   )}
                   <View style={{ flex: 1 }}>
-                    <Text style={type.subtitle}>
+                    <Text style={luxeType.headline} numberOfLines={1}>
                       {lb.emoji} {lb.name}
                     </Text>
-                    <Text style={type.tiny}>{lb.outfitIds.length} kombin</Text>
+                    <Text style={[luxeType.label, { marginTop: 4 }]}>
+                      {lb.outfitIds.length} kombin
+                    </Text>
                     {lb.description ? (
-                      <Text style={[type.caption, { marginTop: 2 }]} numberOfLines={1}>
+                      <Text style={[luxeType.caption, { marginTop: 4 }]} numberOfLines={1}>
                         {lb.description}
                       </Text>
                     ) : null}
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />
+                  <Ionicons name="chevron-forward" size={18} color={luxe.outline} />
                 </Pressable>
               );
             }}
@@ -452,21 +661,36 @@ export default function Wardrobe() {
       ) : null}
 
       {/* Selfie görüntüleme modalı */}
-      <Modal visible={!!openSelfie} animationType="fade" transparent onRequestClose={() => setOpenSelfie(null)}>
-        <View style={[styles.modalWrap, { justifyContent: 'center', padding: spacing.lg }]}>
+      <Modal
+        visible={!!openSelfie}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setOpenSelfie(null)}
+      >
+        <View style={[styles.modalCenter, { paddingBottom: 20 + insets.bottom }]}>
           <View style={styles.selfieModal}>
             {openSelfie ? (
               <>
                 <Image
                   source={{ uri: openSelfie.imageUri }}
-                  style={{ width: '100%', height: 380, borderRadius: radius.lg }}
+                  style={{ width: '100%', height: 380, borderRadius: luxeRadius.lg }}
                   contentFit="cover"
                 />
-                <Text style={[type.caption, { marginTop: spacing.sm }]}>{openSelfie.date}</Text>
-                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, flexWrap: 'wrap' }}>
-                  <Button small title="🌊 Toplulukta paylaş" onPress={() => setShareSelfieOpen(openSelfie)} />
-                  <Button small variant="danger" title="Sil" onPress={() => confirmDeleteSelfie(openSelfie)} />
-                  <Button small variant="ghost" title="Kapat" onPress={() => setOpenSelfie(null)} />
+                <Text style={[luxeType.caption, { marginTop: 10 }]}>{openSelfie.date}</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                  <LuxeButton
+                    icon="share-outline"
+                    title="Toplulukta paylaş"
+                    onPress={() => setShareSelfieOpen(openSelfie)}
+                  />
+                  <LuxeButton
+                    variant="danger"
+                    title="Sil"
+                    onPress={() => confirmDeleteSelfie(openSelfie)}
+                  />
+                  <LuxeButton variant="outline" title="Kapat" onPress={() => setOpenSelfie(null)} />
                 </View>
               </>
             ) : null}
@@ -489,17 +713,22 @@ export default function Wardrobe() {
         onRequestClose={() => setLbModal(false)}
       >
         <KeyboardAvoidingView style={styles.modalWrap} behavior="padding">
-          <View style={[styles.lbModal, { paddingBottom: spacing.lg + insets.bottom }]}>
-            <SectionTitle title="Yeni lookbook" right={<Chip label="Kapat" onPress={() => setLbModal(false)} />} />
+          <View style={[styles.lbModal, { paddingBottom: 20 + insets.bottom }]}>
+            <View style={styles.modalHead}>
+              <Text style={luxeType.headline}>Yeni lookbook</Text>
+              <Pressable onPress={() => setLbModal(false)} hitSlop={8} style={styles.pill}>
+                <Text style={styles.pillText}>Kapat</Text>
+              </Pressable>
+            </View>
             <TextInput
               value={lbName}
               onChangeText={setLbName}
               placeholder='Örn. "Yaz tatili", "Ofis haftası"'
-              placeholderTextColor={colors.inkFaint}
+              placeholderTextColor={luxe.outline}
               style={styles.input}
               autoFocus
             />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
               {LOOKBOOK_EMOJIS.map((e) => (
                 <Pressable
                   key={e}
@@ -510,19 +739,24 @@ export default function Wardrobe() {
                 </Pressable>
               ))}
             </View>
-            <Button title="Oluştur" onPress={createLookbook} disabled={!lbName.trim()} style={{ marginTop: spacing.lg }} />
+            <LuxeButton
+              title="Oluştur"
+              onPress={createLookbook}
+              disabled={!lbName.trim()}
+              style={{ marginTop: 18, alignSelf: 'flex-start' }}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
       <ShareModal
         visible={!!shareSelfieOpen}
-        defaultCaption={shareSelfieOpen?.note || 'Bugünün aynası 🤳🐟'}
+        defaultCaption={shareSelfieOpen?.note || 'Bugünün aynası'}
         preview={
           shareSelfieOpen ? (
             <Image
               source={{ uri: shareSelfieOpen.imageUri }}
-              style={{ width: 150, height: 190, borderRadius: radius.lg }}
+              style={{ width: 150, height: 190, borderRadius: luxeRadius.lg }}
               contentFit="cover"
             />
           ) : undefined
@@ -537,107 +771,216 @@ export default function Wardrobe() {
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 12,
+    gap: 10,
+  },
+  subtitle: {
+    fontFamily: font.displayItalic,
+    fontStyle: 'italic',
+    fontSize: 14,
+    color: luxe.outline,
+    marginTop: 2,
+  },
+  sectionTabsBar: { flexGrow: 0, flexShrink: 0, height: 46 },
+
+  // Askılık
+  rackHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 2,
+  },
+  rackTitle: { fontFamily: font.headline, fontSize: 19, color: luxe.primary },
+  rackCount: { fontFamily: font.label, fontSize: 10, letterSpacing: 1.6, color: luxe.outline },
+  /*
+    Kancaların üstten taşabilmesi için raf dolgusu cömert; kartlar örnekteki
+    gibi hafifçe üst üste biniyor (negatif boşluk).
+  */
+  rack: { paddingTop: 26, paddingBottom: 18, paddingHorizontal: 20, gap: 0 },
+  rail: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 32,
+    height: 5,
+    borderRadius: 3,
+  },
+  hook: {
+    width: 26,
+    height: HOOK_H,
+    borderWidth: 2,
+    borderBottomWidth: 0,
+    borderColor: luxe.outline,
+    borderTopLeftRadius: 13,
+    borderTopRightRadius: 13,
+    alignSelf: 'center',
+    marginTop: -HOOK_H + 12,
+  },
+  card: {
+    width: CARD_W,
+    marginRight: -14,
+    backgroundColor: luxe.surface,
+    borderRadius: luxeRadius.md,
+    overflow: 'hidden',
+    ...luxeShadow.card,
+  },
+  cardImg: {
+    width: '100%',
+    height: CARD_IMG_H,
+    backgroundColor: luxe.surface,
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    justifyContent: 'center',
   },
-  sectionTabsBar: {
-    flexGrow: 0,
-    flexShrink: 0,
-    height: 48,
+  favDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: luxe.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sectionTab: {
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+  cardMeta: { paddingHorizontal: 10, paddingVertical: 9, backgroundColor: 'rgba(255,255,255,0.94)' },
+  cardName: {
+    fontFamily: font.label,
+    fontSize: 9.5,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: luxe.ink,
   },
-  sectionTabActive: { backgroundColor: colors.deep, borderColor: colors.deep },
-  sectionTabText: { fontSize: 13, fontWeight: '700', color: colors.inkSoft },
+  cardColor: { fontFamily: font.body, fontSize: 10.5, color: luxe.outline, marginTop: 2 },
+
+  // Filtreler
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
+    gap: 8,
+    paddingHorizontal: 20,
+    marginBottom: 10,
   },
   searchBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.card,
-    borderRadius: radius.pill,
+    gap: 7,
+    backgroundColor: glass.fillStrong,
+    borderRadius: luxeRadius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
+    borderColor: luxe.outlineSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
-  searchInput: { flex: 1, fontSize: 14.5, color: colors.ink, padding: 0 },
+  searchInput: { flex: 1, fontFamily: font.body, fontSize: 14, color: luxe.ink, padding: 0 },
   iconBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.card,
+    backgroundColor: glass.fillStrong,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipRow: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  chipBar: { flexGrow: 0, flexShrink: 0 },
+  chipRow: { gap: 8, paddingHorizontal: 20, paddingBottom: 10 },
+
+  pill: {
+    borderRadius: luxeRadius.pill,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    backgroundColor: glass.fill,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    overflow: 'hidden',
+  },
+  pillFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+  pillText: { fontFamily: font.bodyMedium, fontSize: 12.5, color: luxe.outline },
+  pillTextActive: { color: luxe.ink },
+
+  // Düğme
+  btn: {
+    borderRadius: luxeRadius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  btnText: {
+    fontFamily: font.label,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+
+  empty: { alignItems: 'center', paddingHorizontal: 32, paddingVertical: 48 },
+  outfitMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+
   lbCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    gap: 12,
+    backgroundColor: glass.fillStrong,
+    borderRadius: luxeRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
+    borderColor: luxe.outlineSoft,
+    padding: 12,
   },
   lbEmpty: {
     width: 84,
     height: 84,
-    borderRadius: radius.md,
-    backgroundColor: colors.aquaSoft,
+    borderRadius: luxeRadius.md,
+    backgroundColor: luxe.primaryContainer,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalWrap: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
-  selfieModal: {
-    backgroundColor: colors.background,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
+
+  modalWrap: { flex: 1, backgroundColor: luxe.overlay, justifyContent: 'flex-end' },
+  modalCenter: {
+    flex: 1,
+    backgroundColor: luxe.overlay,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
+  modalHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  selfieModal: { backgroundColor: luxe.bg, borderRadius: luxeRadius.xl, padding: 20 },
   lbModal: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    backgroundColor: luxe.bg,
+    borderTopLeftRadius: luxeRadius.xl,
+    borderTopRightRadius: luxeRadius.xl,
+    padding: 20,
   },
   input: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 11,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderRadius: luxeRadius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontFamily: font.body,
     fontSize: 15,
-    color: colors.ink,
-    backgroundColor: colors.card,
+    color: luxe.ink,
+    backgroundColor: glass.fillStrong,
   },
   emojiBtn: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: colors.card,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    backgroundColor: glass.fillStrong,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emojiBtnActive: { borderColor: colors.aqua, backgroundColor: colors.aquaSoft },
+  emojiBtnActive: { borderColor: luxe.primary, backgroundColor: luxe.primaryContainer },
 });
