@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
-import Svg, { Defs, FeDropShadow, Filter, Path } from 'react-native-svg';
+import Svg, { Defs, FeDropShadow, Filter, LinearGradient, Path, Stop } from 'react-native-svg';
 
 /**
  * Örnek tasarımdaki `fin-curve` biçiminin BİREBİR karşılığı.
@@ -27,10 +27,16 @@ import Svg, { Defs, FeDropShadow, Filter, Path } from 'react-native-svg';
  */
 export function FinBlob({
   color,
+  gradient,
   shadow,
   style,
 }: {
   color: string;
+  /**
+   * İridesan geçiş (petrol → mor → magenta). Verilirse `color` yerine bu
+   * kullanılır — markanın kimliği düz renk değil, geçiş.
+   */
+  gradient?: readonly string[];
   shadow?: boolean;
   /** Ek konumlandırma; varsayılan olarak kapsayıcıyı tamamen kaplar. */
   style?: StyleProp<ViewStyle>;
@@ -42,6 +48,11 @@ export function FinBlob({
     blob iç dikdörtgene çiziliyor.
   */
   const M = shadow ? 18 : 0;
+  /*
+    Benzersiz id: aynı ekranda birden fazla blob var (gün kartı, hava rozeti,
+    sekme). Sabit id verilirse tanımlar birbirini eziyor.
+  */
+  const uid = useId().replace(/:/g, '_');
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
   /*
     viewBox payı ÖLÇÜLEREK hesaplanıyor, göz kararı değil: yüzde cinsinden
@@ -69,23 +80,30 @@ export function FinBlob({
           viewBox={`${-mx} ${-my} ${100 + 2 * mx} ${100 + 2 * my}`}
           preserveAspectRatio="none"
         >
-          {shadow ? (
-            <Defs>
-              <Filter id="finShadow" x="-40%" y="-40%" width="180%" height="180%">
+          <Defs>
+            {gradient ? (
+              <LinearGradient id={`g${uid}`} x1="0" y1="0" x2="1" y2="1">
+                {gradient.map((c, i) => (
+                  <Stop key={i} offset={i / (gradient.length - 1)} stopColor={c} />
+                ))}
+              </LinearGradient>
+            ) : null}
+            {shadow ? (
+              <Filter id={`s${uid}`} x="-40%" y="-40%" width="180%" height="180%">
                 <FeDropShadow
                   dx="0"
                   dy={my * 0.3}
                   stdDeviation={my * 0.42}
-                  floodColor="#70585B"
-                  floodOpacity="0.3"
+                  floodColor="#2A2430"
+                  floodOpacity="0.28"
                 />
               </Filter>
-            </Defs>
-          ) : null}
+            ) : null}
+          </Defs>
           <Path
             d="M60 0 A40 60 0 0 1 100 60 A70 40 0 0 1 30 100 A30 70 0 0 1 0 30 A60 30 0 0 1 60 0 Z"
-            fill={color}
-            filter={shadow ? 'url(#finShadow)' : undefined}
+            fill={gradient ? `url(#g${uid})` : color}
+            filter={shadow ? `url(#s${uid})` : undefined}
           />
         </Svg>
       ) : null}

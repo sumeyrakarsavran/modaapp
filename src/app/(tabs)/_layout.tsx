@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FinBlob } from '@/components/FinBlob';
 import { useStore } from '@/store/useStore';
 import { colors } from '@/theme';
-import { font, glass, luxe } from '@/theme/luxe';
+import { font, glass, iridescent, luxe } from '@/theme/luxe';
 
 export default function TabsLayout() {
   const account = useStore((s) => s.account);
@@ -39,7 +39,7 @@ export default function TabsLayout() {
         */
         tabBarButton: (props) => <TabButton {...props} />,
         tabBarActiveTintColor: luxe.primaryDeep,
-        tabBarInactiveTintColor: 'rgba(128,116,117,0.55)',
+        tabBarInactiveTintColor: 'rgba(138,135,144,0.6)',
         tabBarStyle: {
           backgroundColor: glass.fillStrong,
           borderTopColor: glass.border,
@@ -131,7 +131,7 @@ function TabButton(props: Record<string, any>) {
       android_ripple={null}
     >
       <View style={styles.tabInner}>
-        {focused ? <FinBlob color="rgba(250,218,221,0.8)" /> : null}
+        {focused ? <FinBlob color={luxe.primaryContainer} gradient={iridescent.soft} /> : null}
         {children}
       </View>
     </Pressable>

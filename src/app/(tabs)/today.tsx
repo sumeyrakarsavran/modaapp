@@ -30,7 +30,7 @@ import { localSuggest, type SuggestedOutfit } from '@/services/stylist';
 import { weatherEmoji, weatherLabel } from '@/services/weather';
 import { useStore } from '@/store/useStore';
 import { getArchetype } from '@/theme';
-import { font, glass, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
+import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
 import { todayISO } from '@/types';
 
 const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
@@ -138,17 +138,18 @@ function Backdrop() {
       <Svg style={styles.backdropFill}>
         <Defs>
           {/*
-            Örnekteki `betta-flow-bg` ile AYNI: sol üstte #FBDBDE, sağ altta
-            #F0E1C7, ikisi de %40 ve %50'de sönümleniyor. Daha yoğun tonlar ve
-            araya eklenen menekşe zemini örnekten uzaklaştırıyordu.
+            Sayfanın iki ucundan sızan İRİDESAN ışık: sol üstte petrol, sağ
+            altta magenta — ikisi de çok düşük yoğunlukta. Fildişi zemin
+            böylece düz kalmıyor, bakış açısına göre dönüyormuş gibi duruyor.
+            Yoğunluk bilerek düşük: geçiş bir olay olmalı, ortam olmamalı.
           */}
           <RadialGradient id="leakTop" cx="0%" cy="0%" r="50%">
-            <Stop offset="0" stopColor="#FBDBDE" stopOpacity="0.4" />
-            <Stop offset="1" stopColor="#FBDBDE" stopOpacity="0" />
+            <Stop offset="0" stopColor={iridescent.full[0]} stopOpacity="0.14" />
+            <Stop offset="1" stopColor={iridescent.full[0]} stopOpacity="0" />
           </RadialGradient>
           <RadialGradient id="leakBottom" cx="100%" cy="100%" r="50%">
-            <Stop offset="0" stopColor="#F0E1C7" stopOpacity="0.4" />
-            <Stop offset="1" stopColor="#F0E1C7" stopOpacity="0" />
+            <Stop offset="0" stopColor={iridescent.full[2]} stopOpacity="0.13" />
+            <Stop offset="1" stopColor={iridescent.full[2]} stopOpacity="0" />
           </RadialGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#leakTop)" />
@@ -189,8 +190,8 @@ function GlassCard({
       <LinearGradient
         colors={
           tint
-            ? ['rgba(255,255,255,0.92)', 'rgba(250,218,221,0.55)']
-            : ['rgba(255,255,255,0.96)', 'rgba(240,225,199,0.32)']
+            ? ['rgba(255,255,255,0.94)', 'rgba(229,221,242,0.5)']
+            : ['rgba(255,255,255,0.97)', 'rgba(220,235,236,0.34)']
         }
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.9, y: 1 }}
@@ -407,7 +408,7 @@ export default function Today() {
                 style={[styles.day, active && styles.dayActive]}
               >
                 {active ? (
-                  <FinBlob shadow color="#F4E6E6" />
+                  <FinBlob shadow color={luxe.primaryContainer} gradient={iridescent.soft} />
                 ) : (
                   /* Zemin kutuya değil İÇ dikdörtgene: kutu gölge payı kadar
                      büyük, zemini kutuya verince kart şişik görünüyor. */
@@ -487,12 +488,15 @@ export default function Today() {
               </Pressable>
 
               {/*
-                Perde BORDO: nötr koyu ton (siyah/mürdüm) beyaz kolajın üstünde
-                griye düşüp görüntüyü çamurlaştırıyor. Bordo hem paletteki
-                pembe/mauve ile akraba hem de parçaları griye çevirmiyor.
+                Perde paletin koyu mor tonunda: nötr siyah/gri beyaz kolajın
+                üstünde görüntüyü çamurlaştırıyor, bu ton çevirmiyor.
               */}
               <LinearGradient
-                colors={['transparent', 'rgba(94,20,40,0.24)', 'rgba(94,20,40,0.62)']}
+                colors={[
+                  'transparent',
+                  `rgba(${luxe.scrimRgb},0.24)`,
+                  `rgba(${luxe.scrimRgb},0.62)`,
+                ]}
                 locations={[0.36, 0.62, 1]}
                 style={styles.heroShade}
                 pointerEvents="none"
@@ -643,8 +647,9 @@ export default function Today() {
             <Text style={styles.progressValue}>{Math.round((plannedDays / 7) * 100)}%</Text>
           </View>
           <View style={styles.progressTrack}>
+            {/* Tam doygun geçiş: aksanın tek sahnesi burası. */}
             <LinearGradient
-              colors={[luxe.primary, luxe.primarySoft]}
+              colors={iridescent.full}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={[styles.progressFill, { width: `${(plannedDays / 7) * 100}%` }]}
@@ -976,7 +981,7 @@ const styles = StyleSheet.create({
     yazıya gölge: okunurluk geliyor, kolaj kararmıyor.
   */
   heroShadowText: {
-    textShadowColor: 'rgba(94,20,40,0.55)',
+    textShadowColor: `rgba(${luxe.scrimRgb},0.55)`,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 10,
   },
@@ -998,7 +1003,7 @@ const styles = StyleSheet.create({
     // Gölge HİYERARŞİK, temadan: hero > kart > gün kartı (bkz. luxeShadow)
     ...luxeShadow.card,
   },
-  glassCardTint: { backgroundColor: '#FDF3F4' },
+  glassCardTint: { backgroundColor: '#F2EFF7' },
   /** Hacim veren ışık geçişi — kartla aynı yuvarlaklık, kırpma gerekmiyor. */
   cardSheen: {
     position: 'absolute',
@@ -1037,7 +1042,7 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 },
   chip: {
     borderRadius: luxeRadius.pill,
-    backgroundColor: 'rgba(240,225,199,0.6)',
+    backgroundColor: 'rgba(217,212,204,0.42)',
     paddingHorizontal: 14,
     paddingVertical: 7,
   },

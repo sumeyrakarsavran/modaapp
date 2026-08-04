@@ -12,49 +12,72 @@
  */
 
 export const luxe = {
-  /** Zemin — inci beyazı */
-  bg: '#FAF9F8',
-  surface: '#FFFFFF',
-  /** Kart zeminleri, açıktan koyuya */
-  surfaceLow: '#F4F3F2',
-  surfaceMid: '#EEEEED',
-  surfaceHigh: '#E9E8E7',
-
-  /** Ana renk — gülkurusu/mauve. Düğmeler, başlıklar, marka yazısı. */
-  primary: '#70585B',
-  primaryDeep: '#574144',
-  /** Pudra pembe konteyner — yumuşak bloklar, seçili durumlar */
-  primaryContainer: '#FADADD',
-  /** Soluk gül — ince çerçeveler, ayraçlar */
-  primarySoft: '#DEBFC2',
-
-  /** İkincil: sıcak krem/şeftali */
-  secondary: '#685D49',
-  secondaryContainer: '#F0E1C7',
-  onSecondaryContainer: '#6E634F',
-
   /*
-    ÜÇÜNCÜL (menekşe) BİLEREK YOK. Editoryal markalar tek nötr + tek aksanla
-    çalışır; burada nötr mauve, aksan pudra pembe, krem yalnızca zeminin sağ
-    alt köşesinde. Menekşe eklenince palet dağılıp "uygulama" hissi veriyordu.
+    İRİDESAN BETTA.
+    Kimlik TEK RENK DEĞİL: fildişi bir sayfa, mürekkep bir tipografi ve
+    ışığa göre dönen bir GEÇİŞ (petrol → mor → magenta). Geçiş yalnızca
+    küçük yüzeylerde görünür — blob, ilerleme çubuğu, seçili sekme — ki
+    sayfa sakin kalsın, renk bir olay olsun.
+
+    Neden böyle: profesyonel his az renk + keskin metin kontrastından
+    geliyor. Tek düz aksan seçmek her uygulamada var; bir betta yüzgecinin
+    ışıkta renk değiştirmesi ise bu markaya ait.
   */
 
-  /** Metin */
-  ink: '#1A1C1C',
-  inkSoft: '#4F4445',
-  outline: '#807475',
-  outlineSoft: '#D2C3C4',
+  /** Fildişi — sayfa */
+  bg: '#F7F5F2',
+  surface: '#FFFFFF',
+  surfaceLow: '#F2F0EC',
+  surfaceMid: '#EBE8E3',
+  surfaceHigh: '#E3DFD9',
 
-  danger: '#BA1A1A',
+  /** Mürekkep — başlık, düğme, marka */
+  primary: '#1F1F24',
+  primaryDeep: '#101014',
+  /** Geçişin pastel karşılığı — düz renk gereken yerlerde */
+  primaryContainer: '#E8E3F0',
+  primarySoft: '#C9C3D6',
+
+  /** Nötr kum */
+  secondary: '#5A5560',
+  secondaryContainer: '#EFEBE4',
+  onSecondaryContainer: '#565049',
+
+  /** Metin */
+  ink: '#17171A',
+  inkSoft: '#4A4A50',
+  outline: '#8A8790',
+  outlineSoft: '#D9D4CC',
+
+  danger: '#B3261E',
   onPrimary: '#FFFFFF',
 
   /** Koyu zemin üstü metin katmanları (hero görselinde) */
   onDark: '#FFFFFF',
   onDarkSoft: 'rgba(255,255,255,0.85)',
 
-  /** Hero perdesinin koyu ucu (on-primary-fixed) */
-  scrim: '#281719',
-  overlay: 'rgba(26,28,28,0.45)',
+  /**
+   * Hero perdesi — mürekkebe çalan koyu mor. Nötr siyah/gri beyaz kolajın
+   * üstünde görüntüyü çamurlaştırıyor; bu ton parçaları griye çevirmiyor.
+   * `scrimRgb` gradyanda saydamlık kurmak için.
+   */
+  scrim: '#241B2E',
+  scrimRgb: '36,27,46',
+  overlay: 'rgba(23,23,26,0.5)',
+
+  /** Gölge — nötr siyah yerine paletle akraba koyu mor */
+  shadow: '#2A2430',
+} as const;
+
+/**
+ * İridesan aksan: markanın kimliği. Düz renk olarak DEĞİL, geçiş olarak
+ * kullanılır — bir betta yüzgecinin ışığa göre dönmesi gibi.
+ */
+export const iridescent = {
+  /** Tam doygun — ince ve küçük yüzeyler (ilerleme çubuğu) */
+  full: ['#1F6F78', '#6B4E9B', '#B93E7A'],
+  /** Pastel — geniş yüzeyler (blob, seçili sekme); üstündeki yazı okunmalı */
+  soft: ['#DCEBEC', '#E5DDF2', '#F7DCE9'],
 } as const;
 
 /**
