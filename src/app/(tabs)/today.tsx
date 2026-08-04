@@ -580,7 +580,7 @@ export default function Today() {
 
         {/* Stilistin önerisi */}
         {suggestion && suggestedItems.length ? (
-          <GlassCard tint style={{ marginTop: 16 }}>
+          <GlassCard tint style={{ marginTop: 24 }}>
             <Text style={[luxeType.label, { color: luxe.primary }]}>Stilistin önerisi</Text>
             <ScrollView
               horizontal
@@ -601,7 +601,7 @@ export default function Today() {
         ) : null}
 
         {/* Stilistin yorumu */}
-        <GlassCard style={{ marginTop: 22 }}>
+        <GlassCard style={{ marginTop: 30 }}>
           <View style={styles.insightGlow} pointerEvents="none" />
           <View style={styles.insightHead}>
             <Ionicons name="sparkles-outline" size={20} color={luxe.primary} />
@@ -637,7 +637,7 @@ export default function Today() {
         </GlassCard>
 
         {/* Haftanın doluluğu */}
-        <GlassCard style={{ marginTop: 16 }}>
+        <GlassCard style={{ marginTop: 24 }}>
           <View style={styles.progressHead}>
             <Text style={luxeType.label}>Haftanın doluluğu</Text>
             <Text style={styles.progressValue}>{Math.round((plannedDays / 7) * 100)}%</Text>
@@ -658,7 +658,7 @@ export default function Today() {
 
 
         {/* AI stilist */}
-        <GlassCard tint style={{ marginTop: 16 }}>
+        <GlassCard tint style={{ marginTop: 24 }}>
           <View style={styles.insightGlow} pointerEvents="none" />
           <Ionicons name="sparkles-outline" size={20} color={luxe.primary} />
           <Text style={[luxeType.headlineItalic, { marginTop: 12 }]}>AI Stilist'e danış</Text>
@@ -675,7 +675,7 @@ export default function Today() {
 
         {/* Gardırop boşsa */}
         {activeItems.length === 0 ? (
-          <GlassCard style={{ marginTop: 16, alignItems: 'center' }}>
+          <GlassCard style={{ marginTop: 24, alignItems: 'center' }}>
             <Ionicons name="shirt-outline" size={30} color={luxe.primarySoft} />
             <Text style={[luxeType.headlineItalic, { marginTop: 10 }]}>Gardırobun bomboş</Text>
             <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
@@ -995,15 +995,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.9)',
     padding: 22,
     overflow: 'hidden',
-    /*
-      Android'de gölgenin görünürlüğü `elevation`'a bağlı; 5'te neredeyse
-      farkedilmiyordu. shadow* değerleri iOS içindir.
-    */
-    shadowColor: '#4A2F33',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.28,
-    shadowRadius: 24,
-    elevation: 14,
+    // Gölge HİYERARŞİK, temadan: hero > kart > gün kartı (bkz. luxeShadow)
+    ...luxeShadow.card,
   },
   glassCardTint: { backgroundColor: '#FDF3F4' },
   /** Hacim veren ışık geçişi — kartla aynı yuvarlaklık, kırpma gerekmiyor. */
@@ -1039,6 +1032,7 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: luxe.outline,
     textAlign: 'right',
+    fontVariant: ['tabular-nums'],
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 },
   chip: {
@@ -1067,7 +1061,7 @@ const styles = StyleSheet.create({
     başlıyor, normal boşluk bunun üstüne binince arada kocaman bir aralık
     kalıyordu.
   */
-  sectionTitle: { marginTop: 16, marginBottom: -10, fontSize: 19, lineHeight: 26 },
+  sectionTitle: { marginTop: 26, marginBottom: -10, fontSize: 19, lineHeight: 26 },
 
   // Hafta şeridi
   /*
@@ -1117,7 +1111,16 @@ const styles = StyleSheet.create({
     color: luxe.outline,
   },
   dayNum: { fontFamily: font.display, fontSize: 17, lineHeight: 21, color: luxe.ink },
-  dayTemp: { fontFamily: font.bodyMedium, fontSize: 10, color: luxe.inkSoft },
+  /*
+    Tabular rakam: orantılı rakamlarla gün gün farklı genişlikte çıkıp
+    şeritte hizasız duruyordu.
+  */
+  dayTemp: {
+    fontFamily: font.bodyMedium,
+    fontSize: 10,
+    color: luxe.inkSoft,
+    fontVariant: ['tabular-nums'],
+  },
   dayTempMin: { color: luxe.outline },
   planDot: { width: 6, height: 6, borderRadius: 3, marginTop: 3 },
 

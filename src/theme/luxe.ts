@@ -33,9 +33,11 @@ export const luxe = {
   secondaryContainer: '#F0E1C7',
   onSecondaryContainer: '#6E634F',
 
-  /** Üçüncül: menekşe — iridesan parıltıda kullanılıyor */
-  tertiary: '#67587A',
-  tertiaryContainer: '#EDDBFF',
+  /*
+    ÜÇÜNCÜL (menekşe) BİLEREK YOK. Editoryal markalar tek nötr + tek aksanla
+    çalışır; burada nötr mauve, aksan pudra pembe, krem yalnızca zeminin sağ
+    alt köşesinde. Menekşe eklenince palet dağılıp "uygulama" hissi veriyordu.
+  */
 
   /** Metin */
   ink: '#1A1C1C',
@@ -173,22 +175,25 @@ export const finCurve = {
 export const finTilt = { transform: [{ rotate: '-2deg' }] } as const;
 
 /**
- * DESIGN.md: klasik gölge yerine "ambient shadow" — çok yayvan, zemin
- * tonuyla renklenmiş, neredeyse görünmez bir hale.
+ * Gölge HİYERARŞİK: hero > kart > gün kartı (düz).
+ * Her yüzey aynı yükseklikteyse derinlik bilgi taşımaz, yalnızca gürültü
+ * olur — kartlar hero'dan daha ağır gölgeliydi, sıralama ters dönmüştü.
+ *
+ * Android'de görünürlüğü belirleyen `elevation`; `shadow*` değerleri iOS için.
  */
 export const luxeShadow = {
   card: {
-    shadowColor: luxe.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.07,
-    shadowRadius: 28,
-    elevation: 2,
+    shadowColor: '#4A2F33',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    elevation: 10,
   },
   hero: {
-    shadowColor: luxe.primary,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.16,
-    shadowRadius: 40,
-    elevation: 8,
+    shadowColor: '#4A2F33',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.32,
+    shadowRadius: 34,
+    elevation: 20,
   },
 } as const;
