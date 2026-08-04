@@ -57,12 +57,14 @@ export const luxe = {
   onDarkSoft: 'rgba(255,255,255,0.85)',
 
   /**
-   * Hero perdesi — mürekkebe çalan koyu mor. Nötr siyah/gri beyaz kolajın
-   * üstünde görüntüyü çamurlaştırıyor; bu ton parçaları griye çevirmiyor.
+   * Hero perdesi — SICAĞA ÇALAN koyu kömür.
+   * Mor denendi: sayfanın soğuk fildişiyle birleşince kombinin altı buz gibi
+   * duruyordu. Saf siyah/gri de olmaz, beyaz kolajı griye düşürüp
+   * çamurlaştırıyor. Bu ton ikisinin arası: nötr ama içinde kahve var.
    * `scrimRgb` gradyanda saydamlık kurmak için.
    */
-  scrim: '#241B2E',
-  scrimRgb: '36,27,46',
+  scrim: '#2E241C',
+  scrimRgb: '46,36,28',
   overlay: 'rgba(23,23,26,0.5)',
 
   /** Gölge — nötr siyah yerine paletle akraba koyu mor */
