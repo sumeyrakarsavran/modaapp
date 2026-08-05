@@ -44,10 +44,10 @@ type Section = 'parcalar' | 'kombinler' | 'selfiler' | 'lookbooklar';
 const LOOKBOOK_EMOJIS = ['📖', '🌊', '🌙', '🔥', '🌸', '⚡', '🎨', '☁️', '✨', '🐟'];
 
 /** Askıdaki kartın ölçüsü; raf yüksekliği buna göre hesaplanıyor. */
-const CARD_W = 148;
+const CARD_W = 116;
 const CARD_IMG_H = Math.round((CARD_W * 4) / 3);
 /** Askı kancasının yüksekliği — boru bu hizada geçiyor. */
-const HOOK_H = 30;
+const HOOK_H = 26;
 
 const colorLabel = (id: string) => ITEM_COLORS.find((c) => c.id === id)?.label ?? '';
 
@@ -98,7 +98,7 @@ function Hanger({ item, onPress }: { item: WardrobeItem; onPress: () => void }) 
                 category={item.category}
                 subcategory={item.subcategory}
                 colorId={item.colorId}
-                size={CARD_W * 0.6}
+                size={CARD_W * 0.62}
               />
             )}
             {item.favorite ? (
@@ -132,7 +132,7 @@ function Rack({
   onOpen: (id: string) => void;
 }) {
   return (
-    <View style={{ marginBottom: 26 }}>
+    <View style={{ marginBottom: 20 }}>
       <View style={styles.rackHead}>
         <Text style={styles.rackTitle}>{title}</Text>
         <Text style={styles.rackCount}>{items.length} PARÇA</Text>
@@ -263,6 +263,8 @@ export default function Wardrobe() {
   const [category, setCategory] = useState<Category | 'hepsi'>('hepsi');
   /** Alt tür filtresi — çoklu seçim, boşsa o kategorinin hepsi gösterilir. */
   const [subcats, setSubcats] = useState<string[]>([]);
+  /** Alt tür listesi açık mı — kapalıyken tek satır, ekran kalabalıklaşmıyor. */
+  const [subOpen, setSubOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [onlyFav, setOnlyFav] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -461,6 +463,7 @@ export default function Wardrobe() {
               onPress={() => {
                 setCategory('hepsi');
                 setSubcats([]);
+                setSubOpen(false);
               }}
             />
             {CATEGORIES.map((c) => (
@@ -472,32 +475,62 @@ export default function Wardrobe() {
                   setCategory(c.id);
                   // Kategori değişince eski alt tür seçimi anlamsız kalır
                   setSubcats([]);
+                  setSubOpen(false);
                 }}
               />
             ))}
           </ScrollView>
 
-          {/* Alt tür filtresi — çoklu seçim, yalnızca bir kategori seçiliyken */}
+          {/*
+            Alt tür filtresi — ÇOKLU SEÇİM, açılır onay kutulu liste.
+            Önce yan yana kayan etiketlerdi: ekranda arama + kategori + alt tür
+            üst üste üç şerit oluşturup sayfayı boğuyordu. Kapalıyken tek satır.
+          */}
           {category !== 'hepsi' && subcategoriesOf(category).length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.chipBar}
-              contentContainerStyle={styles.chipRow}
-            >
-              {subcategoriesOf(category).map((s) => (
-                <PillChip
-                  key={s.id}
-                  label={s.label}
-                  active={subcats.includes(s.id)}
-                  onPress={() =>
-                    setSubcats((prev) =>
-                      prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id],
-                    )
-                  }
+            <View style={styles.subWrap}>
+              <Pressable onPress={() => setSubOpen((v) => !v)} style={styles.subHead}>
+                <Text style={styles.subHeadText}>
+                  Alt tür{subcats.length ? ` · ${subcats.length}` : ''}
+                </Text>
+                <Ionicons
+                  name={subOpen ? 'chevron-up' : 'chevron-down'}
+                  size={15}
+                  color={luxe.outline}
                 />
-              ))}
-            </ScrollView>
+              </Pressable>
+              {subOpen ? (
+                <View style={styles.subList}>
+                  {subcategoriesOf(category).map((sc) => {
+                    const on = subcats.includes(sc.id);
+                    return (
+                      <Pressable
+                        key={sc.id}
+                        onPress={() =>
+                          setSubcats((prev) =>
+                            prev.includes(sc.id)
+                              ? prev.filter((x) => x !== sc.id)
+                              : [...prev, sc.id],
+                          )
+                        }
+                        style={styles.subRow}
+                      >
+                        <Ionicons
+                          name={on ? 'checkbox' : 'square-outline'}
+                          size={17}
+                          color={on ? luxe.primary : luxe.outline}
+                        />
+                        <Text style={[styles.subLabel, on && { color: luxe.ink }]}>{sc.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                  {subcats.length ? (
+                    <Pressable onPress={() => setSubcats([])} style={styles.subClear}>
+                      <Text style={styles.subClearText}>Seçimi temizle</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
           ) : null}
 
           {filtered.length === 0 ? (
@@ -794,35 +827,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 2,
   },
-  rackTitle: { fontFamily: font.headline, fontSize: 19, color: luxe.primary },
+  rackTitle: { fontFamily: font.headline, fontSize: 17, color: luxe.primary },
   rackCount: { fontFamily: font.label, fontSize: 10, letterSpacing: 1.6, color: luxe.outline },
   /*
     Kancaların üstten taşabilmesi için raf dolgusu cömert; kartlar örnekteki
     gibi hafifçe üst üste biniyor (negatif boşluk).
   */
-  rack: { paddingTop: 26, paddingBottom: 18, paddingHorizontal: 20, gap: 0 },
+  rack: { paddingTop: 22, paddingBottom: 14, paddingHorizontal: 20, gap: 0 },
   rail: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 32,
-    height: 5,
+    top: 27,
+    height: 4,
     borderRadius: 3,
   },
   hook: {
-    width: 26,
+    width: 22,
     height: HOOK_H,
     borderWidth: 2,
     borderBottomWidth: 0,
     borderColor: luxe.outline,
-    borderTopLeftRadius: 13,
-    borderTopRightRadius: 13,
+    borderTopLeftRadius: 11,
+    borderTopRightRadius: 11,
     alignSelf: 'center',
-    marginTop: -HOOK_H + 12,
+    marginTop: -HOOK_H + 10,
   },
   card: {
     width: CARD_W,
-    marginRight: -14,
+    marginRight: -10,
     backgroundColor: luxe.surface,
     borderRadius: luxeRadius.md,
     overflow: 'hidden',
@@ -846,15 +879,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardMeta: { paddingHorizontal: 10, paddingVertical: 9, backgroundColor: 'rgba(255,255,255,0.94)' },
+  cardMeta: { paddingHorizontal: 9, paddingVertical: 7, backgroundColor: 'rgba(255,255,255,0.94)' },
   cardName: {
     fontFamily: font.label,
-    fontSize: 9.5,
+    fontSize: 9,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: luxe.ink,
   },
-  cardColor: { fontFamily: font.body, fontSize: 10.5, color: luxe.outline, marginTop: 2 },
+  cardColor: { fontFamily: font.body, fontSize: 10, color: luxe.outline, marginTop: 2 },
 
   // Filtreler
   searchRow: {
@@ -888,6 +921,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipBar: { flexGrow: 0, flexShrink: 0 },
+
+  // Alt tür: açılır onay kutulu liste
+  subWrap: { paddingHorizontal: 20, marginBottom: 10 },
+  subHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  subHeadText: {
+    fontFamily: font.label,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: luxe.outline,
+  },
+  subList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    backgroundColor: glass.fill,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderRadius: luxeRadius.md,
+    padding: 10,
+    gap: 4,
+  },
+  /** İki sütun: yüzde genişlik, uzun etiketlerde de hizalı kalıyor. */
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 7, width: '48%', paddingVertical: 5 },
+  subLabel: { fontFamily: font.body, fontSize: 13, color: luxe.inkSoft, flexShrink: 1 },
+  subClear: { width: '100%', paddingTop: 6 },
+  subClearText: { fontFamily: font.bodyMedium, fontSize: 12, color: luxe.primary },
   chipRow: { gap: 8, paddingHorizontal: 20, paddingBottom: 10 },
 
   pill: {
