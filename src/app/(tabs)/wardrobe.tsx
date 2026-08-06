@@ -44,12 +44,43 @@ type Section = 'parcalar' | 'kombinler' | 'selfiler' | 'lookbooklar';
 const LOOKBOOK_EMOJIS = ['📖', '🌊', '🌙', '🔥', '🌸', '⚡', '🎨', '☁️', '✨', '🐟'];
 
 /** Askıdaki kartın ölçüsü; raf yüksekliği buna göre hesaplanıyor. */
-const CARD_W = 116;
+const CARD_W = 98;
 const CARD_IMG_H = Math.round((CARD_W * 4) / 3);
 /** Askı kancasının yüksekliği — boru bu hizada geçiyor. */
-const HOOK_H = 26;
+const HOOK_H = 22;
 
 const colorLabel = (id: string) => ITEM_COLORS.find((c) => c.id === id)?.label ?? '';
+
+/**
+ * Fotoğraf + yer tutucu.
+ * Kayıtlı dosya silinmişse `Image` HİÇBİR ŞEY çizmiyor ve ekranda bomboş bir
+ * delik kalıyordu (cihazda görüldü: 5 selfie'nin 4'ü boş). Arkaya nötr bir
+ * kutu ve ikon konuyor; görsel yüklenirse onun üstünü kapatıyor.
+ */
+function Photo({
+  uri,
+  style,
+  icon = 'image-outline',
+}: {
+  uri: string;
+  style: any;
+  icon?: React.ComponentProps<typeof Ionicons>['name'];
+}) {
+  return (
+    <View style={[style, styles.photoWrap]}>
+      <Ionicons name={icon} size={22} color={luxe.outlineSoft} />
+      <Image
+        source={{ uri }}
+        style={[style, { position: 'absolute', left: 0, top: 0 }]}
+        contentFit="cover"
+      />
+    </View>
+  );
+}
+
+/** "2026-08-04" → "4 Ağustos". Ham ISO tarih arayüzde ham duruyordu. */
+const prettyDate = (iso: string) =>
+  new Date(`${iso}T12:00:00`).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
 
 /**
  * Askıdaki tek parça.
@@ -103,7 +134,7 @@ function Hanger({ item, onPress }: { item: WardrobeItem; onPress: () => void }) 
             )}
             {item.favorite ? (
               <View style={styles.favDot}>
-                <Ionicons name="heart" size={11} color={luxe.onPrimary} />
+                <Ionicons name="heart" size={10} color={luxe.ink} />
               </View>
             ) : null}
           </View>
@@ -118,6 +149,18 @@ function Hanger({ item, onPress }: { item: WardrobeItem; onPress: () => void }) 
         </View>
       </Pressable>
     </Animated.View>
+  );
+}
+
+/** Bölüm başlığı: sol serif ad, sağ küçük harf aralıklı sayaç. */
+function SectionHead({ title, count, unit }: { title: string; count: number; unit: string }) {
+  return (
+    <View style={[styles.rackHead, { marginBottom: 10 }]}>
+      <Text style={styles.rackTitle}>{title}</Text>
+      <Text style={styles.rackCount}>
+        {count} {unit}
+      </Text>
+    </View>
   );
 }
 
@@ -378,9 +421,29 @@ export default function Wardrobe() {
     lookbooklar: lookbooks.length,
   };
 
-  const SectionTab = ({ id, label }: { id: Section; label: string }) => (
-    <PillChip label={`${label} · ${counts[id]}`} active={section === id} onPress={() => setSection(id)} />
-  );
+  /*
+    Bölümler HAP DEĞİL yatay sekme: sayfada zaten arama, favori, arşiv,
+    kategori ve alt tür var; dört hap daha eklenince ekran düğme tarlasına
+    dönüyordu. Sekme çizgisi aynı bilgiyi taşıyor, ağırlığı taşımıyor.
+  */
+  const SectionTab = ({ id, label }: { id: Section; label: string }) => {
+    const on = section === id;
+    return (
+      <Pressable onPress={() => setSection(id)} style={styles.tab}>
+        <Text style={[styles.tabText, on && styles.tabTextActive]}>
+          {label} <Text style={styles.tabCount}>{counts[id]}</Text>
+        </Text>
+        {on ? (
+          <LinearGradient
+            colors={iridescent.full}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.tabUnderline}
+          />
+        ) : null}
+      </Pressable>
+    );
+  };
 
   const openItem = (id: string) => router.push({ pathname: '/item/[id]', params: { id } });
 
@@ -389,7 +452,6 @@ export default function Wardrobe() {
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={luxeType.display}>Gardırop</Text>
-          <Text style={styles.subtitle}>Küratörlüğünü yaptığın stil evreni.</Text>
         </View>
         {section === 'parcalar' ? (
           <LuxeButton icon="add" title="Ekle" onPress={() => router.push('/item/new')} />
@@ -413,7 +475,7 @@ export default function Wardrobe() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.sectionTabsBar}
-        contentContainerStyle={{ gap: 8, paddingHorizontal: 20, alignItems: 'center' }}
+        contentContainerStyle={{ gap: 20, paddingHorizontal: 20, alignItems: 'flex-end' }}
       >
         <SectionTab id="parcalar" label="Parçalar" />
         <SectionTab id="kombinler" label="Kombinler" />
@@ -569,6 +631,9 @@ export default function Wardrobe() {
             data={outfits}
             keyExtractor={(o) => o.id}
             numColumns={2}
+            ListHeaderComponent={
+              <SectionHead title="Kombinler" count={outfits.length} unit="KOMBİN" />
+            }
             contentContainerStyle={{ padding: 20, gap: 18 }}
             columnWrapperStyle={{ gap: 18 }}
             renderItem={({ item: o }) => {
@@ -619,17 +684,22 @@ export default function Wardrobe() {
             data={selfies}
             numColumns={cols}
             keyExtractor={(s) => s.id}
+            ListHeaderComponent={
+              <SectionHead title="Selfie'ler" count={selfies.length} unit="KARE" />
+            }
             contentContainerStyle={{ padding: 20, gap: 8 }}
             columnWrapperStyle={{ gap: 8 }}
             renderItem={({ item: s }) => (
               <Pressable onPress={() => setOpenSelfie(s)}>
                 {/* Gerçek insan fotoğrafı — `cover` kalabilir */}
-                <Image
-                  source={{ uri: s.imageUri }}
+                <Photo
+                  uri={s.imageUri}
+                  icon="camera-outline"
                   style={{ width: thumb, height: thumb * 1.25, borderRadius: luxeRadius.md }}
-                  contentFit="cover"
                 />
-                <Text style={[luxeType.caption, { fontSize: 11, marginTop: 4 }]}>{s.date}</Text>
+                <Text style={[luxeType.caption, { fontSize: 11, marginTop: 4 }]}>
+                  {prettyDate(s.date)}
+                </Text>
               </Pressable>
             )}
           />
@@ -652,6 +722,9 @@ export default function Wardrobe() {
             key="lookbooks"
             data={lookbooks}
             keyExtractor={(l) => l.id}
+            ListHeaderComponent={
+              <SectionHead title="Lookbook'lar" count={lookbooks.length} unit="DEFTER" />
+            }
             contentContainerStyle={{ padding: 20, gap: 12 }}
             renderItem={({ item: lb }) => {
               const firstOutfit = outfits.find((o) => lb.outfitIds.includes(o.id));
@@ -706,12 +779,14 @@ export default function Wardrobe() {
           <View style={styles.selfieModal}>
             {openSelfie ? (
               <>
-                <Image
-                  source={{ uri: openSelfie.imageUri }}
+                <Photo
+                  uri={openSelfie.imageUri}
+                  icon="camera-outline"
                   style={{ width: '100%', height: 380, borderRadius: luxeRadius.lg }}
-                  contentFit="cover"
                 />
-                <Text style={[luxeType.caption, { marginTop: 10 }]}>{openSelfie.date}</Text>
+                <Text style={[luxeType.caption, { marginTop: 10 }]}>
+                  {prettyDate(openSelfie.date)}
+                </Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
                   <LuxeButton
                     icon="share-outline"
@@ -810,14 +885,20 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     gap: 10,
   },
-  subtitle: {
-    fontFamily: font.displayItalic,
-    fontStyle: 'italic',
-    fontSize: 14,
-    color: luxe.outline,
-    marginTop: 2,
+  sectionTabsBar: {
+    flexGrow: 0,
+    flexShrink: 0,
+    height: 42,
+    borderBottomWidth: 1,
+    borderBottomColor: luxe.outlineSoft,
+    marginBottom: 12,
   },
-  sectionTabsBar: { flexGrow: 0, flexShrink: 0, height: 46 },
+  tab: { paddingBottom: 9 },
+  tabText: { fontFamily: font.bodyMedium, fontSize: 14, color: luxe.outline },
+  tabTextActive: { color: luxe.ink },
+  tabCount: { fontFamily: font.body, fontSize: 11, color: luxe.outline },
+  /** Aktif sekmenin altındaki iridesan çizgi — kimliğin ince bir tekrarı. */
+  tabUnderline: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, borderRadius: 1 },
 
   // Askılık
   rackHead: {
@@ -833,29 +914,29 @@ const styles = StyleSheet.create({
     Kancaların üstten taşabilmesi için raf dolgusu cömert; kartlar örnekteki
     gibi hafifçe üst üste biniyor (negatif boşluk).
   */
-  rack: { paddingTop: 22, paddingBottom: 14, paddingHorizontal: 20, gap: 0 },
+  rack: { paddingTop: 19, paddingBottom: 12, paddingHorizontal: 20, gap: 0 },
   rail: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 27,
+    top: 23,
     height: 4,
     borderRadius: 3,
   },
   hook: {
-    width: 22,
+    width: 19,
     height: HOOK_H,
     borderWidth: 2,
     borderBottomWidth: 0,
     borderColor: luxe.outline,
-    borderTopLeftRadius: 11,
-    borderTopRightRadius: 11,
+    borderTopLeftRadius: 9.5,
+    borderTopRightRadius: 9.5,
     alignSelf: 'center',
-    marginTop: -HOOK_H + 10,
+    marginTop: -HOOK_H + 9,
   },
   card: {
     width: CARD_W,
-    marginRight: -10,
+    marginRight: -8,
     backgroundColor: luxe.surface,
     borderRadius: luxeRadius.md,
     overflow: 'hidden',
@@ -872,22 +953,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: luxe.primary,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    /* Koyu daire karta ağır bir leke bırakıyordu; cam rozet daha sessiz. */
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardMeta: { paddingHorizontal: 9, paddingVertical: 7, backgroundColor: 'rgba(255,255,255,0.94)' },
+  cardMeta: { paddingHorizontal: 8, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.94)' },
   cardName: {
     fontFamily: font.label,
-    fontSize: 9,
+    fontSize: 8.5,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: luxe.ink,
   },
-  cardColor: { fontFamily: font.body, fontSize: 10, color: luxe.outline, marginTop: 2 },
+  cardColor: { fontFamily: font.body, fontSize: 9.5, color: luxe.outline, marginTop: 2 },
 
   // Filtreler
   searchRow: {
@@ -983,6 +1067,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
+  photoWrap: { alignItems: 'center', justifyContent: 'center', backgroundColor: luxe.surfaceMid },
   empty: { alignItems: 'center', paddingHorizontal: 32, paddingVertical: 48 },
   outfitMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
 

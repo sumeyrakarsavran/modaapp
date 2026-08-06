@@ -169,7 +169,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    /*
+      NÖTR çerçeve/karo: eski okyanus paletinin mavimsi tonları
+      (#E3EEF1 / #FAFDFE) fildişi sayfalarda soğuk duruyordu. Bu tonlar iki
+      temada da sırıtmıyor.
+    */
+    borderColor: '#E7E3DD',
     overflow: 'hidden',
   },
   grid: {
@@ -194,7 +199,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
-    backgroundColor: '#FAFDFE',
+    backgroundColor: '#FAFAF8',
   },
   img: { width: '100%', height: '100%', borderRadius: radius.sm },
 });
