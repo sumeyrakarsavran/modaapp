@@ -5,11 +5,14 @@ import React from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Backdrop } from '@/components/Backdrop';
+
 import { GarmentArt } from '@/components/GarmentArt';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { Button, Card, Chip, SectionTitle } from '@/components/UI';
 import { useStore } from '@/store/useStore';
-import { colors, radius, spacing, type } from '@/theme';
+import { radius, spacing } from '@/theme';
+import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 import { CATEGORIES, ITEM_COLORS, SEASONS, SOURCES, subcategoryById, todayISO } from '@/types';
 
 export default function ItemDetail() {
@@ -19,9 +22,9 @@ export default function ItemDetail() {
 
   if (!item) {
     return (
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }}>
         <View style={{ padding: spacing.xl }}>
-          <Text style={type.subtitle}>Parça bulunamadı.</Text>
+          <Text style={luxeType.subtitle}>Parça bulunamadı.</Text>
           <Button small title="Geri" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
         </View>
       </SafeAreaView>
@@ -54,27 +57,28 @@ export default function ItemDetail() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+      <Backdrop />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-          <Ionicons name="arrow-back" size={20} color={colors.inkSoft} />
+          <Ionicons name="arrow-back" size={20} color={luxe.inkSoft} />
         </Pressable>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           <Pressable onPress={() => toggleFavorite(item.id)} style={styles.iconBtn}>
             <Ionicons
               name={item.favorite ? 'heart' : 'heart-outline'}
               size={20}
-              color={item.favorite ? colors.coral : colors.inkSoft}
+              color={item.favorite ? luxe.primary : luxe.inkSoft}
             />
           </Pressable>
           <Pressable
             onPress={() => router.push({ pathname: '/item/new', params: { id: item.id } })}
             style={styles.iconBtn}
           >
-            <Ionicons name="pencil" size={18} color={colors.inkSoft} />
+            <Ionicons name="pencil" size={18} color={luxe.inkSoft} />
           </Pressable>
           <Pressable onPress={confirmDelete} style={styles.iconBtn}>
-            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            <Ionicons name="trash-outline" size={18} color={luxe.danger} />
           </Pressable>
         </View>
       </View>
@@ -88,9 +92,9 @@ export default function ItemDetail() {
           )}
         </View>
 
-        <Text style={[type.title, { marginTop: spacing.lg }]}>{item.name}</Text>
+        <Text style={[luxeType.title, { marginTop: spacing.lg }]}>{item.name}</Text>
         <View style={[styles.wrapRow, { marginTop: spacing.sm }]}>
-          {cat ? <Chip label={`${cat.emoji} ${cat.label}`} /> : null}
+          {cat ? <Chip label={cat.label} /> : null}
           {sub ? <Chip label={sub.label} /> : null}
           {color ? <Chip label={color.label} /> : null}
           {src ? <Chip label={src.label} color={src.color} active /> : null}
@@ -100,12 +104,12 @@ export default function ItemDetail() {
           <View style={[styles.wrapRow, { marginTop: spacing.sm }]}>
             {item.seasons.map((s) => {
               const se = SEASONS.find((x) => x.id === s);
-              return se ? <Chip key={s} label={`${se.emoji} ${se.label}`} /> : null;
+              return se ? <Chip key={s} label={se.label} /> : null;
             })}
           </View>
         ) : null}
         {item.tags.length ? (
-          <Text style={[type.caption, { marginTop: spacing.sm }]}>
+          <Text style={[luxeType.caption, { marginTop: spacing.sm }]}>
             {item.tags.map((t) => `#${t}`).join('  ')}
           </Text>
         ) : null}
@@ -114,23 +118,23 @@ export default function ItemDetail() {
         <Card style={{ marginTop: spacing.lg }}>
           <View style={styles.statRow}>
             <View style={styles.stat}>
-              <Text style={type.title}>{wearCount}</Text>
-              <Text style={type.tiny}>kez giyildi</Text>
+              <Text style={luxeType.title}>{wearCount}</Text>
+              <Text style={luxeType.tiny}>kez giyildi</Text>
             </View>
             <View style={styles.stat}>
-              <Text style={type.title}>{item.price != null ? `₺${item.price}` : '—'}</Text>
-              <Text style={type.tiny}>fiyat</Text>
+              <Text style={luxeType.title}>{item.price != null ? `₺${item.price}` : '—'}</Text>
+              <Text style={luxeType.tiny}>fiyat</Text>
             </View>
             <View style={styles.stat}>
-              <Text style={[type.title, { color: colors.aquaDark }]}>
+              <Text style={[luxeType.title, { color: luxe.primaryDeep }]}>
                 {cpw != null ? `₺${cpw.toFixed(0)}` : '—'}
               </Text>
-              <Text style={type.tiny}>giyim başı maliyet</Text>
+              <Text style={luxeType.tiny}>giyim başı maliyet</Text>
             </View>
           </View>
           <Button
             small
-            title={wornToday ? '✔ Bugün giyildi' : 'Bugün giydim'}
+            title={wornToday ? 'Bugün giyildi' : 'Bugün giydim'}
             variant={wornToday ? 'secondary' : 'primary'}
             disabled={wornToday}
             onPress={() => logWear([item.id])}
@@ -140,7 +144,7 @@ export default function ItemDetail() {
 
         {['ust', 'alt', 'elbise'].includes(item.category) && item.imageUri ? (
           <Button
-            title={pro ? '🪞 Üzerimde nasıl durur? (AI deneme)' : '🪞 Üzerimde dene — PRO 🔒'}
+            title={pro ? 'Üzerimde nasıl durur? (AI deneme)' : 'Üzerimde dene — PRO'}
             variant="dark"
             onPress={() =>
               pro
@@ -153,7 +157,7 @@ export default function ItemDetail() {
 
         {item.notes ? (
           <Card style={{ marginTop: spacing.md }}>
-            <Text style={type.caption}>{item.notes}</Text>
+            <Text style={luxeType.caption}>{item.notes}</Text>
           </Card>
         ) : null}
 
@@ -172,7 +176,7 @@ export default function ItemDetail() {
                       onPress={() => router.push({ pathname: '/outfit/[id]', params: { id: o.id } })}
                     >
                       <OutfitCollage items={its} size={110} layout={o.layout} frame={o.canvasFrame} cropToContent={o.cropToContent} />
-                      <Text style={[type.tiny, { marginTop: 4, maxWidth: 110 }]} numberOfLines={1}>
+                      <Text style={[luxeType.tiny, { marginTop: 4, maxWidth: 110 }]} numberOfLines={1}>
                         {o.name}
                       </Text>
                     </Pressable>
@@ -186,7 +190,7 @@ export default function ItemDetail() {
         <Button
           small
           variant="ghost"
-          title={item.archived ? 'Arşivden çıkar' : '🗄️ Arşivle'}
+          title={item.archived ? 'Arşivden çıkar' : 'Arşivle'}
           onPress={() => {
             toggleArchived(item.id);
             router.back();
@@ -210,9 +214,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -220,9 +224,9 @@ const styles = StyleSheet.create({
   photo: {
     height: 260,
     borderRadius: radius.xl,
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',

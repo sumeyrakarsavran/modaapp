@@ -175,6 +175,13 @@ export const luxeType = {
     lineHeight: 19,
     color: luxe.outline,
   },
+  /*
+    Eski `type` ölçeğiyle aynı adlar — ekranlar tek tek yeni temaya geçerken
+    `type.x` → `luxeType.x` mekanik olarak değiştirilebilsin diye.
+  */
+  title: { fontFamily: font.headline, fontSize: 20, lineHeight: 27, color: luxe.primary },
+  subtitle: { fontFamily: font.bodyMedium, fontSize: 15, lineHeight: 22, color: luxe.ink },
+  tiny: { fontFamily: font.body, fontSize: 11, lineHeight: 16, color: luxe.outline },
 } as const;
 
 /** DESIGN.md: keskin köşe yok; kartlar çok yumuşak, düğmeler tam hap. */

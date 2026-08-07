@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Backdrop } from '@/components/Backdrop';
 import { GarmentArt } from '@/components/GarmentArt';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
@@ -449,6 +450,8 @@ export default function Wardrobe() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+      {/* Bugün ile AYNI zemin — ekranlar arası geçişte ton atlamasın. */}
+      <Backdrop />
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={luxeType.display}>Gardırop</Text>

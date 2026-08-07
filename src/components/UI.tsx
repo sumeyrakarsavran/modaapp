@@ -10,8 +10,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { Bubbles } from '@/components/BettaFish';
-import { colors, radius, shadow, spacing, type } from '@/theme';
+import { spacing } from '@/theme';
+import { font, glass, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
 
 export function Button({
   title,
@@ -30,22 +30,25 @@ export function Button({
   style?: StyleProp<ViewStyle>;
   small?: boolean;
 }) {
+  /*
+    Editoryal dil: dolu düğme MÜREKKEP, ikincil düğme pastel iridesan,
+    hayalet düğme yalnızca ince çerçeve. Eski turkuaz/mercan paleti fildişi
+    sayfalarda yabancı duruyordu.
+  */
   const bg =
-    variant === 'primary'
-      ? colors.aqua
+    variant === 'primary' || variant === 'dark'
+      ? luxe.primary
       : variant === 'danger'
-        ? colors.coral
-        : variant === 'dark'
-          ? colors.deep
-          : variant === 'secondary'
-            ? colors.aquaSoft
-            : 'transparent';
+        ? luxe.danger
+        : variant === 'secondary'
+          ? luxe.primaryContainer
+          : 'transparent';
   const fg =
     variant === 'primary' || variant === 'danger' || variant === 'dark'
-      ? '#fff'
+      ? luxe.onPrimary
       : variant === 'secondary'
-        ? colors.aquaDark
-        : colors.inkSoft;
+        ? luxe.primaryDeep
+        : luxe.primary;
   return (
     <Pressable
       onPress={onPress}
@@ -54,14 +57,14 @@ export function Button({
         styles.btn,
         small && styles.btnSmall,
         { backgroundColor: bg, opacity: disabled ? 0.45 : pressed ? 0.85 : 1 },
-        variant === 'ghost' && { borderWidth: 1.5, borderColor: colors.border },
+        variant === 'ghost' && { borderWidth: 1, borderColor: luxe.outlineSoft, backgroundColor: glass.fill },
         style,
       ]}
     >
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
-        <Text style={[styles.btnText, small && { fontSize: 13.5 }, { color: fg }]}>{title}</Text>
+        <Text style={[styles.btnText, small && { fontSize: 10 }, { color: fg }]}>{title}</Text>
       )}
     </Pressable>
   );
@@ -71,7 +74,7 @@ export function Chip({
   label,
   active,
   onPress,
-  color = colors.aqua,
+  color = luxe.primaryContainer,
   emoji,
   style,
 }: {
@@ -89,7 +92,7 @@ export function Chip({
         styles.chip,
         active
           ? { backgroundColor: color, borderColor: color }
-          : { backgroundColor: colors.card, borderColor: colors.border },
+          : { backgroundColor: glass.fill, borderColor: luxe.outlineSoft },
         pressed && { opacity: 0.8 },
         style,
       ]}
@@ -97,7 +100,7 @@ export function Chip({
       <Text
         style={[
           styles.chipText,
-          { color: active ? '#fff' : colors.inkSoft },
+          { color: active ? luxe.primaryDeep : luxe.outline },
         ]}
         numberOfLines={1}
       >
@@ -141,7 +144,7 @@ export function SectionTitle({
 }) {
   return (
     <View style={[styles.sectionRow, style]}>
-      <Text style={type.subtitle}>{title}</Text>
+      <Text style={luxeType.subtitle}>{title}</Text>
       {right}
     </View>
   );
@@ -160,11 +163,14 @@ export function EmptyState({
 }) {
   return (
     <View style={styles.empty}>
-      <Bubbles size={70} />
-      <Text style={{ fontSize: 44, marginTop: -30 }}>{emoji}</Text>
-      <Text style={[type.subtitle, { marginTop: spacing.md, textAlign: 'center' }]}>{title}</Text>
+      <Text style={{ fontSize: 30 }}>{emoji}</Text>
+      <Text style={[luxeType.headlineItalic, { marginTop: spacing.md, textAlign: 'center' }]}>
+        {title}
+      </Text>
       {message ? (
-        <Text style={[type.caption, { marginTop: spacing.sm, textAlign: 'center', maxWidth: 280 }]}>
+        <Text
+          style={[luxeType.body, { marginTop: spacing.sm, textAlign: 'center', maxWidth: 280 }]}
+        >
           {message}
         </Text>
       ) : null}
@@ -179,26 +185,33 @@ export function Label({ children, style }: { children: React.ReactNode; style?: 
 
 const styles = StyleSheet.create({
   btn: {
-    borderRadius: radius.pill,
-    paddingVertical: 14,
+    borderRadius: luxeRadius.pill,
+    paddingVertical: 13,
     paddingHorizontal: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnSmall: { paddingVertical: 9, paddingHorizontal: spacing.lg },
-  btnText: { fontSize: 15.5, fontWeight: '700' },
-  chip: {
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
+  btnSmall: { paddingVertical: 10, paddingHorizontal: spacing.lg },
+  btnText: {
+    fontFamily: font.label,
+    fontSize: 11,
+    letterSpacing: 1.3,
+    textTransform: 'uppercase',
   },
-  chipText: { fontSize: 13.5, fontWeight: '600' },
+  chip: {
+    borderRadius: luxeRadius.pill,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+  },
+  chipText: { fontFamily: font.bodyMedium, fontSize: 12.5 },
   card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    backgroundColor: luxe.surface,
+    borderRadius: luxeRadius.lg,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
     padding: spacing.lg,
-    ...shadow.card,
+    ...luxeShadow.card,
   },
   sectionRow: {
     flexDirection: 'row',
@@ -212,12 +225,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.inkSoft,
+    fontFamily: font.label,
+    fontSize: 10.5,
+    color: luxe.outline,
     marginBottom: 6,
     marginTop: spacing.lg,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 1.4,
   },
 });

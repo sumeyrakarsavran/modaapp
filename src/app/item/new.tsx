@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Backdrop } from '@/components/Backdrop';
+
 import { GarmentArt } from '@/components/GarmentArt';
 import { Button, Chip, Label } from '@/components/UI';
 import {
@@ -32,7 +34,8 @@ import { resizeForAnalysis, resizeForProcessing } from '@/services/imageResize';
 import { classifyPhotoLabels } from '@/services/photoClassify';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
 import { useStore } from '@/store/useStore';
-import { colors, radius, spacing, type } from '@/theme';
+import { radius, spacing } from '@/theme';
+import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 import {
   CATEGORIES,
   ITEM_COLORS,
@@ -138,7 +141,7 @@ export default function NewItem() {
   /** Çekilen/seçilen fotoğrafı işler: küçült → arka plan sil → kaydet → otomatik etiketle. */
   const handlePickedPhoto = async (photo: PickedPhoto) => {
     setProcessing(true);
-    setBgNote('🫧 Arka plan siliniyor…');
+    setBgNote('Arka plan siliniyor…');
     try {
       // 1) ÖNCE küçült — ham 12MP fotoğrafı ağır adımlara sokmak belleği taşırıp
       //    uygulamayı çökertiyordu. Küçük kopya ile çalış.
@@ -152,8 +155,8 @@ export default function NewItem() {
       //    (Tam boy PNG'yi JS'te piksel piksel çözmek bellek zirvesi yapıp
       //     uygulamayı öldürüyordu.)
       setBgNote(
-        (removed ? '✨ Arka plan silindi ve fotoğraf kaydedildi.' : 'Fotoğraf kaydedildi.') +
-          ' 🔍 Özellikler tespit ediliyor…',
+        (removed ? 'Arka plan silindi ve fotoğraf kaydedildi.' : 'Fotoğraf kaydedildi.') +
+          ' Özellikler tespit ediliyor…',
       );
       const small = await resizeForAnalysis(uri, 512);
 
@@ -194,7 +197,7 @@ export default function NewItem() {
       const confidence =
         predicted && sub ? ` (%${Math.round(predicted.confidence * 100)} eminlik)` : '';
       setBgNote(
-        (removed ? '✨ Arka plan silindi ve fotoğraf kaydedildi.' : 'Fotoğraf kaydedildi.') +
+        (removed ? 'Arka plan silindi ve fotoğraf kaydedildi.' : 'Fotoğraf kaydedildi.') +
           (applied.length
             ? ` Otomatik işaretlendi: ${applied.join(', ')}${confidence} — istersen değiştir.`
             : '') +
@@ -259,11 +262,12 @@ export default function NewItem() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top', 'bottom']}>
+      <Backdrop />
       <View style={styles.header}>
-        <Text style={type.title}>{editing ? 'Parçayı düzenle' : 'Yeni parça'}</Text>
+        <Text style={luxeType.title}>{editing ? 'Parçayı düzenle' : 'Yeni parça'}</Text>
         <Pressable onPress={() => router.back()} style={styles.close}>
-          <Ionicons name="close" size={22} color={colors.inkSoft} />
+          <Ionicons name="close" size={22} color={luxe.inkSoft} />
         </Pressable>
       </View>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
@@ -277,8 +281,8 @@ export default function NewItem() {
             )}
           </View>
           <View style={{ flex: 1, gap: spacing.sm }}>
-            <Button small variant="secondary" title="📷 Fotoğraf çek" onPress={() => pickImage(true)} loading={processing} />
-            <Button small variant="secondary" title="🖼️ Galeriden seç" onPress={() => pickImage(false)} loading={processing} />
+            <Button small variant="secondary" title="Fotoğraf çek" onPress={() => pickImage(true)} loading={processing} />
+            <Button small variant="secondary" title="Galeriden seç" onPress={() => pickImage(false)} loading={processing} />
             {imageUri ? (
               <Button
                 small
@@ -290,13 +294,13 @@ export default function NewItem() {
                 }}
               />
             ) : (
-              <Text style={type.tiny}>
+              <Text style={luxeType.tiny}>
                 Fotoğraf çekince arka plan otomatik ve ücretsiz silinir; parça temiz bir görselle
                 kaydedilir. Fotoğraf yoksa renkli silüet gösterilir.
               </Text>
             )}
             {bgNote ? (
-              <Text style={[type.tiny, { color: colors.aquaDark, fontWeight: '700' }]}>
+              <Text style={[luxeType.tiny, { color: luxe.primaryDeep, fontWeight: '700' }]}>
                 {bgNote}
               </Text>
             ) : null}
@@ -308,10 +312,10 @@ export default function NewItem() {
           value={name}
           onChangeText={onNameChange}
           placeholder='Örn. "Turkuaz Saten Bluz"'
-          placeholderTextColor={colors.inkFaint}
+          placeholderTextColor={luxe.outline}
           style={styles.input}
         />
-        <Text style={type.tiny}>
+        <Text style={luxeType.tiny}>
           İsimden kategori, renk, sezon ve tarz otomatik işaretlenir — istediğini değiştirebilirsin.
         </Text>
 
@@ -372,7 +376,7 @@ export default function NewItem() {
             </Pressable>
           ))}
         </View>
-        <Text style={type.tiny}>{ITEM_COLORS.find((c) => c.id === colorId)?.label}</Text>
+        <Text style={luxeType.tiny}>{ITEM_COLORS.find((c) => c.id === colorId)?.label}</Text>
 
         <View style={{ flexDirection: 'row', gap: spacing.md }}>
           <View style={{ flex: 1 }}>
@@ -381,7 +385,7 @@ export default function NewItem() {
               value={brand}
               onChangeText={setBrand}
               placeholder="Opsiyonel"
-              placeholderTextColor={colors.inkFaint}
+              placeholderTextColor={luxe.outline}
               style={styles.input}
             />
           </View>
@@ -391,7 +395,7 @@ export default function NewItem() {
               value={price}
               onChangeText={setPrice}
               placeholder="Opsiyonel"
-              placeholderTextColor={colors.inkFaint}
+              placeholderTextColor={luxe.outline}
               style={styles.input}
               keyboardType="decimal-pad"
             />
@@ -437,7 +441,7 @@ export default function NewItem() {
             setTags(t);
           }}
           placeholder="virgülle ayır: ofis, gece, rahat…"
-          placeholderTextColor={colors.inkFaint}
+          placeholderTextColor={luxe.outline}
           style={styles.input}
         />
 
@@ -446,13 +450,13 @@ export default function NewItem() {
           value={notes}
           onChangeText={setNotes}
           placeholder="Opsiyonel"
-          placeholderTextColor={colors.inkFaint}
+          placeholderTextColor={luxe.outline}
           style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
           multiline
         />
 
         <Button
-          title={editing ? 'Kaydet' : '🐟 Gardıroba ekle'}
+          title={editing ? 'Kaydet' : 'Gardıroba ekle'}
           onPress={save}
           style={{ marginTop: spacing.xl }}
         />
@@ -473,11 +477,11 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
   },
   container: { padding: spacing.lg, paddingBottom: 60 },
   photoRow: { flexDirection: 'row', gap: spacing.lg, alignItems: 'center' },
@@ -485,9 +489,9 @@ const styles = StyleSheet.create({
     width: 130,
     height: 130,
     borderRadius: radius.lg,
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -496,13 +500,13 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 11,
     fontSize: 15,
-    color: colors.ink,
-    backgroundColor: colors.card,
+    color: luxe.ink,
+    backgroundColor: luxe.surface,
   },
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   swatch: {
@@ -514,5 +518,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.08)',
   },
-  swatchActive: { borderWidth: 2.5, borderColor: colors.aquaDark },
+  swatchActive: { borderWidth: 2.5, borderColor: luxe.primaryDeep },
 });

@@ -19,8 +19,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { Backdrop } from '@/components/Backdrop';
 import { FinBlob } from '@/components/FinBlob';
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
@@ -123,39 +123,6 @@ function LuxeButton({
         </View>
       )}
     </Pressable>
-  );
-}
-
-/**
- * Sayfa zemini: inci beyazı + köşelerden sızan radyal "ışık sızıntıları"
- * (sol üstte pudra pembe, sağ altta krem, arada menekşe) — örnekteki
- * `betta-flow-bg`. Radyal geçiş için SVG şart: `expo-linear-gradient`
- * yalnızca DOĞRUSAL gradyan çiziyor, RN'de radial-gradient karşılığı yok.
- */
-function Backdrop() {
-  return (
-    <View style={styles.backdrop} pointerEvents="none">
-      <Svg style={styles.backdropFill}>
-        <Defs>
-          {/*
-            Sayfanın iki ucundan sızan İRİDESAN ışık: sol üstte petrol, sağ
-            altta magenta — ikisi de çok düşük yoğunlukta. Fildişi zemin
-            böylece düz kalmıyor, bakış açısına göre dönüyormuş gibi duruyor.
-            Yoğunluk bilerek düşük: geçiş bir olay olmalı, ortam olmamalı.
-          */}
-          <RadialGradient id="leakTop" cx="0%" cy="0%" r="50%">
-            <Stop offset="0" stopColor={iridescent.full[0]} stopOpacity="0.14" />
-            <Stop offset="1" stopColor={iridescent.full[0]} stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="leakBottom" cx="100%" cy="100%" r="50%">
-            <Stop offset="0" stopColor={iridescent.full[2]} stopOpacity="0.13" />
-            <Stop offset="1" stopColor={iridescent.full[2]} stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#leakTop)" />
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#leakBottom)" />
-      </Svg>
-    </View>
   );
 }
 
@@ -888,10 +855,6 @@ export default function Today() {
 }
 
 const styles = StyleSheet.create({
-  /* RN 0.86'da StyleSheet.absoluteFillObject yok — düz obje. */
-  backdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
-  backdropFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
-
   header: {
     flexDirection: 'row',
     alignItems: 'center',

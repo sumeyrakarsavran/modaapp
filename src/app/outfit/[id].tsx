@@ -15,12 +15,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Backdrop } from '@/components/Backdrop';
+
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ShareModal } from '@/components/ShareModal';
 import { Button, Card, Chip } from '@/components/UI';
 import { useStore } from '@/store/useStore';
-import { BETTA_ARCHETYPES, colors, spacing, type } from '@/theme';
+import { BETTA_ARCHETYPES, spacing } from '@/theme';
+import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 import { todayISO, type WardrobeItem } from '@/types';
 
 export default function OutfitDetail() {
@@ -39,9 +42,9 @@ export default function OutfitDetail() {
 
   if (!outfit) {
     return (
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }}>
         <View style={{ padding: spacing.xl }}>
-          <Text style={type.subtitle}>Kombin bulunamadı.</Text>
+          <Text style={luxeType.subtitle}>Kombin bulunamadı.</Text>
           <Button small title="Geri" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
         </View>
       </SafeAreaView>
@@ -70,10 +73,11 @@ export default function OutfitDetail() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+      <Backdrop />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-          <Ionicons name="arrow-back" size={20} color={colors.inkSoft} />
+          <Ionicons name="arrow-back" size={20} color={luxe.inkSoft} />
         </Pressable>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           <Pressable
@@ -83,17 +87,17 @@ export default function OutfitDetail() {
             <Ionicons
               name={outfit.favorite ? 'heart' : 'heart-outline'}
               size={20}
-              color={outfit.favorite ? colors.coral : colors.inkSoft}
+              color={outfit.favorite ? luxe.primary : luxe.inkSoft}
             />
           </Pressable>
           <Pressable
             onPress={() => router.push({ pathname: '/canvas', params: { outfitId: outfit.id } })}
             style={styles.iconBtn}
           >
-            <Ionicons name="color-palette-outline" size={19} color={colors.inkSoft} />
+            <Ionicons name="color-palette-outline" size={19} color={luxe.inkSoft} />
           </Pressable>
           <Pressable onPress={confirmDelete} style={styles.iconBtn}>
-            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            <Ionicons name="trash-outline" size={18} color={luxe.danger} />
           </Pressable>
         </View>
       </View>
@@ -123,8 +127,8 @@ export default function OutfitDetail() {
             </View>
           ) : (
             <Pressable onPress={() => setEditingName(true)}>
-              <Text style={type.display}>
-                {outfit.name} <Text style={{ fontSize: 16 }}>✏️</Text>
+              <Text style={luxeType.display}>
+                {outfit.name} <Ionicons name="pencil" size={14} color={luxe.outline} />
               </Text>
             </Pressable>
           )}
@@ -148,12 +152,12 @@ export default function OutfitDetail() {
           <Card style={{ marginTop: spacing.lg }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
               <View style={{ alignItems: 'center' }}>
-                <Text style={type.title}>{its.length}</Text>
-                <Text style={type.tiny}>parça</Text>
+                <Text style={luxeType.title}>{its.length}</Text>
+                <Text style={luxeType.tiny}>parça</Text>
               </View>
               <View style={{ alignItems: 'center' }}>
-                <Text style={type.title}>{outfit.wearDates.length}</Text>
-                <Text style={type.tiny}>kez giyildi</Text>
+                <Text style={luxeType.title}>{outfit.wearDates.length}</Text>
+                <Text style={luxeType.tiny}>kez giyildi</Text>
               </View>
             </View>
           </Card>
@@ -161,14 +165,14 @@ export default function OutfitDetail() {
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, flexWrap: 'wrap' }}>
             <Button
               small
-              title={wornToday ? '✔ Bugün giyildi' : '✔ Bugün giydim'}
+              title={wornToday ? 'Bugün giyildi' : 'Bugün giydim'}
               disabled={wornToday}
               onPress={() => wearOutfit(outfit.id)}
             />
             <Button
               small
               variant="secondary"
-              title="📅 Bugüne planla"
+              title="Bugüne planla"
               onPress={() => {
                 setPlan({ date: todayISO(), outfitId: outfit.id });
                 router.push('/(tabs)/today');
@@ -177,14 +181,14 @@ export default function OutfitDetail() {
             <Button
               small
               variant="dark"
-              title={shared ? '✔ Paylaşıldı' : '🌊 Toplulukta paylaş'}
+              title={shared ? 'Paylaşıldı' : 'Toplulukta paylaş'}
               disabled={shared}
               onPress={() => setShareOpen(true)}
             />
             <Button
               small
               variant="ghost"
-              title="📖 Lookbook'a ekle"
+              title="Lookbook'a ekle"
               onPress={() => setLbPickerOpen(true)}
             />
           </View>
@@ -192,9 +196,9 @@ export default function OutfitDetail() {
           {/* Lookbook seçici */}
           {lbPickerOpen ? (
             <Card style={{ marginTop: spacing.md }}>
-              <Text style={type.subtitle}>Hangi lookbook'a?</Text>
+              <Text style={luxeType.subtitle}>Hangi lookbook'a?</Text>
               {lookbooks.length === 0 ? (
-                <Text style={[type.caption, { marginTop: spacing.sm }]}>
+                <Text style={[luxeType.caption, { marginTop: spacing.sm }]}>
                   Henüz lookbook yok — Gardırop → Lookbook'lar bölümünden oluşturabilirsin.
                 </Text>
               ) : (
@@ -204,7 +208,7 @@ export default function OutfitDetail() {
                     return (
                       <Chip
                         key={lb.id}
-                        label={`${lb.emoji} ${lb.name}${inside ? ' ✔' : ''}`}
+                        label={`${lb.emoji} ${lb.name}${inside ? ' ✓' : ''}`}
                         active={inside}
                         onPress={() =>
                           updateLookbook(lb.id, {
@@ -228,7 +232,7 @@ export default function OutfitDetail() {
             </Card>
           ) : null}
 
-          <Text style={[type.subtitle, { marginTop: spacing.xl, marginBottom: spacing.sm }]}>Parçalar</Text>
+          <Text style={[luxeType.subtitle, { marginTop: spacing.xl, marginBottom: spacing.sm }]}>Parçalar</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
             {its.map((i) => (
               <ItemThumb
@@ -245,7 +249,7 @@ export default function OutfitDetail() {
 
       <ShareModal
         visible={shareOpen}
-        defaultCaption={`"${outfit.name}" kombinim 🐟`}
+        defaultCaption={`"${outfit.name}" kombinim`}
         preview={
           <OutfitCollage
             items={its}
@@ -290,22 +294,22 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   nameInput: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     borderRadius: 12,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 18,
     fontWeight: '700',
-    color: colors.ink,
-    backgroundColor: colors.card,
+    color: luxe.ink,
+    backgroundColor: luxe.surface,
   },
 });

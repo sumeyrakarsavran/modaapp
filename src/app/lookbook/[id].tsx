@@ -16,11 +16,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Backdrop } from '@/components/Backdrop';
+
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ShareModal } from '@/components/ShareModal';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { useStore } from '@/store/useStore';
-import { colors, radius, spacing, type } from '@/theme';
+import { radius, spacing } from '@/theme';
+import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 import type { CommunityOutfitSet, GarmentSpec, WardrobeItem } from '@/types';
 
 export default function LookbookDetail() {
@@ -38,9 +41,9 @@ export default function LookbookDetail() {
 
   if (!lb) {
     return (
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }}>
         <View style={{ padding: spacing.xl }}>
-          <Text style={type.subtitle}>Lookbook bulunamadı.</Text>
+          <Text style={luxeType.subtitle}>Lookbook bulunamadı.</Text>
           <Button small title="Geri" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
         </View>
       </SafeAreaView>
@@ -110,20 +113,21 @@ export default function LookbookDetail() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+      <Backdrop />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-          <Ionicons name="arrow-back" size={20} color={colors.inkSoft} />
+          <Ionicons name="arrow-back" size={20} color={luxe.inkSoft} />
         </Pressable>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           <Pressable
             onPress={() => (lbOutfits.length ? setShareOpen(true) : null)}
             style={styles.iconBtn}
           >
-            <Ionicons name="share-social-outline" size={18} color={colors.aquaDark} />
+            <Ionicons name="share-social-outline" size={18} color={luxe.primaryDeep} />
           </Pressable>
           <Pressable onPress={confirmDelete} style={styles.iconBtn}>
-            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            <Ionicons name="trash-outline" size={18} color={luxe.danger} />
           </Pressable>
         </View>
       </View>
@@ -153,12 +157,12 @@ export default function LookbookDetail() {
             </View>
           ) : (
             <Pressable onPress={() => setEditingName(true)}>
-              <Text style={type.display}>
-                {lb.emoji} {lb.name} <Text style={{ fontSize: 16 }}>✏️</Text>
+              <Text style={luxeType.display}>
+                {lb.emoji} {lb.name} <Ionicons name="pencil" size={14} color={luxe.outline} />
               </Text>
             </Pressable>
           )}
-          <Text style={type.caption}>{lb.outfitIds.length} kombin</Text>
+          <Text style={luxeType.caption}>{lb.outfitIds.length} kombin</Text>
 
           <TextInput
             value={desc}
@@ -166,7 +170,7 @@ export default function LookbookDetail() {
             onEndEditing={() => updateLookbook(lb.id, { description: desc.trim() || undefined })}
             onBlur={() => updateLookbook(lb.id, { description: desc.trim() || undefined })}
             placeholder="Açıklama ekle… (örn. plaj günleri için)"
-            placeholderTextColor={colors.inkFaint}
+            placeholderTextColor={luxe.outline}
             style={styles.descInput}
             multiline
           />
@@ -174,7 +178,7 @@ export default function LookbookDetail() {
           <SectionTitle
             title="Kombinler"
             style={{ marginTop: spacing.lg }}
-            right={<Chip label="+ Kombin ekle" color={colors.aqua} active onPress={() => setPickerOpen(true)} />}
+            right={<Chip label="+ Kombin ekle" color={luxe.primary} active onPress={() => setPickerOpen(true)} />}
           />
 
           {lbOutfits.length === 0 ? (
@@ -198,7 +202,7 @@ export default function LookbookDetail() {
                     />
                   </Pressable>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={[type.caption, { flex: 1 }]} numberOfLines={1}>
+                    <Text style={[luxeType.caption, { flex: 1 }]} numberOfLines={1}>
                       {o.name}
                     </Text>
                     <Pressable
@@ -207,7 +211,7 @@ export default function LookbookDetail() {
                       }
                       hitSlop={8}
                     >
-                      <Ionicons name="close-circle" size={18} color={colors.inkFaint} />
+                      <Ionicons name="close-circle" size={18} color={luxe.outline} />
                     </Pressable>
                   </View>
                 </View>
@@ -238,7 +242,7 @@ export default function LookbookDetail() {
                       onPress={() => updateLookbook(lb.id, { outfitIds: [...lb.outfitIds, o.id] })}
                     >
                       <OutfitCollage items={itemsOf(o.itemIds)} size={140} layout={o.layout} frame={o.canvasFrame} cropToContent={o.cropToContent} />
-                      <Text style={[type.caption, { marginTop: 4 }]} numberOfLines={1}>
+                      <Text style={[luxeType.caption, { marginTop: 4 }]} numberOfLines={1}>
                         + {o.name}
                       </Text>
                     </Pressable>
@@ -252,7 +256,7 @@ export default function LookbookDetail() {
 
       <ShareModal
         visible={shareOpen}
-        defaultCaption={`"${lb.emoji} ${lb.name}" lookbook'um: ${lb.outfitIds.length} kombin 📖`}
+        defaultCaption={`"${lb.name}" lookbook'um: ${lb.outfitIds.length} kombin`}
         preview={
           /* Önizleme paylaşılacakla aynı: ilk dört kombin */
           lbOutfits.length ? (
@@ -296,40 +300,40 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   nameInput: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     borderRadius: 12,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 18,
     fontWeight: '700',
-    color: colors.ink,
-    backgroundColor: colors.card,
+    color: luxe.ink,
+    backgroundColor: luxe.surface,
   },
   descInput: {
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 14,
-    color: colors.ink,
-    backgroundColor: colors.card,
+    color: luxe.ink,
+    backgroundColor: luxe.surface,
     marginTop: spacing.md,
     minHeight: 48,
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg },
-  modalWrap: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  modalWrap: { flex: 1, backgroundColor: luxe.overlay, justifyContent: 'flex-end' },
   modalCard: {
-    backgroundColor: colors.background,
+    backgroundColor: luxe.bg,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     padding: spacing.lg,

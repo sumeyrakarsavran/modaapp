@@ -86,13 +86,18 @@ export function subcategoryById(id?: string): Subcategory | undefined {
 
 export type Source = 'yeni' | 'ikinciel' | 'kiralik' | 'elyapimi' | 'hediye' | 'belirsiz';
 
+/*
+  Kaynak etiketleri PASTEL: doygun okyanus renkleri (turkuaz, mercan, altın)
+  fildişi sayfalarda tek başına bağıran lekeler bırakıyordu. Ayrım korunuyor
+  ama ton yeni paletin siciline çekildi; yazı koyu olduğu için okunuyor.
+*/
 export const SOURCES: { id: Source; label: string; color: string }[] = [
-  { id: 'yeni', label: 'Yeni', color: '#00B4D8' },
-  { id: 'ikinciel', label: 'İkinci El', color: '#7B5EA7' },
-  { id: 'kiralik', label: 'Kiralık', color: '#2EC4B6' },
-  { id: 'elyapimi', label: 'El Yapımı', color: '#F4B942' },
-  { id: 'hediye', label: 'Hediye', color: '#FF4D6D' },
-  { id: 'belirsiz', label: 'Belirsiz', color: '#8AA4AE' },
+  { id: 'yeni', label: 'Yeni', color: '#DCEBEC' },
+  { id: 'ikinciel', label: 'İkinci El', color: '#E5DDF2' },
+  { id: 'kiralik', label: 'Kiralık', color: '#E1EBE3' },
+  { id: 'elyapimi', label: 'El Yapımı', color: '#F2EAD9' },
+  { id: 'hediye', label: 'Hediye', color: '#F7DCE9' },
+  { id: 'belirsiz', label: 'Belirsiz', color: '#E8E5E0' },
 ];
 
 export type Season = 'ilkbahar' | 'yaz' | 'sonbahar' | 'kis';
