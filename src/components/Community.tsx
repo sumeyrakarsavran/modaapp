@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -7,7 +8,8 @@ import { BettaAvatar } from '@/components/BettaAvatar';
 import { GarmentArt } from '@/components/GarmentArt';
 import { CANVAS_BASE } from '@/components/OutfitCollage';
 import { PERSONAS } from '@/data/community';
-import { colors, getArchetype, radius, shadow, spacing, type } from '@/theme';
+import { getArchetype, radius, shadow, spacing } from '@/theme';
+import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
 import type { CommunityPost, CommunityUser, GarmentSpec } from '@/types';
 
 /** 'me' dahil kullanıcı bilgisi döndürür. */
@@ -22,7 +24,7 @@ export function resolveUser(
       username: me.username || 'ben',
       bio: '',
       archetypeId: me.archetypeId ?? 'plakat',
-      color: getArchetype(me.archetypeId)?.color ?? colors.aqua,
+      color: getArchetype(me.archetypeId)?.color ?? luxe.primary,
       avatarUri: me.avatarUri,
       followers: 0,
       isMe: true,
@@ -35,7 +37,7 @@ export function resolveUser(
       username: userId,
       bio: '',
       archetypeId: 'plakat',
-      color: colors.aqua,
+      color: luxe.primary,
       followers: 0,
     }
   );
@@ -201,10 +203,10 @@ export function timeAgo(iso: string): string {
 }
 
 export const KIND_LABEL: Record<CommunityPost['kind'], string> = {
-  kombin: '🎨 Kombin',
-  selfie: '🤳 Selfie',
-  tryon: '🪞 Sanal deneme',
-  lookbook: '📖 Lookbook',
+  kombin: 'Kombin',
+  selfie: 'Selfie',
+  tryon: 'Sanal deneme',
+  lookbook: 'Lookbook',
 };
 
 export function PostCard({
@@ -242,41 +244,12 @@ export function PostCard({
 
   return (
     <View style={styles.card}>
-      {/* Üst satır */}
-      <View style={styles.cardHead}>
-        <Avatar user={user} onPress={onOpenUser} />
-        <Pressable style={{ flex: 1 }} onPress={onOpenUser}>
-          <Text style={[type.subtitle, { fontSize: 15 }]}>{user.name}</Text>
-          <Text style={type.tiny}>
-            @{user.username} · {timeAgo(post.createdAt)} · {KIND_LABEL[post.kind]}
-          </Text>
-        </Pressable>
-        {user.isMe ? (
-          onDelete ? (
-            <Pressable onPress={onDelete} hitSlop={8}>
-              <Ionicons name="trash-outline" size={18} color={colors.inkFaint} />
-            </Pressable>
-          ) : null
-        ) : (
-          <Pressable
-            onPress={onToggleFollow}
-            style={[styles.followBtn, followed && { backgroundColor: colors.background }]}
-          >
-            <Text
-              style={{
-                fontSize: 12.5,
-                fontWeight: '700',
-                color: followed ? colors.inkSoft : '#fff',
-              }}
-            >
-              {followed ? 'Takiptesin' : 'Takip et'}
-            </Text>
-          </Pressable>
-        )}
-      </View>
-
-      {/* Görsel — kapsayıcıya göre esner, asla taşmaz */}
-      <View style={styles.mediaWrap}>
+      {/*
+        Editoryal kart: görsel tam genişlikte, kullanıcı rozeti görselin ÜSTÜNDE
+        yüzen cam bir hap, etkileşimler ve açıklama alttaki AÇIK perdenin
+        içinde. Ayrı başlık satırı yok — kart bir dergi sayfası gibi duruyor.
+      */}
+      <View style={styles.media}>
         {post.outfitSets?.length ? (
           /*
             Lookbook: her kombin kendi kolajı (en fazla 4). FluidSpecCollage
@@ -290,8 +263,7 @@ export function PostCard({
                   {/*
                     `garments ?? []`: eski kayıtlarda outfitSets düz
                     GarmentSpec[][] idi. Store migrate'i sarıyor ama
-                    migrate'ten önce yazılmış/elle taşınmış kayıt akışı
-                    çökertmesin.
+                    migrate'ten önce yazılmış kayıt akışı çökertmesin.
                   */}
                   <FluidSpecCollage
                     garments={set?.garments ?? (Array.isArray(set) ? set : [])}
@@ -311,12 +283,12 @@ export function PostCard({
           <Image
             source={{ uri: post.imageUri }}
             style={[styles.mediaImg, { aspectRatio: mediaRatio ?? 1 }]}
-            contentFit="contain"
+            contentFit="cover"
             onLoad={(e) => {
               const { width: w, height: h } = e.source ?? {};
               if (!w || !h) return;
               // Aşırı uzun/geniş görseller akışı bozmasın diye sınırla
-              setMediaRatio(Math.min(1.4, Math.max(0.6, w / h)));
+              setMediaRatio(Math.min(1, Math.max(0.62, w / h)));
             }}
           />
         ) : (
@@ -326,34 +298,59 @@ export function PostCard({
             cropToContent={post.cropToContent}
           />
         )}
-      </View>
 
-      {arch ? (
-        <View style={{ flexDirection: 'row', marginTop: spacing.sm }}>
-          <View style={[styles.archChip, { backgroundColor: arch.colorSoft }]}>
-            <Text style={{ fontSize: 11.5, fontWeight: '700', color: arch.color }}>
-              {arch.emoji} {arch.styleName} stil
-            </Text>
+        {/* Yüzen cam kullanıcı rozeti */}
+        <Pressable style={styles.userChip} onPress={onOpenUser}>
+          <Avatar user={user} size={22} />
+          <Text style={styles.userChipText} numberOfLines={1}>
+            @{user.username}
+          </Text>
+        </Pressable>
+
+        {/* Sağ üst: kendi gönderinde sil, başkasınınkinde takip */}
+        {user.isMe ? (
+          onDelete ? (
+            <Pressable style={styles.cornerBtn} onPress={onDelete} hitSlop={6}>
+              <Ionicons name="trash-outline" size={16} color={luxe.primary} />
+            </Pressable>
+          ) : null
+        ) : (
+          <Pressable style={styles.followChip} onPress={onToggleFollow}>
+            <Text style={styles.followChipText}>{followed ? 'Takiptesin' : 'Takip et'}</Text>
+          </Pressable>
+        )}
+
+        {/*
+          Perde AÇIK renk (örnekteki gibi): akıştaki görseller hem fotoğraf hem
+          beyaz zeminli kolaj olabiliyor, koyu perde kolajları çamurlaştırıyor.
+        */}
+        <LinearGradient
+          colors={['transparent', 'rgba(247,245,242,0.72)', 'rgba(247,245,242,0.97)']}
+          locations={[0.45, 0.72, 0.92]}
+          style={styles.scrim}
+          pointerEvents="none"
+        />
+        <View style={styles.scrimBody} pointerEvents="box-none">
+          <View style={styles.actionRow}>
+            <Pressable onPress={onToggleLike} style={styles.actionBtn} hitSlop={6}>
+              <Ionicons
+                name={post.likedByMe ? 'heart' : 'heart-outline'}
+                size={19}
+                color={post.likedByMe ? luxe.primary : luxe.inkSoft}
+              />
+              <Text style={styles.actionText}>{likeCount.toLocaleString('tr-TR')}</Text>
+            </Pressable>
+            <Pressable onPress={onOpenComments} style={styles.actionBtn} hitSlop={6}>
+              <Ionicons name="chatbubble-outline" size={17} color={luxe.inkSoft} />
+              <Text style={styles.actionText}>{post.comments.length}</Text>
+            </Pressable>
           </View>
+          <Text style={styles.caption}>{post.caption}</Text>
+          <Text style={styles.meta}>
+            {KIND_LABEL[post.kind]} · {timeAgo(post.createdAt)}
+            {arch ? ` · ${arch.styleName}` : ''}
+          </Text>
         </View>
-      ) : null}
-
-      <Text style={[type.body, { marginTop: spacing.sm, lineHeight: 20 }]}>{post.caption}</Text>
-
-      {/* Aksiyonlar */}
-      <View style={styles.actions}>
-        <Pressable onPress={onToggleLike} style={styles.actionBtn} hitSlop={6}>
-          <Ionicons
-            name={post.likedByMe ? 'heart' : 'heart-outline'}
-            size={21}
-            color={post.likedByMe ? colors.coral : colors.inkSoft}
-          />
-          <Text style={styles.actionText}>{likeCount.toLocaleString('tr-TR')}</Text>
-        </Pressable>
-        <Pressable onPress={onOpenComments} style={styles.actionBtn} hitSlop={6}>
-          <Ionicons name="chatbubble-outline" size={19} color={colors.inkSoft} />
-          <Text style={styles.actionText}>{post.comments.length}</Text>
-        </Pressable>
       </View>
     </View>
   );
@@ -361,10 +358,10 @@ export function PostCard({
 
 const styles = StyleSheet.create({
   collage: {
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     padding: 4,
   },
   collageGrid: {
@@ -382,36 +379,84 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFDFE',
   },
   card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
+    backgroundColor: luxe.surface,
+    borderRadius: luxeRadius.xl,
+    marginBottom: spacing.xl,
     overflow: 'hidden',
-    ...shadow.card,
+    ...luxeShadow.card,
   },
-  mediaWrap: {
-    width: '100%',
-    maxWidth: 340,
-    alignSelf: 'center',
-    marginTop: spacing.md,
+  /** Görsel katmanı — rozetler ve perde bunun üstüne biniyor. */
+  media: { width: '100%' },
+  userChip: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingLeft: 5,
+    paddingRight: 12,
+    paddingVertical: 4,
+    borderRadius: luxeRadius.pill,
+    backgroundColor: glass.fillStrong,
+    borderWidth: 1,
+    borderColor: glass.border,
+    maxWidth: '70%',
   },
-  setGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  userChipText: { fontFamily: font.bodyMedium, fontSize: 12, color: luxe.primary, flexShrink: 1 },
+  cornerBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: glass.fillStrong,
+    borderWidth: 1,
+    borderColor: glass.border,
+  },
+  followChip: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderRadius: luxeRadius.pill,
+    backgroundColor: glass.fillStrong,
+    borderWidth: 1,
+    borderColor: glass.border,
+  },
+  followChipText: { fontFamily: font.bodyMedium, fontSize: 11.5, color: luxe.primary },
+  scrim: { position: 'absolute', left: 0, right: 0, bottom: 0, top: 0 },
+  scrimBody: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 18 },
+  caption: { fontFamily: font.body, fontSize: 14, lineHeight: 21, color: luxe.ink, marginTop: 10 },
+  meta: {
+    fontFamily: font.label,
+    fontSize: 9.5,
+    letterSpacing: 1.3,
+    textTransform: 'uppercase',
+    color: luxe.outline,
+    marginTop: 8,
+  },
+  setGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, padding: spacing.md },
   /** İki sütun: yüzde genişlik — sabit piksel kapsayıcıya sığmıyordu. */
   setCell: { width: '48%' },
-  setMoreText: { fontSize: 12, color: colors.aquaDark, fontWeight: '600', marginTop: spacing.sm },
+  setMoreText: { fontSize: 12, color: luxe.primaryDeep, fontWeight: '600', marginTop: spacing.sm },
   mediaImg: {
     width: '100%',
     // aspectRatio satır içinde: görselin gerçek oranı yüklendiğinde uygulanır
     borderRadius: radius.md,
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
   },
   fluidCollage: {
     width: '100%',
     aspectRatio: 1,
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     padding: 4,
     overflow: 'hidden',
   },
@@ -433,7 +478,7 @@ const styles = StyleSheet.create({
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   followBtn: {
-    backgroundColor: colors.aqua,
+    backgroundColor: luxe.primary,
     borderRadius: radius.pill,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -449,8 +494,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: luxe.outlineSoft,
   },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  actionText: { fontSize: 13.5, fontWeight: '700', color: colors.inkSoft },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  actionText: { fontSize: 13.5, fontWeight: '700', color: luxe.inkSoft },
 });

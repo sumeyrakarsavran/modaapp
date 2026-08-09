@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -17,12 +18,15 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Backdrop } from '@/components/Backdrop';
+
 import { Avatar, PostCard, resolveUser, timeAgo } from '@/components/Community';
 import { ProfileButton } from '@/components/ProfileButton';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { PERSONAS } from '@/data/community';
 import { useStore } from '@/store/useStore';
-import { colors, radius, spacing, type } from '@/theme';
+import { radius, spacing } from '@/theme';
+import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
 import type { CommunityPost } from '@/types';
 
 type Filter = 'hepsi' | 'takip' | 'kombin' | 'selfie' | 'lookbook';
@@ -124,7 +128,8 @@ export default function Community() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+      <Backdrop />
       <FlatList
         data={feed}
         keyExtractor={(p) => p.id}
@@ -133,8 +138,7 @@ export default function Community() {
           <View>
             <View style={styles.headRow}>
               <View style={{ flex: 1 }}>
-                <Text style={type.display}>Topluluk</Text>
-                <Text style={type.caption}>Diğer bettalar ne giyiyor? 🐠</Text>
+                <Text style={luxeType.display}>Topluluk</Text>
               </View>
               <Pressable onPress={() => setInviteOpen(true)} style={styles.inviteBtn}>
                 <Ionicons name="person-add-outline" size={16} color="#fff" />
@@ -147,18 +151,18 @@ export default function Community() {
 
             {/* Kullanıcı arama */}
             <View style={styles.searchBox}>
-              <Ionicons name="search" size={16} color={colors.inkFaint} />
+              <Ionicons name="search" size={16} color={luxe.outline} />
               <TextInput
                 value={userQuery}
                 onChangeText={setUserQuery}
                 placeholder="@kullanıcıadı ile arkadaşlarını bul…"
-                placeholderTextColor={colors.inkFaint}
+                placeholderTextColor={luxe.outline}
                 style={styles.searchInput}
                 autoCapitalize="none"
               />
               {userQuery ? (
                 <Pressable onPress={() => setUserQuery('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={16} color={colors.inkFaint} />
+                  <Ionicons name="close-circle" size={16} color={luxe.outline} />
                 </Pressable>
               ) : null}
             </View>
@@ -166,15 +170,15 @@ export default function Community() {
               <View style={{ marginTop: spacing.sm }}>
                 {searchResults.length === 0 ? (
                   <View style={styles.noResult}>
-                    <Text style={type.caption}>"@{q}" bulunamadı.</Text>
-                    <Text style={[type.tiny, { marginTop: 4 }]}>
+                    <Text style={luxeType.caption}>"@{q}" bulunamadı.</Text>
+                    <Text style={[luxeType.tiny, { marginTop: 4 }]}>
                       Arkadaşın henüz BETTA'da olmayabilir — davet kodunu gönder, katıldığında
                       kullanıcı adıyla bulup takip edebilirsin. Senin adresin: @
                       {profile.username || 'betta'}
                     </Text>
                     <Button
                       small
-                      title="💌 Davet gönder"
+                      title="Davet gönder"
                       onPress={() => setInviteOpen(true)}
                       style={{ marginTop: spacing.sm, alignSelf: 'flex-start' }}
                     />
@@ -190,20 +194,20 @@ export default function Community() {
                       >
                         <Avatar user={u} size={44} />
                         <View style={{ flex: 1 }}>
-                          <Text style={[type.subtitle, { fontSize: 15 }]}>{u.name}</Text>
-                          <Text style={type.tiny}>
+                          <Text style={[luxeType.subtitle, { fontSize: 15 }]}>{u.name}</Text>
+                          <Text style={luxeType.tiny}>
                             @{u.username} · {(u.followers / 1000).toFixed(1)}b takipçi
                           </Text>
                         </View>
                         <Pressable
                           onPress={() => toggleFollow(u.id)}
-                          style={[styles.miniFollow, followed && { backgroundColor: colors.background }]}
+                          style={[styles.miniFollow, followed && { backgroundColor: luxe.bg }]}
                         >
                           <Text
                             style={{
                               fontSize: 11.5,
                               fontWeight: '700',
-                              color: followed ? colors.inkSoft : '#fff',
+                              color: followed ? luxe.inkSoft : '#fff',
                             }}
                           >
                             {followed ? 'Takiptesin' : 'Takip et'}
@@ -217,36 +221,40 @@ export default function Community() {
             ) : null}
 
             {/* Önerilen kullanıcılar */}
-            <SectionTitle title="Bettalar" style={{ marginTop: spacing.lg, marginBottom: spacing.sm }} />
+            <SectionTitle title="Bettalar" style={{ marginTop: spacing.lg, marginBottom: spacing.md }} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={{ flexDirection: 'row', gap: spacing.md, paddingBottom: spacing.sm }}>
                 {PERSONAS.map((u) => {
                   const followed = followedIds.includes(u.id);
                   return (
                     <View key={u.id} style={styles.userCard}>
-                      <Avatar
-                        user={u}
-                        size={52}
-                        onPress={() => router.push({ pathname: '/user/[id]', params: { id: u.id } })}
-                      />
-                      <Text style={[type.caption, { fontWeight: '700', color: colors.ink }]} numberOfLines={1}>
+                      {/* İridesan halka — örnekteki gradyan çerçeveli avatar */}
+                      <LinearGradient
+                        colors={iridescent.soft}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.avatarRing}
+                      >
+                        <View style={styles.avatarRingInner}>
+                          <Avatar
+                            user={u}
+                            size={60}
+                            onPress={() => router.push({ pathname: '/user/[id]', params: { id: u.id } })}
+                          />
+                        </View>
+                      </LinearGradient>
+                      <Text style={styles.stylistName} numberOfLines={1}>
                         {u.name}
-                      </Text>
-                      <Text style={type.tiny} numberOfLines={1}>
-                        {(u.followers / 1000).toFixed(1)}b takipçi
                       </Text>
                       <Pressable
                         onPress={() => toggleFollow(u.id)}
-                        style={[
-                          styles.miniFollow,
-                          followed && { backgroundColor: colors.background },
-                        ]}
+                        style={styles.miniFollow}
                       >
                         <Text
                           style={{
-                            fontSize: 11.5,
-                            fontWeight: '700',
-                            color: followed ? colors.inkSoft : '#fff',
+                            fontFamily: font.bodyMedium,
+                            fontSize: 11,
+                            color: followed ? luxe.outline : luxe.primary,
                           }}
                         >
                           {followed ? 'Takiptesin' : 'Takip et'}
@@ -261,18 +269,19 @@ export default function Community() {
             {/* Filtreler */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
               <View style={{ flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.md }}>
-                <Chip label="Hepsi" emoji="🌊" active={filter === 'hepsi'} onPress={() => setFilter('hepsi')} />
-                <Chip label="Takip ettiklerim" emoji="💙" active={filter === 'takip'} onPress={() => setFilter('takip')} />
-                <Chip label="Kombinler" emoji="🎨" active={filter === 'kombin'} onPress={() => setFilter('kombin')} />
-                <Chip label="Selfie'ler" emoji="🤳" active={filter === 'selfie'} onPress={() => setFilter('selfie')} />
-                <Chip label="Lookbook'lar" emoji="📖" active={filter === 'lookbook'} onPress={() => setFilter('lookbook')} />
+                <Chip label="Hepsi" active={filter === 'hepsi'} onPress={() => setFilter('hepsi')} />
+                <Chip label="Takip ettiklerim" active={filter === 'takip'} onPress={() => setFilter('takip')} />
+                <Chip label="Kombinler" active={filter === 'kombin'} onPress={() => setFilter('kombin')} />
+                <Chip label="Selfie'ler" active={filter === 'selfie'} onPress={() => setFilter('selfie')} />
+                <Chip label="Lookbook'lar" active={filter === 'lookbook'} onPress={() => setFilter('lookbook')} />
               </View>
             </ScrollView>
+            <SectionTitle title="Günün kombinleri" style={{ marginTop: spacing.sm }} />
           </View>
         }
         ListEmptyComponent={
           <EmptyState
-            emoji="🫧"
+            emoji=""
             title="Bu filtrede gönderi yok"
             message={
               filter === 'takip'
@@ -341,16 +350,16 @@ export default function Community() {
                     <View key={c.id} style={styles.commentRow}>
                       <Avatar user={u} size={32} />
                       <View style={{ flex: 1 }}>
-                        <Text style={[type.caption, { fontWeight: '700', color: colors.ink }]}>
-                          {u.name} <Text style={type.tiny}>· {timeAgo(c.createdAt)}</Text>
+                        <Text style={[luxeType.caption, { fontWeight: '700', color: luxe.ink }]}>
+                          {u.name} <Text style={luxeType.tiny}>· {timeAgo(c.createdAt)}</Text>
                         </Text>
-                        <Text style={[type.body, { fontSize: 14 }]}>{c.text}</Text>
+                        <Text style={[luxeType.body, { fontSize: 14 }]}>{c.text}</Text>
                       </View>
                     </View>
                   );
                 })
               ) : (
-                <Text style={[type.caption, { paddingVertical: spacing.lg, textAlign: 'center' }]}>
+                <Text style={[luxeType.caption, { paddingVertical: spacing.lg, textAlign: 'center' }]}>
                   İlk yorumu sen yap 🫧
                 </Text>
               )}
@@ -360,7 +369,7 @@ export default function Community() {
                 value={commentText}
                 onChangeText={setCommentText}
                 placeholder="Yorum yaz…"
-                placeholderTextColor={colors.inkFaint}
+                placeholderTextColor={luxe.outline}
                 style={styles.commentInput}
                 onSubmitEditing={sendComment}
                 returnKeyType="send"
@@ -378,10 +387,10 @@ export default function Community() {
         <View style={[styles.modalWrap, { justifyContent: 'center', padding: spacing.xl }]}>
           <View style={[styles.modalCard, { borderRadius: radius.xl }]}>
             <Text style={{ fontSize: 40, textAlign: 'center' }}>🐟💌</Text>
-            <Text style={[type.title, { textAlign: 'center', marginTop: spacing.sm }]}>
+            <Text style={[luxeType.title, { textAlign: 'center', marginTop: spacing.sm }]}>
               Arkadaşlarını davet et
             </Text>
-            <Text style={[type.caption, { textAlign: 'center', marginTop: spacing.sm }]}>
+            <Text style={[luxeType.caption, { textAlign: 'center', marginTop: spacing.sm }]}>
               Akvaryum kalabalıklaştıkça güzelleşir. Davet kodunu paylaş, arkadaşların katılsın.
             </Text>
             <View style={styles.codeBox}>
@@ -412,30 +421,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     paddingHorizontal: spacing.md,
     paddingVertical: 9,
     marginTop: spacing.md,
   },
-  searchInput: { flex: 1, fontSize: 14.5, color: colors.ink, padding: 0 },
+  searchInput: { flex: 1, fontSize: 14.5, color: luxe.ink, padding: 0 },
   noResult: {
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     padding: spacing.md,
   },
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.card,
+    backgroundColor: luxe.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
@@ -443,32 +452,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.coral,
+    backgroundColor: luxe.primary,
     borderRadius: radius.pill,
     paddingVertical: 9,
     paddingHorizontal: 14,
   },
   inviteBtnText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
-  userCard: {
-    width: 120,
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-  },
+  stylistName: { fontFamily: font.bodyMedium, fontSize: 12.5, color: luxe.ink, marginTop: 2 },
+  /** Gradyan halka: dış katman geçiş, iç katman beyaz boşluk. */
+  avatarRing: { padding: 2, borderRadius: 999 },
+  avatarRingInner: { padding: 2, borderRadius: 999, backgroundColor: luxe.surface },
+  /*
+    Kart çerçevesi YOK — örnekteki stilist şeridi sadece halkalı avatar ve ad.
+    Kutu içine alınca şerit ağır bir kart dizisine dönüşüyordu.
+  */
+  userCard: { width: 86, alignItems: 'center', gap: 4 },
   miniFollow: {
-    backgroundColor: colors.aqua,
+    backgroundColor: glass.fillStrong,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
     borderRadius: radius.pill,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    marginTop: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 11,
+    marginTop: 5,
   },
-  modalWrap: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  modalWrap: { flex: 1, backgroundColor: luxe.overlay, justifyContent: 'flex-end' },
   modalCard: {
-    backgroundColor: colors.background,
+    backgroundColor: luxe.bg,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     padding: spacing.lg,
@@ -488,31 +498,31 @@ const styles = StyleSheet.create({
   commentInput: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.lg,
     paddingVertical: 9,
     fontSize: 14.5,
-    color: colors.ink,
-    backgroundColor: colors.card,
+    color: luxe.ink,
+    backgroundColor: luxe.surface,
   },
   sendBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.aqua,
+    backgroundColor: luxe.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   codeBox: {
-    backgroundColor: colors.aquaSoft,
+    backgroundColor: luxe.primaryContainer,
     borderRadius: radius.md,
     borderWidth: 1.5,
-    borderColor: colors.aqua,
+    borderColor: luxe.primary,
     borderStyle: 'dashed',
     paddingVertical: spacing.md,
     marginTop: spacing.lg,
     alignItems: 'center',
   },
-  codeText: { fontSize: 20, fontWeight: '900', letterSpacing: 3, color: colors.aquaDark },
+  codeText: { fontSize: 20, fontWeight: '900', letterSpacing: 3, color: luxe.primaryDeep },
 });
