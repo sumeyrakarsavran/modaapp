@@ -29,7 +29,30 @@ import { radius, spacing } from '@/theme';
 import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
 import type { CommunityPost } from '@/types';
 
-type Filter = 'hepsi' | 'takip' | 'kombin' | 'selfie' | 'lookbook';
+type Filter = 'global' | 'takip' | 'trend' | 'kombin' | 'selfie' | 'lookbook';
+
+/** Sekme etiketleri — sıra ekranda göründüğü sıra. */
+const FILTERS: [Filter, string][] = [
+  ['global', 'Global'],
+  ['takip', 'Takip ettiklerim'],
+  ['trend', 'Trendler'],
+  ['kombin', 'Kombinler'],
+  ['selfie', "Selfie'ler"],
+  ['lookbook', "Lookbook'lar"],
+];
+
+/**
+ * Trend puanı: beğeni + yorum (yorum daha ağır, çünkü yazmak beğenmekten
+ * zahmetli) ve tazelik. Süs değil — "Trendler" sekmesi bunu gerçekten
+ * sıralıyor.
+ */
+function trendScore(p: CommunityPost): number {
+  const likes = p.likes + (p.likedByMe ? 1 : 0);
+  const hours = (Date.now() - Date.parse(p.createdAt)) / 36e5;
+  // Zaman sönümü: bir haftalık gönderi bugünkü kadar "trend" sayılmasın
+  const freshness = 1 / (1 + hours / 48);
+  return (likes + p.comments.length * 3) * (0.4 + 0.6 * freshness);
+}
 
 export default function Community() {
   const { posts, lookbooks, followedIds, profile, toggleFollow, toggleLike, addComment, deletePost } =
@@ -47,7 +70,7 @@ export default function Community() {
       .filter((l) => l.name && p.caption?.includes(l.name))
       .sort((a, b) => b.name.length - a.name.length)[0]?.id;
 
-  const [filter, setFilter] = useState<Filter>('hepsi');
+  const [filter, setFilter] = useState<Filter>('global');
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -79,6 +102,9 @@ export default function Community() {
     switch (filter) {
       case 'takip':
         return sorted.filter((p) => followedIds.includes(p.userId) || p.userId === 'me');
+      case 'trend':
+        // Etkileşime göre sırala — süs değil, gerçek sıralama
+        return [...sorted].sort((a, b) => trendScore(b) - trendScore(a));
       case 'kombin':
       case 'selfie':
       case 'lookbook':
@@ -266,17 +292,34 @@ export default function Community() {
               </View>
             </ScrollView>
 
-            {/* Filtreler */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
-              <View style={{ flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.md }}>
-                <Chip label="Hepsi" active={filter === 'hepsi'} onPress={() => setFilter('hepsi')} />
-                <Chip label="Takip ettiklerim" active={filter === 'takip'} onPress={() => setFilter('takip')} />
-                <Chip label="Kombinler" active={filter === 'kombin'} onPress={() => setFilter('kombin')} />
-                <Chip label="Selfie'ler" active={filter === 'selfie'} onPress={() => setFilter('selfie')} />
-                <Chip label="Lookbook'lar" active={filter === 'lookbook'} onPress={() => setFilter('lookbook')} />
-              </View>
+            {/*
+              Filtreler örnek (6)'daki gibi ALTI ÇİZİLİ SEKME: hap dizisi
+              sayfada zaten arama + stilist şeridiyle birlikte düğme tarlası
+              oluşturuyordu. Sekme çizgisi aynı bilgiyi daha sessiz taşıyor.
+            */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filterBar}
+              contentContainerStyle={{ gap: 20, paddingHorizontal: 20, alignItems: 'flex-end' }}
+            >
+              {FILTERS.map(([id, label]) => {
+                const on = filter === id;
+                return (
+                  <Pressable key={id} onPress={() => setFilter(id)} style={styles.filterTab}>
+                    <Text style={[styles.filterText, on && styles.filterTextActive]}>{label}</Text>
+                    {on ? (
+                      <LinearGradient
+                        colors={iridescent.full}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.filterUnderline}
+                      />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
             </ScrollView>
-            <SectionTitle title="Günün kombinleri" style={{ marginTop: spacing.sm }} />
           </View>
         }
         ListEmptyComponent={
@@ -458,6 +501,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   inviteBtnText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
+  filterBar: {
+    flexGrow: 0,
+    flexShrink: 0,
+    height: 40,
+    borderBottomWidth: 1,
+    borderBottomColor: luxe.outlineSoft,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    marginHorizontal: -spacing.lg,
+  },
+  filterTab: { paddingBottom: 9 },
+  filterText: { fontFamily: font.bodyMedium, fontSize: 14, color: luxe.outline },
+  filterTextActive: { color: luxe.ink },
+  filterUnderline: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, borderRadius: 1 },
   stylistName: { fontFamily: font.bodyMedium, fontSize: 12.5, color: luxe.ink, marginTop: 2 },
   /** Gradyan halka: dış katman geçiş, iç katman beyaz boşluk. */
   avatarRing: { padding: 2, borderRadius: 999 },

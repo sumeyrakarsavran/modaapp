@@ -245,9 +245,9 @@ export function PostCard({
   return (
     <View style={styles.card}>
       {/*
-        Editoryal kart: görsel tam genişlikte, kullanıcı rozeti görselin ÜSTÜNDE
-        yüzen cam bir hap, etkileşimler ve açıklama alttaki AÇIK perdenin
-        içinde. Ayrı başlık satırı yok — kart bir dergi sayfası gibi duruyor.
+        Kart düzeni örnek (5)'ten: görselin ALTINA binen koyu perdenin üstünde
+        kullanıcı satırı (avatar + ad + @kullanıcı · süre), altında ayrı bir
+        panelde italik açıklama ve etkileşim satırı.
       */}
       <View style={styles.media}>
         {post.outfitSets?.length ? (
@@ -273,16 +273,11 @@ export function PostCard({
                 </View>
               ))}
             </View>
-            {post.outfitSets.length > 4 ? (
-              <Text style={styles.setMoreText}>
-                +{post.outfitSets.length - 4} kombin daha — görmek için dokun
-              </Text>
-            ) : null}
           </Pressable>
         ) : post.imageUri ? (
           <Image
             source={{ uri: post.imageUri }}
-            style={[styles.mediaImg, { aspectRatio: mediaRatio ?? 1 }]}
+            style={[styles.mediaImg, { aspectRatio: mediaRatio ?? 0.8 }]}
             contentFit="cover"
             onLoad={(e) => {
               const { width: w, height: h } = e.source ?? {};
@@ -299,57 +294,80 @@ export function PostCard({
           />
         )}
 
-        {/* Yüzen cam kullanıcı rozeti */}
-        <Pressable style={styles.userChip} onPress={onOpenUser}>
-          <Avatar user={user} size={22} />
-          <Text style={styles.userChipText} numberOfLines={1}>
-            @{user.username}
-          </Text>
-        </Pressable>
-
-        {/* Sağ üst: kendi gönderinde sil, başkasınınkinde takip */}
-        {user.isMe ? (
-          onDelete ? (
-            <Pressable style={styles.cornerBtn} onPress={onDelete} hitSlop={6}>
-              <Ionicons name="trash-outline" size={16} color={luxe.primary} />
-            </Pressable>
-          ) : null
-        ) : (
-          <Pressable style={styles.followChip} onPress={onToggleFollow}>
-            <Text style={styles.followChipText}>{followed ? 'Takiptesin' : 'Takip et'}</Text>
-          </Pressable>
-        )}
-
-        {/*
-          Perde AÇIK renk (örnekteki gibi): akıştaki görseller hem fotoğraf hem
-          beyaz zeminli kolaj olabiliyor, koyu perde kolajları çamurlaştırıyor.
-        */}
+        {/* Görselin altına inen koyu perde — üstündeki beyaz yazı okunsun */}
         <LinearGradient
-          colors={['transparent', 'rgba(247,245,242,0.72)', 'rgba(247,245,242,0.97)']}
-          locations={[0.45, 0.72, 0.92]}
-          style={styles.scrim}
+          colors={['transparent', 'rgba(23,23,26,0.15)', 'rgba(23,23,26,0.6)']}
+          locations={[0.55, 0.78, 1]}
+          style={styles.mediaScrim}
           pointerEvents="none"
         />
-        <View style={styles.scrimBody} pointerEvents="box-none">
-          <View style={styles.actionRow}>
-            <Pressable onPress={onToggleLike} style={styles.actionBtn} hitSlop={6}>
+
+        {/* Kullanıcı satırı — perdenin üstünde, sol altta */}
+        <View style={styles.mediaFoot} pointerEvents="box-none">
+          <Pressable style={styles.userRow} onPress={onOpenUser}>
+            <View style={styles.avatarRing}>
+              <Avatar user={user} size={34} />
+            </View>
+            <View style={{ flexShrink: 1 }}>
+              <Text style={styles.userName} numberOfLines={1}>
+                {user.name}
+              </Text>
+              <Text style={styles.userMeta} numberOfLines={1}>
+                @{user.username} · {timeAgo(post.createdAt)}
+              </Text>
+            </View>
+          </Pressable>
+          {user.isMe ? (
+            onDelete ? (
+              <Pressable style={styles.mediaBtn} onPress={onDelete} hitSlop={6}>
+                <Ionicons name="trash-outline" size={16} color={luxe.onDark} />
+              </Pressable>
+            ) : null
+          ) : (
+            <Pressable style={styles.mediaBtn} onPress={onToggleFollow} hitSlop={6}>
               <Ionicons
-                name={post.likedByMe ? 'heart' : 'heart-outline'}
-                size={19}
-                color={post.likedByMe ? luxe.primary : luxe.inkSoft}
+                name={followed ? 'checkmark' : 'person-add-outline'}
+                size={16}
+                color={luxe.onDark}
               />
-              <Text style={styles.actionText}>{likeCount.toLocaleString('tr-TR')}</Text>
             </Pressable>
-            <Pressable onPress={onOpenComments} style={styles.actionBtn} hitSlop={6}>
-              <Ionicons name="chatbubble-outline" size={17} color={luxe.inkSoft} />
-              <Text style={styles.actionText}>{post.comments.length}</Text>
-            </Pressable>
+          )}
+        </View>
+      </View>
+
+      {/* Alt panel: italik açıklama + etiketler + etkileşimler */}
+      <View style={styles.body}>
+        <Text style={styles.caption}>{post.caption}</Text>
+
+        <View style={styles.tagRow}>
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>{KIND_LABEL[post.kind]}</Text>
           </View>
-          <Text style={styles.caption}>{post.caption}</Text>
-          <Text style={styles.meta}>
-            {KIND_LABEL[post.kind]} · {timeAgo(post.createdAt)}
-            {arch ? ` · ${arch.styleName}` : ''}
-          </Text>
+          {arch ? (
+            <View style={styles.tag}>
+              <Text style={styles.tagText}>{arch.styleName}</Text>
+            </View>
+          ) : null}
+          {post.outfitSets && post.outfitSets.length > 4 ? (
+            <View style={styles.tag}>
+              <Text style={styles.tagText}>+{post.outfitSets.length - 4} kombin</Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.actionRow}>
+          <Pressable onPress={onToggleLike} style={styles.actionBtn} hitSlop={6}>
+            <Ionicons
+              name={post.likedByMe ? 'heart' : 'heart-outline'}
+              size={20}
+              color={post.likedByMe ? luxe.primary : luxe.outline}
+            />
+            <Text style={styles.actionText}>{likeCount.toLocaleString('tr-TR')}</Text>
+          </Pressable>
+          <Pressable onPress={onOpenComments} style={styles.actionBtn} hitSlop={6}>
+            <Ionicons name="chatbubble-outline" size={18} color={luxe.outline} />
+            <Text style={styles.actionText}>{post.comments.length}</Text>
+          </Pressable>
         </View>
       </View>
     </View>
@@ -376,74 +394,78 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
-    backgroundColor: '#FAFDFE',
+    backgroundColor: '#FAFAF8',
   },
   card: {
-    backgroundColor: luxe.surface,
+    backgroundColor: glass.fillStrong,
+    borderWidth: 1,
+    borderColor: glass.border,
     borderRadius: luxeRadius.xl,
     marginBottom: spacing.xl,
     overflow: 'hidden',
     ...luxeShadow.card,
   },
-  /** Görsel katmanı — rozetler ve perde bunun üstüne biniyor. */
+  /** Görsel katmanı — perde ve kullanıcı satırı bunun üstüne biniyor. */
   media: { width: '100%' },
-  userChip: {
+  mediaScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, top: 0 },
+  mediaFoot: {
     position: 'absolute',
-    top: 14,
-    left: 14,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 16,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    paddingLeft: 5,
-    paddingRight: 12,
-    paddingVertical: 4,
-    borderRadius: luxeRadius.pill,
-    backgroundColor: glass.fillStrong,
-    borderWidth: 1,
-    borderColor: glass.border,
-    maxWidth: '70%',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 10,
   },
-  userChipText: { fontFamily: font.bodyMedium, fontSize: 12, color: luxe.primary, flexShrink: 1 },
-  cornerBtn: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
+  /** Beyaz halka: avatar koyu perdenin üstünde kaybolmasın. */
+  avatarRing: {
+    padding: 2,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.9)',
+  },
+  userName: { fontFamily: font.bodyMedium, fontSize: 13.5, color: luxe.onDark },
+  userMeta: { fontFamily: font.body, fontSize: 10.5, color: luxe.onDarkSoft, marginTop: 2 },
+  mediaBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: glass.fillStrong,
+    backgroundColor: 'rgba(255,255,255,0.22)',
     borderWidth: 1,
-    borderColor: glass.border,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
-  followChip: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
-    paddingHorizontal: 13,
-    paddingVertical: 6,
-    borderRadius: luxeRadius.pill,
-    backgroundColor: glass.fillStrong,
-    borderWidth: 1,
-    borderColor: glass.border,
-  },
-  followChipText: { fontFamily: font.bodyMedium, fontSize: 11.5, color: luxe.primary },
-  scrim: { position: 'absolute', left: 0, right: 0, bottom: 0, top: 0 },
-  scrimBody: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 18 },
-  caption: { fontFamily: font.body, fontSize: 14, lineHeight: 21, color: luxe.ink, marginTop: 10 },
-  meta: {
-    fontFamily: font.label,
-    fontSize: 9.5,
-    letterSpacing: 1.3,
-    textTransform: 'uppercase',
-    color: luxe.outline,
-    marginTop: 8,
-  },
-  setGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, padding: spacing.md },
+  setGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 },
   /** İki sütun: yüzde genişlik — sabit piksel kapsayıcıya sığmıyordu. */
   setCell: { width: '48%' },
-  setMoreText: { fontSize: 12, color: luxe.primaryDeep, fontWeight: '600', marginTop: spacing.sm },
+  body: { padding: 18 },
+  caption: {
+    fontFamily: font.body,
+    fontStyle: 'italic',
+    fontSize: 14.5,
+    lineHeight: 22,
+    color: luxe.inkSoft,
+  },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+  tag: {
+    borderRadius: luxeRadius.pill,
+    backgroundColor: 'rgba(232,227,240,0.6)',
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+  },
+  tagText: {
+    fontFamily: font.label,
+    fontSize: 9,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: luxe.primary,
+  },
   mediaImg: {
     width: '100%',
     // aspectRatio satır içinde: görselin gerçek oranı yüklendiğinde uygulanır
@@ -474,7 +496,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
-    backgroundColor: '#FAFDFE',
+    backgroundColor: '#FAFAF8',
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   followBtn: {
