@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { GarmentArt } from '@/components/GarmentArt';
 import { colors, radius } from '@/theme';
-import type { Outfit, WardrobeItem } from '@/types';
+import { OUTER_SUBCATEGORY, type Outfit, type WardrobeItem } from '@/types';
 
 /** Canvas'taki yerleştirme taban boyutu (canvas.tsx ile aynı olmalı). */
 export const CANVAS_BASE = 110;
@@ -14,11 +14,78 @@ const PAD = 4; // kutunun iç boşluğu
 const GAP = 4; // kareler arası boşluk
 const BORDER = 1; // styles.box borderWidth
 
+/** Kutu içinde 0–1 oranlarıyla verilen yerleşim kutusu. */
+type Box = { x: number; y: number; w: number; h: number };
+
+/**
+ * "Kılık" yerleşimi — rastgele (Karıştır) ve öneriyle kurulan, yani Canvas
+ * düzeni OLMAYAN kombinler için.
+ *
+ * Izgara kolaj parçaları sıraya göre karelere diziyordu: pantolon tişörtün
+ * SAĞINDA, ayakkabı altında… Kombin bir kılık gibi değil, envanter listesi
+ * gibi duruyordu. Burada gerçek yerleşim: üst üstte, ALT ONUN ALTINDA (aynı
+ * sütun), ayakkabı SAĞA kayık. Dış giyim / aksesuar sağ sütunu yukarıdan
+ * doldurur.
+ */
+const LOOK_LEFT: Record<string, Box> = {
+  ust: { x: 0.03, y: 0.04, w: 0.52, h: 0.44 },
+  /** Elbise tek başına iki katmanın yerini tutar — sütunun tamamı onun. */
+  elbise: { x: 0.03, y: 0.04, w: 0.52, h: 0.9 },
+  alt: { x: 0.06, y: 0.5, w: 0.46, h: 0.44 },
+};
+
+/** Sağ sütun: ayakkabı hep ALTTA, kalanlar yukarıdan sırayla. */
+const LOOK_RIGHT = {
+  top: { x: 0.58, y: 0.04, w: 0.38, h: 0.32 } as Box,
+  mid: { x: 0.62, y: 0.38, w: 0.28, h: 0.2 } as Box,
+  bottom: { x: 0.56, y: 0.6, w: 0.4, h: 0.32 } as Box,
+};
+
+/**
+ * Parçaları kılık yerleşimine oturtur. Oturmuyorsa `null` döner ve çağıran
+ * eski ızgara kolaja düşer — düzen zorlanıp parçalar üst üste binmesin.
+ * Oturmadığı durumlar: aynı katmanda iki parça, elbise + alt birlikte,
+ * sağ sütuna sığmayacak kadar çok ek parça, ya da hiç ana katman olmaması.
+ */
+function lookPlacement(items: WardrobeItem[]): { item: WardrobeItem; box: Box }[] | null {
+  const out: { item: WardrobeItem; box: Box }[] = [];
+  const taken = new Set<string>();
+  /** Sağ sütuna sırayla yerleşecek ek parçalar (dış giyim, aksesuar, iç…) */
+  const extras: WardrobeItem[] = [];
+
+  for (const it of items) {
+    // Dış giyim ayrı kategori değil: "üst" içindeki `jacket` alt türü.
+    const key = it.subcategory === OUTER_SUBCATEGORY ? 'dis' : it.category;
+    const left = key === 'dis' ? undefined : LOOK_LEFT[key];
+    if (left) {
+      if (taken.has(key)) return null;
+      taken.add(key);
+      out.push({ item: it, box: left });
+    } else if (key === 'ayakkabi') {
+      if (taken.has('ayakkabi')) return null;
+      taken.add('ayakkabi');
+      out.push({ item: it, box: LOOK_RIGHT.bottom });
+    } else {
+      extras.push(it);
+    }
+  }
+
+  // Elbise sol sütunun tamamını kaplıyor; alt parça onun üstüne biner.
+  if (taken.has('elbise') && taken.has('alt')) return null;
+  // Ana katman yoksa "kılık" değil, dağınık bir parça yığınıdır — ızgara daha iyi.
+  if (!taken.has('ust') && !taken.has('elbise') && !taken.has('alt')) return null;
+  if (extras.length > 2) return null;
+
+  const slots = [LOOK_RIGHT.top, LOOK_RIGHT.mid];
+  extras.forEach((it, i) => out.push({ item: it, box: slots[i] }));
+  return out;
+}
+
 /**
  * Kombin görseli.
  * - Canvas'ta oluşturulduysa (layout varsa) parçalar TAM kullanıcının
  *   yerleştirdiği gibi (x/y/ölçek/katman) küçültülerek çizilir.
- * - Layout yoksa 2x2 ızgara kolaj gösterilir.
+ * - Layout yoksa kılık yerleşimi denenir; oturmazsa 2x2 ızgara kolaj.
  */
 export function OutfitCollage({
   items,
@@ -124,7 +191,59 @@ export function OutfitCollage({
     );
   }
 
-  // Izgara kolaj (Giydir beni / öneri / layoutsuz kombinler) — 2x2 kare
+  /*
+    Kılık yerleşimi — Giydir beni / öneri gibi Canvas düzeni olmayan kombinler.
+    `capture` (FASHN'a giden ürün görseli) HARİÇ: oradaki ızgara, tüm parçaları
+    4 sınırı olmadan sığdırdığı için kullanılıyor ve sonucu kanıtlanmış durumda.
+  */
+  if (!capture && items.length >= 2) {
+    const look = lookPlacement(items);
+    if (look) {
+      return (
+        <View style={[styles.box, { width: size, height: size }]}>
+          {look.map(({ item, box }) => {
+            const w = box.w * size;
+            const h = box.h * size;
+            return (
+              <View
+                key={item.id}
+                style={{
+                  position: 'absolute',
+                  left: box.x * size,
+                  top: box.y * size,
+                  width: w,
+                  height: h,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {item.imageUri ? (
+                  /*
+                    Gerçek kıyafet fotoğrafları HER ZAMAN `contain`: arka planı
+                    silinmiş uzun/dar parçaları (elbise, palto) `cover` kırpıyor.
+                  */
+                  <Image
+                    source={{ uri: item.imageUri }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="contain"
+                  />
+                ) : (
+                  <GarmentArt
+                    category={item.category}
+                    subcategory={item.subcategory}
+                    colorId={item.colorId}
+                    size={Math.min(w, h) * 0.98}
+                  />
+                )}
+              </View>
+            );
+          })}
+        </View>
+      );
+    }
+  }
+
+  // Izgara kolaj (kılık yerleşimine oturmayan / yakalama kareleri) — 2x2 kare
   const shown = capture ? items : items.slice(0, 4);
   const extra = items.length - shown.length;
   // Yakalamada tüm parçalar sığsın: 3 parça → 2 sütun, 5-9 parça → 3 sütun…

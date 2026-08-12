@@ -134,8 +134,13 @@ export default function OutfitDetail() {
           )}
 
           {arch ? (
+            /*
+              Arketip rozeti: arketipin KENDİ doygun rengi yerine paletin pastel
+              konteyneri. Mor/turkuaz düz dolgular fildişi sayfada bağırıyordu;
+              emoji de sayfanın ince çizgi diliyle çelişiyordu.
+            */
             <View style={{ flexDirection: 'row', marginTop: spacing.sm }}>
-              <Chip label={`${arch.emoji} ${arch.fish} · ${arch.styleName} stil`} color={arch.color} active />
+              <Chip label={`${arch.fish} · ${arch.styleName} stil`} active />
             </View>
           ) : null}
 
