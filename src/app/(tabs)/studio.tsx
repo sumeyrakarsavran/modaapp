@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -16,15 +17,16 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Backdrop } from '@/components/Backdrop';
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
 import { ShareModal } from '@/components/ShareModal';
-import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { persistRemoteImage } from '@/services/photoStore';
 import { claimJob, releaseJob, TryOnPendingError, waitForJob } from '@/services/tryon';
 import { useStore } from '@/store/useStore';
-import { BETTA_ARCHETYPES, colors, radius, spacing, type } from '@/theme';
+import { BETTA_ARCHETYPES } from '@/theme';
+import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
 import type { Category, TryOnRecord, WardrobeItem } from '@/types';
 import { OUTER_SUBCATEGORY } from '@/types';
 
@@ -69,6 +71,45 @@ const SLOTS: Slot[] = [
   { key: 'aksesuar', label: 'Aksesuar', categories: ['aksesuar'], hideable: true },
 ];
 
+/** Yuvalar arası boşluk ve kapalı/boş yuvanın sabit yüksekliği. */
+const SLOT_GAP = 8;
+const COMPACT_H = 42;
+
+/** Editoryal düğme — hap biçimli, ince çizgi ikonlu (Gardırop'takiyle aynı). */
+function LuxeButton({
+  title,
+  onPress,
+  icon,
+  variant = 'solid',
+  style,
+}: {
+  title?: string;
+  onPress: () => void;
+  icon?: React.ComponentProps<typeof Ionicons>['name'];
+  variant?: 'solid' | 'outline';
+  style?: any;
+}) {
+  const solid = variant === 'solid';
+  const fg = solid ? luxe.onPrimary : luxe.primary;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.lxBtn,
+        solid
+          ? { backgroundColor: luxe.primary }
+          : { backgroundColor: glass.fill, borderWidth: 1, borderColor: luxe.outlineSoft },
+        !title && { paddingHorizontal: 11 },
+        pressed && { opacity: 0.82 },
+        style,
+      ]}
+    >
+      {icon ? <Ionicons name={icon} size={14} color={fg} /> : null}
+      {title ? <Text style={[styles.lxBtnText, { color: fg }]}>{title}</Text> : null}
+    </Pressable>
+  );
+}
+
 export default function Studio() {
   const {
     items, outfits, addOutfit, pro, api, tryons, updateTryOn, deleteTryOn, sharePost,
@@ -86,6 +127,14 @@ export default function Studio() {
   /** Büyütülerek görüntülenen sanal giydirme */
   const [openTryon, setOpenTryon] = useState<TryOnRecord | null>(null);
   const [shareTryon, setShareTryon] = useState<TryOnRecord | null>(null);
+  /**
+   * "Giydir beni" alanının ÖLÇÜLEN yüksekliği.
+   * Yuvalar eskiden sabit boyluydu ve bir ScrollView'a konuyordu: telefonda
+   * ayakkabı ekranın altında kalıyor, kullanıcı kaydırmadan kombini göremiyordu.
+   * Artık yükseklik ölçülüp yuvalara PAYLAŞTIRILIYOR — üst, alt ve ayakkabı
+   * her cihazda ilk görünüşte ekranda.
+   */
+  const [dressH, setDressH] = useState(0);
   // Dış giyim başta kapalı; isteyen açar.
   const [skipped, setSkipped] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
@@ -151,7 +200,7 @@ export default function Studio() {
   }, [pendingTryOn, api.fashnKey, addTryOn, setPendingTryOn]);
 
   /** Sanal giydirme ızgarası: 3 sütun */
-  const tryonCell = (Math.min(width, 700) - spacing.lg * 2 - spacing.sm * 2) / 3;
+  const tryonCell = (Math.min(width, 700) - 40 - 20) / 3;
 
   const doShareTryOn = (caption: string) => {
     const t = shareTryon;
@@ -199,10 +248,17 @@ export default function Studio() {
     return map;
   }, [active]);
 
+  /** Havuzdaki sıra numarası — kart köşesindeki "3/12" bunu gösteriyor. */
+  const indexOf = (key: string): number => {
+    const n = pools[key]?.length ?? 0;
+    if (!n) return 0;
+    return (((indices[key] ?? 0) % n) + n) % n;
+  };
+
   const current = (key: string): WardrobeItem | undefined => {
     const pool = pools[key];
     if (!pool?.length) return undefined;
-    return pool[((indices[key] ?? 0) % pool.length + pool.length) % pool.length];
+    return pool[indexOf(key)];
   };
 
   /** Yuvada gösterilecek parça: gizli/atlanmışsa yok. */
@@ -253,59 +309,97 @@ export default function Studio() {
     router.push({ pathname: '/outfit/[id]', params: { id: o.id } });
   };
 
-  // Kompakt: çekirdek yuvalar + alt bar tek ekrana sığsın
-  const thumbSize = Math.min(84, width - spacing.lg * 2 - 150);
+  /*
+    Yuvaların ekrana PAYLAŞTIRILMASI.
+    Açık yuvalar kalan yüksekliği eşit bölüşür, kapalı/boş yuvalar sabit
+    ince şerit. Böylece kaç katman açık olursa olsun liste tam ekrana oturuyor
+    ve hiçbir zaman kaydırma gerekmiyor.
+  */
+  type Row = { slot: Slot; kind: 'open' | 'closed' | 'empty'; pool: WardrobeItem[] };
+  const rows: Row[] = SLOTS.map((slot) => {
+    const pool = pools[slot.key] ?? [];
+    // Havuzu boş gizlenebilir katman hiç görünmesin — yer kaplamasın
+    if (!pool.length) return slot.hideable ? null : { slot, kind: 'empty' as const, pool };
+    return { slot, kind: skipped[slot.key] ? ('closed' as const) : ('open' as const), pool };
+  }).filter(Boolean) as Row[];
+
+  const openCount = rows.filter((r) => r.kind === 'open').length;
+  const compactCount = rows.length - openCount;
+  const freeH = dressH - SLOT_GAP * Math.max(0, rows.length - 1) - compactCount * COMPACT_H;
+  const rowH = openCount > 0 ? Math.max(64, freeH / openCount) : 0;
+  const thumbSize = Math.max(46, Math.min(132, rowH - 20));
+  /** Dar ekranda parça adı yuvadan taşmasın diye eşik. */
+  const showNames = rowH >= 84;
+
+  const tab = (id: Mode, label: string, count?: number) => {
+    const on = mode === id;
+    return (
+      <Pressable key={id} onPress={() => setMode(id)} style={styles.tab}>
+        <Text style={[styles.tabText, on && styles.tabTextActive]}>
+          {label}
+          {count != null ? <Text style={styles.tabCount}>{`  ${count}`}</Text> : null}
+        </Text>
+        {on ? (
+          <LinearGradient
+            colors={iridescent.full}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.tabUnderline}
+          />
+        ) : null}
+      </Pressable>
+    );
+  };
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+      {/* Bugün · Gardırop · Topluluk ile AYNI zemin */}
+      <Backdrop />
+
       <View style={styles.header}>
-        <Text style={[type.display, { flex: 1 }]}>Stüdyo</Text>
-        <Button small variant="dark" title="🎨 Canvas" onPress={() => router.push('/canvas')} />
-        <View style={{ marginLeft: spacing.sm }}>
-          <ProfileButton />
+        <View style={{ flex: 1 }}>
+          <Text style={luxeType.display}>Stüdyo</Text>
+        </View>
+        <LuxeButton
+          icon="color-palette-outline"
+          title="Canvas"
+          variant="outline"
+          onPress={() => router.push('/canvas')}
+        />
+        <View style={{ marginLeft: 10 }}>
+          <ProfileButton size={36} />
         </View>
       </View>
 
-      {/* Sekme değiştirici */}
-      <View style={styles.segment}>
-        <Pressable
-          onPress={() => setMode('dressme')}
-          style={[styles.segmentBtn, mode === 'dressme' && styles.segmentActive]}
-        >
-          <Text style={[styles.segmentText, mode === 'dressme' && { color: '#fff' }]}>Giydir beni</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setMode('outfits')}
-          style={[styles.segmentBtn, mode === 'outfits' && styles.segmentActive]}
-        >
-          <Text style={[styles.segmentText, mode === 'outfits' && { color: '#fff' }]}>
-            Kombinlerim{"\n"}
-            ({outfits.length})
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setMode('ai')}
-          style={[styles.segmentBtn, mode === 'ai' && styles.segmentActive]}
-        >
-          <Text style={[styles.segmentText, mode === 'ai' && { color: '#fff' }]}>✨ AI</Text>
-        </Pressable>
-      </View>
+      {/* Bölüm sekmeleri — Gardırop ve Topluluk'takiyle aynı altı çizili dil */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabsBar}
+        contentContainerStyle={{ gap: 20, paddingHorizontal: 20, alignItems: 'flex-end' }}
+      >
+        {tab('dressme', 'Giydir beni')}
+        {tab('outfits', 'Kombinlerim', outfits.length)}
+        {tab('ai', 'AI')}
+      </ScrollView>
 
       {mode === 'ai' ? (
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 30, gap: spacing.md }}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36, gap: 14 }}>
           {/* AI Stilist */}
           <Pressable style={styles.aiCard} onPress={() => router.push('/stylist')}>
             <View style={styles.aiCardHead}>
-              <Text style={{ fontSize: 34 }}>🐠</Text>
+              <View style={styles.aiIcon}>
+                <Ionicons name="sparkles-outline" size={19} color={luxe.primary} />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={type.subtitle}>AI Stilist</Text>
-                <Text style={type.tiny}>
-                  {api.anthropicKey ? 'Claude bağlı ✨' : 'Yerel mod — ücretsiz'}
+                <Text style={luxeType.subtitle}>AI Stilist</Text>
+                <Text style={luxeType.tiny}>
+                  {api.anthropicKey ? 'Claude bağlı' : 'Yerel mod — ücretsiz'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />
+              <Ionicons name="chevron-forward" size={18} color={luxe.outline} />
             </View>
-            <Text style={[type.caption, { marginTop: spacing.sm }]}>
+            <Text style={[luxeType.caption, { marginTop: 10 }]}>
               "Bugün ne giysem?", "Toplantıya ne uyar?" — gardırobunu bilen stilistinle sohbet et,
               havaya ve renk uyumuna göre kombin önerileri al.
             </Text>
@@ -313,75 +407,80 @@ export default function Studio() {
 
           {/* FASHN Sanal Deneme */}
           {pro ? (
-            <Pressable style={[styles.aiCard, { borderColor: colors.gold, borderWidth: 1.5 }]} onPress={() => router.push('/tryon')}>
+            <Pressable style={[styles.aiCard, styles.aiCardPro]} onPress={() => router.push('/tryon')}>
               <View style={styles.aiCardHead}>
-                <Text style={{ fontSize: 34 }}>🪞</Text>
+                <View style={styles.aiIcon}>
+                  <Ionicons name="body-outline" size={19} color={luxe.primary} />
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={type.subtitle}>
-                    Sanal Deneme <Text style={{ color: colors.gold }}>PRO 🏆</Text>
+                  <Text style={luxeType.subtitle}>
+                    Sanal Deneme <Text style={styles.proTag}>PRO</Text>
                   </Text>
-                  <Text style={type.tiny}>
+                  <Text style={luxeType.tiny}>
                     {api.fashnKey ? 'FASHN AI bağlı' : 'FASHN API anahtarı gerekli (Ayarlar)'}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.inkFaint} />
+                <Ionicons name="chevron-forward" size={18} color={luxe.outline} />
               </View>
-              <Text style={[type.caption, { marginTop: spacing.sm }]}>
+              <Text style={[luxeType.caption, { marginTop: 10 }]}>
                 Kıyafetlerini model fotoğrafının üzerinde gerçekçi şekilde gör.
               </Text>
             </Pressable>
           ) : (
-            <View style={[styles.aiCard, { borderColor: colors.gold, borderWidth: 1.5 }]}>
+            <View style={[styles.aiCard, styles.aiCardPro]}>
               <View style={styles.aiCardHead}>
-                <Text style={{ fontSize: 34 }}>🪞</Text>
+                <View style={styles.aiIcon}>
+                  <Ionicons name="lock-closed-outline" size={19} color={luxe.primary} />
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={type.subtitle}>
-                    Sanal Deneme <Text style={{ color: colors.gold }}>PRO 🔒</Text>
+                  <Text style={luxeType.subtitle}>
+                    Sanal Deneme <Text style={styles.proTag}>PRO</Text>
                   </Text>
-                  <Text style={type.tiny}>FASHN AI ile — Pro üyelere özel</Text>
+                  <Text style={luxeType.tiny}>FASHN AI ile — Pro üyelere özel</Text>
                 </View>
               </View>
-              <Text style={[type.caption, { marginTop: spacing.sm }]}>
+              <Text style={[luxeType.caption, { marginTop: 10 }]}>
                 Gardırobundaki bir üstü, elbiseyi ya da pantolonu seç; FASHN AI onu model
                 fotoğrafının üzerine gerçekçi şekilde giydirsin. Almadan önce "üstümde nasıl
                 durur?" sorusunun cevabı.
               </Text>
               <View style={styles.promoRow}>
                 <View style={styles.promoStep}>
-                  <Text style={{ fontSize: 22 }}>🧍‍♀️</Text>
-                  <Text style={type.tiny}>Model fotoğrafı seç</Text>
+                  <Ionicons name="person-outline" size={18} color={luxe.inkSoft} />
+                  <Text style={[luxeType.tiny, styles.promoText]}>Model seç</Text>
                 </View>
-                <Text style={{ color: colors.inkFaint }}>→</Text>
+                <Ionicons name="chevron-forward" size={13} color={luxe.outline} />
                 <View style={styles.promoStep}>
-                  <Text style={{ fontSize: 22 }}>👗</Text>
-                  <Text style={type.tiny}>Kıyafeti seç</Text>
+                  <Ionicons name="shirt-outline" size={18} color={luxe.inkSoft} />
+                  <Text style={[luxeType.tiny, styles.promoText]}>Kıyafeti seç</Text>
                 </View>
-                <Text style={{ color: colors.inkFaint }}>→</Text>
+                <Ionicons name="chevron-forward" size={13} color={luxe.outline} />
                 <View style={styles.promoStep}>
-                  <Text style={{ fontSize: 22 }}>✨</Text>
-                  <Text style={type.tiny}>Üzerinde gör</Text>
+                  <Ionicons name="sparkles-outline" size={18} color={luxe.inkSoft} />
+                  <Text style={[luxeType.tiny, styles.promoText]}>Üzerinde gör</Text>
                 </View>
               </View>
-              <Button
-                title="🏆 BETTA Pro'ya geç"
+              <LuxeButton
+                title="BETTA Pro'ya geç"
+                icon="arrow-forward"
                 onPress={() => router.push('/pro')}
-                style={{ marginTop: spacing.md, backgroundColor: colors.gold }}
+                style={{ marginTop: 14, alignSelf: 'flex-start' }}
               />
             </View>
           )}
 
           {/* Sanal giydirme çıktıları — görseller kalıcı kopya olarak saklanır */}
-          <SectionTitle
-            title={`🖼️ Sanal giydirmelerim${tryons.length ? ` · ${tryons.length}` : ''}`}
-            style={{ marginTop: spacing.md }}
-          />
+          <View style={styles.sectionHead}>
+            <Text style={luxeType.subtitle}>Sanal giydirmelerim</Text>
+            {tryons.length ? <Text style={styles.sectionCount}>{tryons.length}</Text> : null}
+          </View>
           {pendingTryOn ? (
-            <Text style={[type.caption, { marginBottom: spacing.sm }]}>
-              ⏳ Bir giydirme hazırlanıyor… Hazır olunca burada belirecek.
+            <Text style={[luxeType.caption, { marginTop: -6 }]}>
+              Bir giydirme hazırlanıyor… Hazır olunca burada belirecek.
             </Text>
           ) : null}
           {tryons.length === 0 && !pendingTryOn ? (
-            <Text style={type.caption}>
+            <Text style={[luxeType.caption, { marginTop: -6 }]}>
               Henüz sanal giydirme yok. Yukarıdan bir manken ve kombin seçip deneyince sonuçlar
               burada birikir.
             </Text>
@@ -396,10 +495,10 @@ export default function Studio() {
                 >
                   <Image
                     source={{ uri: t.imageUri }}
-                    style={{ width: '100%', height: tryonCell * 1.5, borderRadius: radius.md }}
+                    style={{ width: '100%', height: tryonCell * 1.5, borderRadius: luxeRadius.md }}
                     contentFit="cover"
                   />
-                  <Text style={type.tiny} numberOfLines={1}>
+                  <Text style={luxeType.tiny} numberOfLines={1}>
                     {t.outfitName ?? 'Kombin'}
                   </Text>
                 </Pressable>
@@ -407,131 +506,208 @@ export default function Studio() {
             </View>
           )}
           {tryons.length ? (
-            <Text style={type.tiny}>Büyütmek için dokun, silmek için basılı tut.</Text>
+            <Text style={luxeType.tiny}>Büyütmek için dokun, silmek için basılı tut.</Text>
           ) : null}
         </ScrollView>
       ) : mode === 'dressme' ? (
         active.length === 0 ? (
-          <EmptyState
-            title="Önce gardırobunu doldur"
-            message="Giydir beni'nin çalışması için birkaç parça eklemelisin."
-            action={<Button small title="+ Parça ekle" onPress={() => router.push('/item/new')} />}
-          />
+          <View style={styles.empty}>
+            <Ionicons name="shirt-outline" size={30} color={luxe.outlineSoft} />
+            <Text style={[luxeType.headlineItalic, { marginTop: 12 }]}>Önce gardırobunu doldur</Text>
+            <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
+              Giydir beni'nin çalışması için birkaç parça eklemelisin.
+            </Text>
+            <LuxeButton
+              icon="add"
+              title="Parça ekle"
+              onPress={() => router.push('/item/new')}
+              style={{ marginTop: 16 }}
+            />
+          </View>
         ) : (
           <View style={{ flex: 1 }}>
-            <ScrollView
-              contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.md }}
-              showsVerticalScrollIndicator={false}
+            {/*
+              Kaydırma YOK: alan ölçülüp yuvalara bölünüyor. Ölçüm gelmeden
+              (ilk kare) çizim yapılmıyor, yoksa yükseklik negatif çıkıyor.
+            */}
+            <View
+              style={styles.slotStack}
+              onLayout={(e) => setDressH(e.nativeEvent.layout.height)}
             >
-              {SLOTS.map((slot) => {
-                const pool = pools[slot.key] ?? [];
-                const hidden = skipped[slot.key];
-                const item = shown(slot.key);
+              {dressH > 0
+                ? rows.map(({ slot, kind, pool }) => {
+                    // Havuzu boş çekirdek yuva: ince uyarı şeridi
+                    if (kind === 'empty') {
+                      return (
+                        <View key={slot.key} style={[styles.slotCompact, { height: COMPACT_H }]}>
+                          <Text style={styles.slotLabel}>{slot.label}</Text>
+                          <Text style={luxeType.tiny}>Bu kategoride parça yok</Text>
+                        </View>
+                      );
+                    }
 
-                // Havuz boş: çekirdek yuvada uyarı, gizlenebilir yuvada hiç gösterme
-                if (!pool.length) {
-                  if (slot.hideable) return null;
-                  return (
-                    <View key={slot.key} style={[styles.slotRow, styles.slotRowClosed]}>
-                      <Text style={styles.slotLabel}>{slot.label}</Text>
-                      <Text style={type.tiny}>Bu kategoride parça yok</Text>
-                    </View>
-                  );
-                }
-
-                // Kapalı/gizli yuva: kompakt "aç" satırı
-                if (hidden) {
-                  return (
-                    <Pressable
-                      key={slot.key}
-                      style={[styles.slotRow, styles.slotRowClosed]}
-                      onPress={() => setSkipped((s) => ({ ...s, [slot.key]: false }))}
-                    >
-                      <Text style={[styles.slotLabel, { flex: 1 }]}>{slot.label} gizli</Text>
-                      <View style={styles.addBtn}>
-                        <Ionicons name="add" size={16} color={colors.aquaDark} />
-                        <Text style={styles.addBtnText}>Göster</Text>
-                      </View>
-                    </Pressable>
-                  );
-                }
-
-                return (
-                  <View key={slot.key} style={styles.slotRow}>
-                    <View style={{ width: 74 }}>
-                      <Text style={styles.slotLabel} numberOfLines={1}>
-                        {slot.label}
-                      </Text>
-                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+                    // Gizlenmiş katman: tek dokunuşla geri açılan ince şerit
+                    if (kind === 'closed') {
+                      return (
                         <Pressable
-                          onPress={() => setLocked((l) => ({ ...l, [slot.key]: !l[slot.key] }))}
-                          style={styles.slotIcon}
+                          key={slot.key}
+                          style={[styles.slotCompact, { height: COMPACT_H }]}
+                          onPress={() => setSkipped((s) => ({ ...s, [slot.key]: false }))}
+                        >
+                          <Text style={[styles.slotLabel, { flex: 1 }]}>{slot.label}</Text>
+                          <View style={styles.showBtn}>
+                            <Ionicons name="add" size={13} color={luxe.primary} />
+                            <Text style={styles.showBtnText}>Göster</Text>
+                          </View>
+                        </Pressable>
+                      );
+                    }
+
+                    const item = shown(slot.key);
+                    const isLocked = !!locked[slot.key];
+                    return (
+                      <View key={slot.key} style={[styles.slot, { height: rowH }]}>
+                        {/*
+                          Sabitlenmiş katmanın sol kenarında iridesan şerit.
+                          Aksan SÜS DEĞİL bilgi taşıyor: "bu parça karıştırmada
+                          yerinde kalacak".
+                        */}
+                        {isLocked ? (
+                          <LinearGradient
+                            colors={iridescent.full}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                            style={styles.slotRail}
+                          />
+                        ) : null}
+
+                        <View style={styles.slotInfo}>
+                          <Text style={styles.slotLabel} numberOfLines={1}>
+                            {slot.label}
+                          </Text>
+                          {showNames && item ? (
+                            <Text style={styles.slotName} numberOfLines={2}>
+                              {item.name}
+                            </Text>
+                          ) : null}
+                          <View style={styles.slotIcons}>
+                            <Pressable
+                              onPress={() =>
+                                setLocked((l) => ({ ...l, [slot.key]: !l[slot.key] }))
+                              }
+                              style={[styles.slotIcon, isLocked && styles.slotIconOn]}
+                              hitSlop={6}
+                            >
+                              <Ionicons
+                                name={isLocked ? 'lock-closed' : 'lock-open-outline'}
+                                size={13}
+                                color={isLocked ? luxe.primary : luxe.outline}
+                              />
+                            </Pressable>
+                            {slot.hideable ? (
+                              <Pressable
+                                onPress={() => setSkipped((s) => ({ ...s, [slot.key]: true }))}
+                                style={styles.slotIcon}
+                                hitSlop={6}
+                              >
+                                <Ionicons name="eye-off-outline" size={13} color={luxe.outline} />
+                              </Pressable>
+                            ) : null}
+                          </View>
+                        </View>
+
+                        <Pressable
+                          onPress={() => cycle(slot.key, -1)}
+                          style={({ pressed }) => [
+                            styles.arrow,
+                            pool.length < 2 && styles.arrowOff,
+                            pressed && { opacity: 0.6 },
+                          ]}
+                          disabled={pool.length < 2}
+                          hitSlop={6}
                         >
                           <Ionicons
-                            name={locked[slot.key] ? 'lock-closed' : 'lock-open-outline'}
-                            size={14}
-                            color={locked[slot.key] ? colors.coral : colors.inkFaint}
+                            name="chevron-back"
+                            size={17}
+                            color={pool.length < 2 ? luxe.outlineSoft : luxe.ink}
                           />
                         </Pressable>
-                        {slot.hideable ? (
-                          <Pressable
-                            onPress={() => setSkipped((s) => ({ ...s, [slot.key]: true }))}
-                            style={styles.slotIcon}
-                          >
-                            <Ionicons name="eye-off-outline" size={14} color={colors.inkFaint} />
-                          </Pressable>
+
+                        <View style={styles.slotStage}>
+                          {item ? (
+                            <ItemThumb
+                              item={item}
+                              size={thumbSize}
+                              onPress={() =>
+                                router.push({ pathname: '/item/[id]', params: { id: item.id } })
+                              }
+                            />
+                          ) : null}
+                        </View>
+
+                        <Pressable
+                          onPress={() => cycle(slot.key, 1)}
+                          style={({ pressed }) => [
+                            styles.arrow,
+                            pool.length < 2 && styles.arrowOff,
+                            pressed && { opacity: 0.6 },
+                          ]}
+                          disabled={pool.length < 2}
+                          hitSlop={6}
+                        >
+                          <Ionicons
+                            name="chevron-forward"
+                            size={17}
+                            color={pool.length < 2 ? luxe.outlineSoft : luxe.ink}
+                          />
+                        </Pressable>
+
+                        {/* Havuzdaki sıra — mutlak konumlu, satır yüksekliği yemesin */}
+                        {pool.length > 1 ? (
+                          <Text style={styles.slotCounter}>
+                            {indexOf(slot.key) + 1}/{pool.length}
+                          </Text>
                         ) : null}
                       </View>
-                    </View>
-
-                    <Pressable onPress={() => cycle(slot.key, -1)} style={styles.arrow} disabled={pool.length < 2}>
-                      <Ionicons name="chevron-back" size={20} color={pool.length < 2 ? colors.border : colors.inkSoft} />
-                    </Pressable>
-
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                      {item ? (
-                        <ItemThumb
-                          item={item}
-                          size={thumbSize}
-                          showName
-                          onPress={() => router.push({ pathname: '/item/[id]', params: { id: item.id } })}
-                        />
-                      ) : null}
-                    </View>
-
-                    <Pressable onPress={() => cycle(slot.key, 1)} style={styles.arrow} disabled={pool.length < 2}>
-                      <Ionicons name="chevron-forward" size={20} color={pool.length < 2 ? colors.border : colors.inkSoft} />
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </ScrollView>
+                    );
+                  })
+                : null}
+            </View>
 
             {/* Sabit alt bar — sayfa kaydırılmadan görünür */}
             <View style={styles.dressFooter}>
-              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                <Button title="💾 Kaydet" variant="dark" onPress={saveOutfit} style={{ flex: 1 }} />
-                <Button title="🎲 Karıştır" onPress={shuffleAll} style={{ flex: 1 }} />
-              </View>
-              <Text style={[type.tiny, { textAlign: 'center', marginTop: spacing.sm }]}>
-                🔒 sabitler · 👁 gizler (alt, dış giyim, aksesuar)
-              </Text>
+              <LuxeButton
+                icon="bookmark-outline"
+                title="Kombini kaydet"
+                onPress={saveOutfit}
+                style={{ flex: 1.4 }}
+              />
+              <LuxeButton
+                icon="shuffle"
+                title="Karıştır"
+                variant="outline"
+                onPress={shuffleAll}
+                style={{ flex: 1 }}
+              />
             </View>
           </View>
         )
       ) : outfits.length === 0 ? (
-        <EmptyState
-          emoji="🎨"
-          title="Henüz kombin yok"
-          message='"Giydir beni" ile karıştır ya da Canvas ile serbest kolaj yap.'
-        />
+        <View style={styles.empty}>
+          <Ionicons name="albums-outline" size={30} color={luxe.outlineSoft} />
+          <Text style={[luxeType.headlineItalic, { marginTop: 12 }]}>Henüz kombin yok</Text>
+          <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
+            "Giydir beni" ile karıştır ya da Canvas ile serbest kolaj yap.
+          </Text>
+        </View>
       ) : (
         <FlatList
           data={outfits}
           keyExtractor={(o) => o.id}
           numColumns={2}
-          contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
-          columnWrapperStyle={{ gap: spacing.lg }}
+          contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 36 }}
+          columnWrapperStyle={{ gap: 18 }}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item: o }) => {
             const its = o.itemIds
               .map((x) => items.find((i) => i.id === x))
@@ -542,16 +718,24 @@ export default function Studio() {
                 style={{ flex: 1, maxWidth: '48%' }}
                 onPress={() => router.push({ pathname: '/outfit/[id]', params: { id: o.id } })}
               >
-                <OutfitCollage items={its} size={(width - spacing.lg * 3) / 2} layout={o.layout} frame={o.canvasFrame} cropToContent={o.cropToContent} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 }}>
-                  <Text style={[type.caption, { flex: 1 }]} numberOfLines={1}>
-                    {o.favorite ? '❤️ ' : ''}
+                <OutfitCollage
+                  items={its}
+                  size={(width - 58) / 2}
+                  layout={o.layout}
+                  frame={o.canvasFrame}
+                  cropToContent={o.cropToContent}
+                />
+                <View style={styles.outfitFoot}>
+                  {o.favorite ? <Ionicons name="heart" size={12} color={luxe.ink} /> : null}
+                  <Text style={styles.outfitName} numberOfLines={1}>
                     {o.name}
                   </Text>
-                  {arch ? (
-                    <Chip label={`${arch.emoji} ${arch.styleName}`} color={arch.color} active style={{ paddingVertical: 3, paddingHorizontal: 8 }} />
-                  ) : null}
                 </View>
+                {arch ? (
+                  <Text style={styles.outfitArch} numberOfLines={1}>
+                    {arch.styleName}
+                  </Text>
+                ) : null}
               </Pressable>
             );
           }}
@@ -570,15 +754,15 @@ export default function Studio() {
         <View
           style={[
             styles.viewerWrap,
-            { paddingTop: spacing.lg + insets.top, paddingBottom: spacing.lg + insets.bottom },
+            { paddingTop: 20 + insets.top, paddingBottom: 20 + insets.bottom },
           ]}
         >
           <View style={styles.viewerHead}>
-            <Text style={[type.subtitle, { color: '#fff', flex: 1 }]} numberOfLines={1}>
+            <Text style={styles.viewerTitle} numberOfLines={1}>
               {openTryon?.outfitName ?? 'Sanal giydirme'}
             </Text>
             <Pressable onPress={() => setOpenTryon(null)} style={styles.viewerClose}>
-              <Ionicons name="close" size={22} color="#fff" />
+              <Ionicons name="close" size={22} color={luxe.onDark} />
             </Pressable>
           </View>
           {openTryon ? (
@@ -594,21 +778,24 @@ export default function Studio() {
             </Text>
           ) : null}
           <View style={styles.viewerActions}>
-            <Button
-              small
-              title="🌊 Toplulukta paylaş"
+            <Pressable
+              style={[styles.viewerBtn, { backgroundColor: luxe.onDark }]}
               onPress={() => setShareTryon(openTryon)}
-            />
-            <Button
-              small
-              variant="secondary"
-              title="🗑️ Sil"
+            >
+              <Ionicons name="share-social-outline" size={14} color={luxe.primary} />
+              <Text style={[styles.viewerBtnText, { color: luxe.primary }]}>Toplulukta paylaş</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.viewerBtn, styles.viewerBtnGhost]}
               onPress={() => {
                 const id = openTryon?.id;
                 setOpenTryon(null);
                 if (id) setTimeout(() => confirmDeleteTryOn(id), 120);
               }}
-            />
+            >
+              <Ionicons name="trash-outline" size={14} color={luxe.onDark} />
+              <Text style={[styles.viewerBtnText, { color: luxe.onDark }]}>Sil</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -616,13 +803,13 @@ export default function Studio() {
       <ShareModal
         visible={!!shareTryon}
         defaultCaption={
-          shareTryon?.outfitName ? `"${shareTryon.outfitName}" üzerimde 🪞🐟` : 'Sanal denemem 🪞🐟'
+          shareTryon?.outfitName ? `"${shareTryon.outfitName}" üzerimde` : 'Sanal denemem'
         }
         preview={
           shareTryon ? (
             <Image
               source={{ uri: shareTryon.imageUri }}
-              style={{ width: 150, height: 200, borderRadius: radius.lg }}
+              style={{ width: 150, height: 200, borderRadius: luxeRadius.lg }}
               contentFit="cover"
             />
           ) : null
@@ -635,9 +822,210 @@ export default function Studio() {
 }
 
 const styles = StyleSheet.create({
-  tryonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  viewerWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', paddingHorizontal: spacing.lg },
-  viewerHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 12,
+    gap: 10,
+  },
+  lxBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: luxeRadius.pill,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+  },
+  lxBtnText: {
+    fontFamily: font.label,
+    fontSize: 10.5,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+
+  tabsBar: {
+    flexGrow: 0,
+    flexShrink: 0,
+    height: 42,
+    borderBottomWidth: 1,
+    borderBottomColor: luxe.outlineSoft,
+    marginBottom: 10,
+  },
+  tab: { paddingBottom: 9 },
+  tabText: { fontFamily: font.bodyMedium, fontSize: 14, color: luxe.outline },
+  tabTextActive: { color: luxe.ink },
+  tabCount: { fontFamily: font.body, fontSize: 11, color: luxe.outline },
+  /** Aktif sekmenin altındaki iridesan çizgi — kimliğin ince bir tekrarı. */
+  tabUnderline: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, borderRadius: 1 },
+
+  // ————— Giydir beni —————
+  slotStack: { flex: 1, paddingHorizontal: 20, paddingTop: 2, gap: SLOT_GAP },
+  slot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: glass.fillStrong,
+    borderRadius: luxeRadius.lg,
+    borderWidth: 1,
+    borderColor: glass.border,
+    paddingLeft: 14,
+    paddingRight: 8,
+    overflow: 'hidden',
+  },
+  /** Sabitlenmiş katmanın sol kenarındaki iridesan şerit. */
+  slotRail: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
+  slotCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    borderRadius: luxeRadius.md,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderStyle: 'dashed',
+    paddingHorizontal: 14,
+  },
+  slotInfo: { width: 78 },
+  slotLabel: {
+    fontFamily: font.label,
+    fontSize: 9,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: luxe.outline,
+  },
+  slotName: { fontFamily: font.bodyMedium, fontSize: 12, lineHeight: 16, color: luxe.ink, marginTop: 3 },
+  slotIcons: { flexDirection: 'row', gap: 6, marginTop: 7 },
+  slotIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: luxe.surfaceLow,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotIconOn: { backgroundColor: luxe.primaryContainer },
+  slotStage: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  /** Oklar yuvarlak düğme: çıplak ok işareti dokunulabilir görünmüyordu. */
+  arrow: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: luxe.surface,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+  },
+  /** Havuzda tek parça varsa düğme kaybolur — tıklanamayacağı belli olsun. */
+  arrowOff: { backgroundColor: 'transparent', borderColor: 'transparent' },
+  /** Havuz sırası — kartın sağ üst köşesinde, satır yüksekliğini yemeyen mutlak katman. */
+  slotCounter: {
+    position: 'absolute',
+    top: 8,
+    right: 14,
+    fontFamily: font.body,
+    fontSize: 9.5,
+    color: luxe.outline,
+  },
+  showBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: luxe.primaryContainer,
+    borderRadius: luxeRadius.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+  },
+  showBtnText: { fontFamily: font.bodyMedium, fontSize: 11.5, color: luxe.primary },
+  dressFooter: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderTopWidth: 1,
+    borderTopColor: luxe.outlineSoft,
+  },
+
+  // ————— Kombinlerim —————
+  outfitFoot: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 7 },
+  outfitName: { fontFamily: font.bodyMedium, fontSize: 13, color: luxe.ink, flex: 1 },
+  outfitArch: {
+    fontFamily: font.label,
+    fontSize: 8.5,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: luxe.outline,
+    marginTop: 2,
+  },
+
+  // ————— AI —————
+  /*
+    ⚠️ Gölge (elevation) YOK. Dolgu yarı saydam olduğu için Android elevation
+    gölgesini kartın İÇİNE beyaz bir dikdörtgen olarak sızdırıyor (emülatörde
+    görüldü: metnin arkasında köşelere ulaşmayan açık blok). Derinliği
+    kenarlık ve ton farkı taşıyor — Bugün'deki cam kartla aynı çözüm.
+  */
+  aiCard: {
+    backgroundColor: glass.fillStrong,
+    borderRadius: luxeRadius.lg,
+    borderWidth: 1,
+    borderColor: glass.border,
+    padding: 18,
+  },
+  /** Pro kartı: altın yerine iridesan pastel çerçeve — palet tek dilde kalsın. */
+  aiCardPro: { borderColor: luxe.primarySoft, borderWidth: 1.5 },
+  aiCardHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  aiIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: luxe.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proTag: {
+    fontFamily: font.label,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    color: luxe.outline,
+  },
+  promoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    backgroundColor: luxe.surfaceLow,
+    borderRadius: luxeRadius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+  promoStep: { alignItems: 'center', gap: 4, flex: 1 },
+  promoText: { textAlign: 'center' },
+  sectionHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 8 },
+  sectionCount: {
+    fontFamily: font.label,
+    fontSize: 9.5,
+    letterSpacing: 1.2,
+    color: luxe.outline,
+  },
+  tryonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  tryonCard: { gap: 4 },
+
+  empty: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 },
+
+  // ————— Sanal giydirme görüntüleyici —————
+  viewerWrap: { flex: 1, backgroundColor: 'rgba(23,20,18,0.94)', paddingHorizontal: 20 },
+  viewerHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  viewerTitle: {
+    flex: 1,
+    fontFamily: font.headlineItalic,
+    fontStyle: 'italic',
+    fontSize: 19,
+    color: luxe.onDark,
+  },
   viewerClose: {
     width: 36,
     height: 36,
@@ -646,104 +1034,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  viewerImg: { flex: 1, width: '100%', borderRadius: radius.lg },
-  viewerPrompt: { color: '#D8D8D8', fontSize: 12, marginTop: spacing.sm, fontStyle: 'italic' },
-  viewerActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  tryonCard: { gap: 4 },
-  header: {
+  viewerImg: { flex: 1, width: '100%', borderRadius: luxeRadius.lg },
+  viewerPrompt: {
+    fontFamily: font.body,
+    color: luxe.onDarkSoft,
+    fontSize: 12,
+    marginTop: 10,
+    fontStyle: 'italic',
+  },
+  viewerActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  viewerBtn: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-  },
-  segment: {
-    flexDirection: 'row',
-    margin: spacing.lg,
-    marginBottom: spacing.sm,
-    backgroundColor: colors.card,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 4,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 9,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-  },
-  segmentActive: { backgroundColor: colors.deep },
-  segmentText: { fontSize: 13.5, fontWeight: '700', color: colors.inkSoft },
-  slotRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  slotRowClosed: {
-    borderStyle: 'dashed',
-    paddingVertical: spacing.md,
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: colors.aquaSoft,
-    borderRadius: radius.pill,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-  },
-  addBtnText: { fontSize: 12.5, fontWeight: '700', color: colors.aquaDark },
-  slotLabel: { fontSize: 12.5, fontWeight: '700', color: colors.inkSoft },
-  slotIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    borderRadius: luxeRadius.pill,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
   },
-  arrow: { padding: 4 },
-  dressFooter: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  aiCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-  },
-  aiCardHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  promoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  promoStep: { alignItems: 'center', gap: 2, flex: 1 },
-  emptySlot: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
+  viewerBtnGhost: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)' },
+  viewerBtnText: {
+    fontFamily: font.label,
+    fontSize: 10.5,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
 });

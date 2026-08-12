@@ -1,9 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { GarmentArt } from '@/components/GarmentArt';
-import { colors, radius } from '@/theme';
+import { font, glass, luxe, luxeRadius } from '@/theme/luxe';
 import type { WardrobeItem } from '@/types';
 
 /** Gardırop ızgarasındaki parça karosu: fotoğraf ya da renkli silüet. */
@@ -28,18 +29,28 @@ export function ItemThumb({
         style={[
           styles.box,
           { width: size, height: size },
-          selected && { borderColor: colors.aqua, borderWidth: 2.5 },
+          selected && { borderColor: luxe.primary, borderWidth: 2 },
         ]}
       >
         {item.imageUri ? (
           <Image source={{ uri: item.imageUri }} style={styles.img} contentFit="contain" />
         ) : (
-          <GarmentArt category={item.category} subcategory={item.subcategory} colorId={item.colorId} size={size * 0.68} />
+          <GarmentArt
+            category={item.category}
+            subcategory={item.subcategory}
+            colorId={item.colorId}
+            size={size * 0.68}
+          />
         )}
-        {item.favorite ? <Text style={styles.fav}>❤️</Text> : null}
+        {/* Rozetler emoji değil ince çizgi ikon — sayfanın geri kalanıyla aynı dil */}
+        {item.favorite ? (
+          <View style={[styles.badge, { top: 5, right: 5 }]}>
+            <Ionicons name="heart" size={10} color={luxe.ink} />
+          </View>
+        ) : null}
         {item.archived ? (
-          <View style={styles.archived}>
-            <Text style={{ fontSize: 11 }}>🗄️</Text>
+          <View style={[styles.badge, { top: 5, left: 5 }]}>
+            <Ionicons name="archive-outline" size={10} color={luxe.outline} />
           </View>
         ) : null}
       </View>
@@ -54,31 +65,28 @@ export function ItemThumb({
 
 const styles = StyleSheet.create({
   box: {
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
+    backgroundColor: luxe.surface,
+    borderRadius: luxeRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
     overflow: 'hidden',
   },
   // Kutuyu kenardan kenara doldurmasın — `contain` görseli tam sığdırdığı için
   // parça çerçeveye yapışık duruyordu. Kutuya padding vermek yerine görseli
   // küçültüyoruz: favori/arşiv rozetleri mutlak konumlu, padding onları kaydırırdı.
   img: { width: '90%', height: '90%' },
-  fav: { position: 'absolute', top: 6, right: 7, fontSize: 12 },
-  archived: {
+  badge: {
     position: 'absolute',
-    top: 4,
-    left: 5,
-    backgroundColor: colors.background,
-    borderRadius: 6,
-    padding: 2,
+    backgroundColor: glass.fillStrong,
+    borderRadius: 999,
+    padding: 3,
   },
   name: {
+    fontFamily: font.bodyMedium,
     fontSize: 11.5,
-    fontWeight: '600',
-    color: colors.inkSoft,
+    color: luxe.inkSoft,
     marginTop: 5,
     textAlign: 'center',
   },
