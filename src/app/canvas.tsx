@@ -31,6 +31,8 @@ interface Placed {
   y: number;
   scale: number;
   z: number;
+  /** Derece cinsinden dönüş. Opsiyonel — eski kayıtlarda yok. */
+  rot?: number;
 }
 
 const BASE = CANVAS_BASE; // yerleştirilen parçanın taban boyutu (önizlemeyle ortak)
@@ -159,8 +161,14 @@ export default function Canvas() {
       Alert.alert('Eksik kolaj', 'En az iki parça yerleştir.');
       return;
     }
-    const layout: Record<string, { x: number; y: number; scale: number; z: number }> = {};
-    for (const p of placed) layout[p.itemId] = { x: p.x, y: p.y, scale: p.scale, z: p.z };
+    const layout: Record<
+      string,
+      { x: number; y: number; scale: number; z: number; rot?: number }
+    > = {};
+    for (const p of placed) {
+      // `rot` yalnızca varsa yazılıyor — döndürülmemiş parçalar eskisi gibi kalsın
+      layout[p.itemId] = { x: p.x, y: p.y, scale: p.scale, z: p.z, ...(p.rot ? { rot: p.rot } : {}) };
+    }
     const itemIds = [...placed].sort((a, b) => a.z - b.z).map((p) => p.itemId);
     const canvasFrame =
       canvasSize.current.w > 0 ? { w: canvasSize.current.w, h: canvasSize.current.h } : undefined;
@@ -305,6 +313,7 @@ export default function Canvas() {
                     bringFront(p.itemId);
                   }}
                   onMoved={(x, y) => updatePlaced(p.itemId, { x, y })}
+                  onTransformed={(patch) => updatePlaced(p.itemId, patch)}
                 />
               );
             })}
@@ -455,21 +464,99 @@ function CatPill({
   );
 }
 
+/** Ölçek sınırları — araç çubuğundaki +/- ile aynı aralık. */
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 2.2;
+/**
+ * Tutamaklar için parçanın çevresindeki GÖRÜNMEZ pay.
+ *
+ * ⚠️ Android, bir görünümün SINIRLARI DIŞINA taşan çocuklarına dokunuş
+ * GÖNDERMİYOR. Tutamaklar `left: -14` gibi dışarıya konumlandığında ekranda
+ * görünüyor ama basılamıyordu (telefonda görüldü: köşeden çekince hiçbir şey
+ * olmuyor). Bu yüzden parça, kendisinden bu kadar büyük bir kutunun içine
+ * ortalanıyor ve tutamaklar o kutunun İÇİNDE kalıyor. Pay yalnızca SEÇİLİYKEN
+ * açılıyor; sürekli açık kalsa komşu parçaların dokunuşlarını çalardı.
+ */
+const HALO = 22;
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+/** Dik açılara yapıştır — elle tam düz durdurmak neredeyse imkânsız. */
+const snapDeg = (deg: number) => {
+  const q = Math.round(deg / 90) * 90;
+  return Math.abs(deg - q) < 5 ? q : deg;
+};
+
+/**
+ * Köşe tutamakları. `ax`/`ay` = ÇAPA: 1 ise o kenar sabit kalır, karşı köşe
+ * hareket eder. Böylece sol üstten çekince parça sağ alta doğru büyümez,
+ * gerçekten sol üste açılır.
+ */
+const CORNERS = [
+  { key: 'tl', ax: 1, ay: 1, pos: { left: HALO - 17, top: HALO - 17 } },
+  { key: 'tr', ax: 0, ay: 1, pos: { right: HALO - 17, top: HALO - 17 } },
+  { key: 'bl', ax: 1, ay: 0, pos: { left: HALO - 17, bottom: HALO - 17 } },
+  { key: 'br', ax: 0, ay: 0, pos: { right: HALO - 17, bottom: HALO - 17 } },
+] as const;
+
 function DraggableGarment({
   item,
   placed,
   selected,
   onSelect,
   onMoved,
+  onTransformed,
 }: {
   item: WardrobeItem;
   placed: Placed;
   selected: boolean;
   onSelect: () => void;
   onMoved: (x: number, y: number) => void;
+  /** Boyut/dönüş hareket BİTİNCE tek seferde işlenir. */
+  onTransformed: (patch: Partial<Placed>) => void;
 }) {
   const pan = useRef(new Animated.ValueXY({ x: placed.x, y: placed.y })).current;
   const start = useRef({ x: placed.x, y: placed.y });
+
+  /*
+    ⚠️ PanResponder'lar BİR KEZ kuruluyor (`useMemo(..., [])`).
+    Önce bağımlılık listesinde prop'lar vardı; üst bileşen her çizildiğinde
+    (seçim, öne getirme, ölçek değişimi…) yeni PanResponder yaratılıyor ve
+    görünüme YENİ bir `panHandlers` takılıyordu. Hareketin ortasında bu olunca
+    yeni algılayıcının kendi `gestureState`'i sıfırdan başlıyor: `dx/dy`
+    zıplıyor, parça uçuyor ya da köşeden çekmek işe yaramıyordu (telefonda
+    görüldü). Güncel prop'lar bu yüzden ref'ten okunuyor.
+  */
+  const cur = useRef({ placed, onSelect, onMoved, onTransformed });
+  cur.current = { placed, onSelect, onMoved, onTransformed };
+
+  /*
+    Boyut ve açı hareket SIRASINDA yerel durumda tutuluyor, bırakınca üst
+    bileşene yazılıyor. Her karede store'a yazsaydık tuvaldeki bütün parçalar
+    ve çekmece yeniden çizilirdi; sürükleme takılırdı.
+  */
+  const [live, setLive] = useState<{ scale: number; rot: number } | null>(null);
+  const liveRef = useRef<{ scale: number; rot: number } | null>(null);
+  const setLiveBoth = (v: { scale: number; rot: number } | null) => {
+    liveRef.current = v;
+    setLive(v);
+  };
+  const gs = useRef({ size: 0, x: 0, y: 0, rot: 0 });
+  /** İki parmak hareketi başladıysa buraya yazılıyor. */
+  const pinch = useRef<null | { dist: number; ang: number; scale: number; rot: number; x: number; y: number }>(null);
+
+  /** Hareket başlarken parçanın o anki hâlini dondur. */
+  const grab = () => {
+    const p = cur.current.placed;
+    cur.current.onSelect();
+    const x = (pan.x as any)._value;
+    const y = (pan.y as any)._value;
+    start.current = { x, y };
+    gs.current = {
+      size: BASE * (liveRef.current?.scale ?? p.scale),
+      x,
+      y,
+      rot: liveRef.current?.rot ?? p.rot ?? 0,
+    };
+  };
 
   // Parent state değişince (ör. yükleme) pozisyonu senkronla
   const lastProp = useRef({ x: placed.x, y: placed.y });
@@ -478,65 +565,237 @@ function DraggableGarment({
     pan.setValue({ x: placed.x, y: placed.y });
   }
 
+  /**
+   * Parçanın kendi hareketi: TEK parmak taşır, İKİ parmak boyutlandırır ve
+   * döndürür (kıstır → büyüt/küçült, çevir → döndür).
+   *
+   * İki parmaktan tek parmağa düşünce taşımaya DEVAM EDİLMİYOR: `gestureState`
+   * mesafeyi ilk dokunuştan beri topladığı için parça zıplıyordu.
+   */
   const responder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) + Math.abs(g.dy) > 4,
+        onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: () => {
-          onSelect();
-          start.current = { x: (pan.x as any)._value, y: (pan.y as any)._value };
+          pinch.current = null;
+          grab();
         },
-        onPanResponderMove: (_e, g) => {
+        onPanResponderMove: (e, g) => {
+          const t = e.nativeEvent.touches;
+          if (t.length >= 2) {
+            const [a, b] = t;
+            const dist = Math.hypot(b.pageX - a.pageX, b.pageY - a.pageY);
+            const ang = (Math.atan2(b.pageY - a.pageY, b.pageX - a.pageX) * 180) / Math.PI;
+            if (!pinch.current) {
+              // İkinci parmak yeni değdi: ölçüm buradan başlasın
+              pinch.current = {
+                dist,
+                ang,
+                scale: gs.current.size / BASE,
+                rot: gs.current.rot,
+                x: (pan.x as any)._value,
+                y: (pan.y as any)._value,
+              };
+              return;
+            }
+            const scale = clamp(
+              pinch.current.scale * (dist / Math.max(1, pinch.current.dist)),
+              MIN_SCALE,
+              MAX_SCALE,
+            );
+            const rot = snapDeg(pinch.current.rot + (ang - pinch.current.ang));
+            // Parça MERKEZİNDEN büyüsün: sol üst köşe farkın yarısı kadar kaysın
+            const d = BASE * scale - BASE * pinch.current.scale;
+            pan.setValue({ x: pinch.current.x - d / 2, y: pinch.current.y - d / 2 });
+            setLiveBoth({ scale, rot });
+            return;
+          }
+          if (pinch.current) return;
           pan.setValue({ x: start.current.x + g.dx, y: start.current.y + g.dy });
         },
         onPanResponderRelease: (_e, g) => {
+          if (pinch.current) {
+            const nx = (pan.x as any)._value;
+            const ny = (pan.y as any)._value;
+            const l = liveRef.current;
+            lastProp.current = { x: nx, y: ny };
+            pinch.current = null;
+            setLiveBoth(null);
+            cur.current.onTransformed({
+              x: nx,
+              y: ny,
+              scale: l?.scale ?? cur.current.placed.scale,
+              rot: l?.rot ?? cur.current.placed.rot ?? 0,
+            });
+            return;
+          }
           const nx = Math.max(-30, start.current.x + g.dx);
           const ny = Math.max(-30, start.current.y + g.dy);
           lastProp.current = { x: nx, y: ny };
           pan.setValue({ x: nx, y: ny });
-          onMoved(nx, ny);
+          cur.current.onMoved(nx, ny);
         },
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onSelect, onMoved],
+    [],
   );
 
-  const size = BASE * placed.scale;
+  /** Dört köşe: aynı mantık, çapaları farklı. */
+  const cornerResponders = useMemo(
+    () =>
+      CORNERS.map(({ ax, ay }) =>
+        PanResponder.create({
+          onStartShouldSetPanResponder: () => true,
+          onPanResponderTerminationRequest: () => false,
+          onPanResponderGrant: grab,
+          onPanResponderMove: (_e, g) => {
+            /*
+              ⚠️ Parmağın hareketi EKRAN eksenlerinde geliyor, köşeler ise
+              parçanın KENDİ ekseninde. Parça döndürülmüşse ikisi uyuşmuyor:
+              90° dönük bir parçada sağa çekmek aslında "aşağı" demek oluyordu
+              ve boyut fırlayıp en küçüğe/en büyüğe yapışıyordu (telefonda
+              görüldü: "parmağımı bırakınca fazla büyüyüp küçülüyor").
+              Önce hareketi parçanın eksenine çeviriyoruz.
+            */
+            const r = (gs.current.rot * Math.PI) / 180;
+            const cos = Math.cos(r);
+            const sin = Math.sin(r);
+            const lx = g.dx * cos + g.dy * sin;
+            const ly = -g.dx * sin + g.dy * cos;
+            // Sol/üst tutamaklarda yön ters: sola çekmek BÜYÜTÜR.
+            const sx = ax ? -1 : 1;
+            const sy = ay ? -1 : 1;
+            const next = clamp(
+              (gs.current.size + (sx * lx + sy * ly) / 2) / BASE,
+              MIN_SCALE,
+              MAX_SCALE,
+            );
+            const d = BASE * next - gs.current.size;
+            /*
+              Çapa köşesi ekranda yerinde kalsın. Dönüş MERKEZ etrafında
+              olduğu için hesap merkez üzerinden yürüyor: çapadan merkeze
+              bakan yerel kayma bulunuyor, ekrana döndürülüyor, yeni sol üst
+              köşe merkezden geri çıkarılıyor.
+            */
+            const cx0 = gs.current.x + gs.current.size / 2;
+            const cy0 = gs.current.y + gs.current.size / 2;
+            const mx = (0.5 - ax) * d;
+            const my = (0.5 - ay) * d;
+            const cx = cx0 + (mx * cos - my * sin);
+            const cy = cy0 + (mx * sin + my * cos);
+            pan.setValue({ x: cx - (BASE * next) / 2, y: cy - (BASE * next) / 2 });
+            setLiveBoth({ scale: next, rot: gs.current.rot });
+          },
+          onPanResponderRelease: () => {
+            const nx = (pan.x as any)._value;
+            const ny = (pan.y as any)._value;
+            const scale = liveRef.current?.scale ?? cur.current.placed.scale;
+            lastProp.current = { x: nx, y: ny };
+            setLiveBoth(null);
+            cur.current.onTransformed({ x: nx, y: ny, scale });
+          },
+        }),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  /**
+   * Döndürme tutamağı — parçanın alt kenarına asılı. Açı, merkezden tutamağa
+   * giden vektörün dönüşünden hesaplanıyor: parmağın nereye gittiği değil,
+   * merkez etrafında ne kadar döndüğü önemli.
+   */
+  const rotateResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: grab,
+        onPanResponderMove: (_e, g) => {
+          /*
+            Tutamak parçanın YEREL olarak altında duruyor; parça dönükse
+            ekrandaki yeri de dönmüş oluyor. Başlangıç vektörü bu yüzden
+            döndürülerek hesaplanıyor, yoksa her dokunuşta açı sıçrıyordu.
+          */
+          const arm = gs.current.size / 2 + HALO;
+          const r = (gs.current.rot * Math.PI) / 180;
+          const v0x = -arm * Math.sin(r);
+          const v0y = arm * Math.cos(r);
+          const a0 = Math.atan2(v0y, v0x);
+          const a1 = Math.atan2(v0y + g.dy, v0x + g.dx);
+          const deg = snapDeg(gs.current.rot + ((a1 - a0) * 180) / Math.PI);
+          setLiveBoth({ scale: gs.current.size / BASE, rot: deg });
+        },
+        onPanResponderRelease: () => {
+          const rot = liveRef.current?.rot ?? cur.current.placed.rot ?? 0;
+          setLiveBoth(null);
+          cur.current.onTransformed({ rot });
+        },
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const scale = live ? live.scale : placed.scale;
+  const rot = live ? live.rot : placed.rot ?? 0;
+  const size = BASE * scale;
+  // Pay yalnızca seçiliyken; kutu büyüse de parça yerinde kalsın diye
+  // sol/üst aynı miktarda negatife çekiliyor.
+  const halo = selected ? HALO : 0;
+
   return (
     <Animated.View
       {...responder.panHandlers}
-      style={[
-        styles.placed,
-        {
-          transform: [{ translateX: pan.x }, { translateY: pan.y }],
-          width: size,
-          height: size,
-          borderColor: selected ? luxe.primary : 'transparent',
-        },
-      ]}
+      style={{
+        position: 'absolute',
+        left: -halo,
+        top: -halo,
+        width: size + halo * 2,
+        height: size + halo * 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate: `${rot}deg` }],
+      }}
     >
-      {item.imageUri ? (
-        <Image
-          source={{ uri: item.imageUri }}
-          style={{ width: '100%', height: '100%', borderRadius: luxeRadius.sm }}
-          contentFit="contain"
-        />
-      ) : (
-        <GarmentArt
-          category={item.category}
-          subcategory={item.subcategory}
-          colorId={item.colorId}
-          size={size * 0.94}
-        />
-      )}
-      {/* Seçili parçanın köşe tutamakları — düzenlendiği belli olsun */}
+      <View
+        style={[
+          styles.placed,
+          { width: size, height: size, borderColor: selected ? luxe.primary : 'transparent' },
+        ]}
+      >
+        {item.imageUri ? (
+          <Image
+            source={{ uri: item.imageUri }}
+            style={{ width: '100%', height: '100%', borderRadius: luxeRadius.sm }}
+            contentFit="contain"
+          />
+        ) : (
+          <GarmentArt
+            category={item.category}
+            subcategory={item.subcategory}
+            colorId={item.colorId}
+            size={size * 0.94}
+          />
+        )}
+      </View>
+
       {selected ? (
         <>
-          <View style={[styles.handle, { left: -4, top: -4 }]} pointerEvents="none" />
-          <View style={[styles.handle, { right: -4, top: -4 }]} pointerEvents="none" />
-          <View style={[styles.handle, { left: -4, bottom: -4 }]} pointerEvents="none" />
-          <View style={[styles.handle, { right: -4, bottom: -4 }]} pointerEvents="none" />
+          {/* Köşeler: tut ve çek → boyutlanır. Görünen kare küçük, dokunma
+              alanı geniş; yoksa parmakla tutturmak imkânsız oluyor. */}
+          {CORNERS.map((c, i) => (
+            <View key={c.key} {...cornerResponders[i].panHandlers} style={[styles.handleHit, c.pos]}>
+              <View style={styles.handleDot} />
+            </View>
+          ))}
+          {/* Alt kenara asılı tutamak: merkez etrafında döndürür */}
+          <View {...rotateResponder.panHandlers} style={styles.rotHit}>
+            <View style={styles.rotKnob}>
+              <Ionicons name="refresh" size={12} color={luxe.primary} />
+            </View>
+          </View>
         </>
       ) : null}
     </Animated.View>
@@ -639,23 +898,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
+  /** Parçanın kendi kutusu — seçim çerçevesi buna oturuyor (pay dışarıda). */
   placed: {
-    position: 'absolute',
     borderWidth: 1.5,
     borderRadius: luxeRadius.sm,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
   },
-  /** Seçili parçanın köşe tutamağı. */
-  handle: {
-    position: 'absolute',
-    width: 7,
-    height: 7,
-    borderRadius: 2,
+  /** Köşe tutamağının DOKUNMA alanı — görünenden çok daha geniş. */
+  handleHit: { position: 'absolute', width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+  handleDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 3,
     backgroundColor: luxe.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: luxe.primary,
+  },
+  /** Döndürme tutamağı: parçanın alt kenarına asılı, payın İÇİNDE. */
+  rotHit: {
+    position: 'absolute',
+    bottom: 0,
+    alignSelf: 'center',
+    width: 44,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  rotKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: luxe.surface,
+    borderWidth: 1.5,
+    borderColor: luxe.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // ————— Araç çubuğu —————

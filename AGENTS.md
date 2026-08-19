@@ -95,6 +95,21 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
   yetmez, aynı değişikliği `android/app/src/main/AndroidManifest.xml`'e de elle yaz.
   Doğrulama: `adb shell dumpsys package com.sumeyrakarsavran.betta | grep flags`
   → `LARGE_HEAP`. Native değişiklik → `npx expo run:android` şart, reload yetmez.
+- **Android sınırların DIŞINDAKİ çocuğa dokunuş göndermiyor.** Canvas'ta seçili
+  parçanın köşe tutamakları `left: -14` ile dışarı konmuştu: ekranda görünüyor
+  ama basılamıyordu. Çözüm, kutuyu tutamak payı kadar BÜYÜTÜP parçayı içine
+  ortalamak (`HALO`). Pay yalnızca seçiliyken açılır, yoksa komşu parçaların
+  dokunuşlarını çalar.
+- **PanResponder'ı `useMemo` bağımlılığına prop KOYMA.** Üst bileşen her
+  çizildiğinde yeni PanResponder yaratılıp görünüme takılıyor; hareketin
+  ortasında olursa yeni algılayıcının `gestureState`'i sıfırdan başlıyor ve
+  `dx/dy` zıplıyor (parça uçuyor, köşeden çekmek tutmuyor). Algılayıcılar bir
+  kez kurulmalı (`[]`), güncel prop'lar ref'ten okunmalı.
+- **Döndürülmüş bir görünümde sürükleme matematiği ekran ekseninde gelir.**
+  Parmağın `dx/dy`'si ekran eksenlerinde, tutamaklar ise görünümün KENDİ
+  ekseninde. Dönük parçada köşe boyutlandırma bu yüzden fırlıyordu; hareket
+  önce `-rot` ile yerel eksene çevrilmeli, çapa düzeltmesi de `+rot` ile geri
+  ekrana çevrilmeli (dönüş MERKEZ etrafında olduğu için hesap merkezden yürür).
 - **Android'de `elevation` DOKUNUŞ SIRASINI da değiştirir.** Yüksek elevation'lı
   bir kardeş görünüm, hiyerarşide KENDİNDEN SONRA gelen (yani üstte çizilen)
   kardeşin dokunuşlarını çalıyor. Canvas'ta kanıtlandı: tuval tabakası

@@ -153,8 +153,12 @@ export interface Outfit {
   id: string;
   name: string;
   itemIds: string[];
-  /** Canvas yerleşimi: itemId → {x, y, scale, z}. Yoksa dizilim otomatik. */
-  layout?: Record<string, { x: number; y: number; scale: number; z: number }>;
+  /**
+   * Canvas yerleşimi: itemId → {x, y, scale, z} ve isteğe bağlı dönüş açısı.
+   * `rot` SONRADAN eklendi ve opsiyoneldir — eski kayıtlar olduğu gibi çalışır,
+   * göç (migrate) gerekmez.
+   */
+  layout?: Record<string, { x: number; y: number; scale: number; z: number; rot?: number }>;
   /** Canvas içerik alanının kaydedildiği andaki boyutu (WYSIWYG çerçeve). */
   canvasFrame?: { w: number; h: number };
   /** true: içeriğe kırp (parçalar kareye sığar). false/undefined: tuval çerçevesini koru. */
@@ -273,7 +277,7 @@ export interface GarmentSpec {
   subcategory?: string;
   colorId: string;
   imageUri?: string;
-  layout?: { x: number; y: number; scale: number; z: number };
+  layout?: { x: number; y: number; scale: number; z: number; rot?: number };
 }
 
 export interface CommunityComment {

@@ -128,7 +128,15 @@ export function OutfitCollage({
           return (
             <View
               key={p.item.id}
-              style={{ position: 'absolute', left: offX + p.x * f, top: offY + p.y * f, width: s, height: s }}
+              style={{
+                position: 'absolute',
+                left: offX + p.x * f,
+                top: offY + p.y * f,
+                width: s,
+                height: s,
+                // Canvas'ta döndürülen parça önizlemede de dönük dursun
+                transform: p.rot ? [{ rotate: `${p.rot}deg` }] : undefined,
+              }}
             >
               {p.item.imageUri ? (
                 <Image source={{ uri: p.item.imageUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
@@ -173,6 +181,7 @@ export function OutfitCollage({
                 top: offY + (p.y - minY) * factor,
                 width: s,
                 height: s,
+                transform: p.rot ? [{ rotate: `${p.rot}deg` }] : undefined,
               }}
             >
               {p.item.imageUri ? (
