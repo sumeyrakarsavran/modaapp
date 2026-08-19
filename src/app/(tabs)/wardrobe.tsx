@@ -23,7 +23,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Backdrop } from '@/components/Backdrop';
 import { GarmentArt } from '@/components/GarmentArt';
 import { OutfitCollage } from '@/components/OutfitCollage';
-import { ProfileButton } from '@/components/ProfileButton';
 import { ShareModal } from '@/components/ShareModal';
 import { resizeForProcessing } from '@/services/imageResize';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
@@ -468,9 +467,6 @@ export default function Wardrobe() {
         ) : (
           <LuxeButton icon="add" title="Lookbook" onPress={() => setLbModal(true)} />
         )}
-        <View style={{ marginLeft: 10 }}>
-          <ProfileButton size={36} />
-        </View>
       </View>
 
       {/* Bölüm sekmeleri — sabit yükseklik: liste büyüyünce ezilmesin */}

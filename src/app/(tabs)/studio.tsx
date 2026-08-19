@@ -20,7 +20,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Backdrop } from '@/components/Backdrop';
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
-import { ProfileButton } from '@/components/ProfileButton';
 import { ShareModal } from '@/components/ShareModal';
 import { persistRemoteImage } from '@/services/photoStore';
 import { claimJob, releaseJob, TryOnPendingError, waitForJob } from '@/services/tryon';
@@ -366,9 +365,6 @@ export default function Studio() {
           variant="outline"
           onPress={() => router.push('/canvas')}
         />
-        <View style={{ marginLeft: 10 }}>
-          <ProfileButton size={36} />
-        </View>
       </View>
 
       {/* Bölüm sekmeleri — Gardırop ve Topluluk'takiyle aynı altı çizili dil */}
