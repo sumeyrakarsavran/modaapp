@@ -1,8 +1,9 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 
-import { colors, spacing, type } from '@/theme';
+import { font, iridescent, luxe, luxeType } from '@/theme/luxe';
 
 export interface Slice {
   label: string;
@@ -10,10 +11,14 @@ export interface Slice {
   color: string;
 }
 
-/** Halka (donut) grafik — react-native-svg ile, ek kütüphanesiz. */
+/**
+ * Halka (donut) grafik — react-native-svg ile, ek kütüphanesiz.
+ * Şerit bilerek İNCE: kalın halka pasta grafiği gibi ağırlaşıyordu, editoryal
+ * duruş ince çizgi istiyor.
+ */
 export function DonutChart({
   slices,
-  size = 160,
+  size = 168,
   centerLabel,
   centerValue,
 }: {
@@ -23,33 +28,37 @@ export function DonutChart({
   centerValue?: string;
 }) {
   const total = slices.reduce((s, x) => s + x.value, 0);
-  const r = size / 2 - 12;
+  const strokeW = 14;
+  const r = size / 2 - strokeW / 2 - 2;
   const cx = size / 2;
   const cy = size / 2;
-  const strokeW = 22;
 
   let angle = -90;
   const arcs = slices
     .filter((s) => s.value > 0)
     .map((s, i) => {
       const sweep = (s.value / total) * 360;
-      const path = arcPath(cx, cy, r, angle, angle + Math.min(sweep, 359.9));
+      // Diliminler arasında ince bir nefes payı — sınırlar kendiliğinden okunuyor
+      const gap = sweep > 8 ? 1.6 : 0;
+      const path = arcPath(cx, cy, r, angle + gap, angle + Math.min(sweep, 359.9));
       angle += sweep;
-      return <Path key={i} d={path} stroke={s.color} strokeWidth={strokeW} fill="none" strokeLinecap="butt" />;
+      return (
+        <Path key={i} d={path} stroke={s.color} strokeWidth={strokeW} fill="none" strokeLinecap="butt" />
+      );
     });
 
   return (
     <View style={{ alignItems: 'center' }}>
       <Svg width={size} height={size}>
         {total === 0 ? (
-          <Circle cx={cx} cy={cy} r={r} stroke={colors.border} strokeWidth={strokeW} fill="none" />
+          <Circle cx={cx} cy={cy} r={r} stroke={luxe.surfaceMid} strokeWidth={strokeW} fill="none" />
         ) : (
           <G>{arcs}</G>
         )}
       </Svg>
       <View style={[styles.fill, styles.center]}>
-        {centerValue ? <Text style={type.title}>{centerValue}</Text> : null}
-        {centerLabel ? <Text style={type.tiny}>{centerLabel}</Text> : null}
+        {centerValue ? <Text style={styles.donutValue}>{centerValue}</Text> : null}
+        {centerLabel ? <Text style={styles.microLabel}>{centerLabel}</Text> : null}
       </View>
     </View>
   );
@@ -75,42 +84,32 @@ export function Legend({ slices }: { slices: Slice[] }) {
         .map((s) => (
           <View key={s.label} style={styles.legendItem}>
             <View style={[styles.dot, { backgroundColor: s.color }]} />
-            <Text style={type.caption}>
-              {s.label} · {s.value}
-            </Text>
+            <Text style={luxeType.caption}>{s.label}</Text>
+            <Text style={styles.legendValue}>{s.value}</Text>
           </View>
         ))}
     </View>
   );
 }
 
-/** Yatay bar grafik. */
-export function HBars({
-  data,
-  maxWidth = 220,
-}: {
-  data: { label: string; value: number; color?: string }[];
-  maxWidth?: number;
-}) {
+/** Yatay bar grafik. Sayılar serif — rapor havası rakamlardan geliyor. */
+export function HBars({ data }: { data: { label: string; value: number; color?: string }[] }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
-    <View style={{ gap: spacing.sm }}>
+    <View style={{ gap: 12 }}>
       {data.map((d) => (
         <View key={d.label}>
           <View style={styles.barRow}>
-            <Text style={[type.caption, { flex: 1 }]} numberOfLines={1}>
+            <Text style={styles.barLabel} numberOfLines={1}>
               {d.label}
             </Text>
-            <Text style={[type.caption, { fontWeight: '700', color: colors.ink }]}>{d.value}</Text>
+            <Text style={styles.barValue}>{d.value}</Text>
           </View>
           <View style={styles.barTrack}>
             <View
               style={[
                 styles.barFill,
-                {
-                  width: `${(d.value / max) * 100}%`,
-                  backgroundColor: d.color ?? colors.aqua,
-                },
+                { width: `${(d.value / max) * 100}%`, backgroundColor: d.color ?? luxe.primary },
               ]}
             />
           </View>
@@ -120,48 +119,67 @@ export function HBars({
   );
 }
 
-/** Basit ilerleme çubuğu (gardırop kullanım oranı). */
+/** İlerleme çubuğu; `gradient` verilirse iridesan geçişle dolar. */
 export function ProgressBar({
   ratio,
-  color = colors.aqua,
-  height = 12,
+  color = luxe.primary,
+  gradient,
+  height = 6,
+  track = luxe.surfaceMid,
 }: {
   ratio: number;
   color?: string;
+  /** En az iki durak — `expo-linear-gradient` tipi bunu şart koşuyor. */
+  gradient?: readonly [string, string, ...string[]];
   height?: number;
+  track?: string;
 }) {
+  const pct = `${Math.min(100, Math.max(0, ratio * 100))}%` as const;
   return (
-    <View style={[styles.barTrack, { height, borderRadius: height / 2 }]}>
-      <View
-        style={{
-          width: `${Math.min(100, Math.max(0, ratio * 100))}%`,
-          backgroundColor: color,
-          height: '100%',
-          borderRadius: height / 2,
-        }}
-      />
+    <View style={[styles.barTrack, { height, borderRadius: height / 2, backgroundColor: track }]}>
+      {gradient ? (
+        <LinearGradient
+          colors={gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ width: pct, height: '100%', borderRadius: height / 2 }}
+        />
+      ) : (
+        <View
+          style={{ width: pct, backgroundColor: color, height: '100%', borderRadius: height / 2 }}
+        />
+      )}
     </View>
   );
 }
 
+/** Grafiklerde kullanılan iridesan geçiş — çağıranlar tema dosyasını bilmesin. */
+export const chartGradient = iridescent.full;
+
 const styles = StyleSheet.create({
   fill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   center: { alignItems: 'center', justifyContent: 'center' },
+  donutValue: { fontFamily: font.display, fontSize: 30, lineHeight: 36, color: luxe.primary },
+  microLabel: {
+    fontFamily: font.label,
+    fontSize: 8.5,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: luxe.outline,
+  },
   legend: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
-    marginTop: spacing.md,
+    gap: 14,
+    marginTop: 16,
     justifyContent: 'center',
   },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 3, gap: 8 },
-  barTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.border,
-    overflow: 'hidden',
-  },
-  barFill: { height: '100%', borderRadius: 4 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendValue: { fontFamily: font.display, fontSize: 13, color: luxe.ink },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  barRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 5, gap: 8 },
+  barLabel: { flex: 1, fontFamily: font.body, fontSize: 13, color: luxe.inkSoft },
+  barValue: { fontFamily: font.display, fontSize: 15, color: luxe.ink },
+  barTrack: { height: 5, borderRadius: 3, backgroundColor: luxe.surfaceMid, overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 3 },
 });
