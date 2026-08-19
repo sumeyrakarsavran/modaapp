@@ -105,6 +105,14 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
   ortasında olursa yeni algılayıcının `gestureState`'i sıfırdan başlıyor ve
   `dx/dy` zıplıyor (parça uçuyor, köşeden çekmek tutmuyor). Algılayıcılar bir
   kez kurulmalı (`[]`), güncel prop'lar ref'ten okunmalı.
+- **Sürükleme sırasında başlangıç değerini BİR KEZ dondur (kilitle).** Hareket
+  görünümün boyunu değiştiriyorsa parmağın altındaki hedef kayıyor ve Android
+  dokunuşu yeniden dağıtabiliyor: `onPanResponderGrant` ikinci kez çalışıp
+  başlangıcı o anki (büyümüş) boya göre donduruyor, `dx` ise hep ilk dokunuştan
+  sayıldığı için etki BİRİKİYOR. Canvas'ta ölçüldü: 30 piksellik çekiş 1.24 kat,
+  240 piksellik çekiş tavan. Bir `busy` ref'i ile grant tek sefere indirilince
+  sonuç yalnızca (başlangıç hâli + toplam parmak yolu) fonksiyonu oluyor —
+  ölçüm birebir tuttu. `onPanResponderTerminate`'te de kilidi açmayı unutma.
 - **Döndürülmüş bir görünümde sürükleme matematiği ekran ekseninde gelir.**
   Parmağın `dx/dy`'si ekran eksenlerinde, tutamaklar ise görünümün KENDİ
   ekseninde. Dönük parçada köşe boyutlandırma bu yüzden fırlıyordu; hareket

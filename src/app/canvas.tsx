@@ -468,6 +468,17 @@ function CatPill({
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 2.2;
 /**
+ * Köşeden boyutlandırma hassasiyeti. Boy ORANSAL değişiyor: köşegen boyunca
+ * `DRAG_K * ln2` kadar çekiş boyu iki katına çıkarır, aynı kadar geri çekiş
+ * yarıya indirir — ileri ve geri simetrik.
+ *
+ * Değer CİHAZDA ÖLÇÜLEREK seçildi. Asıl sorun hassasiyet değil BİRİKME'ydi
+ * (bkz. `busy` kilidi); o giderildikten sonra eğri ölçülüp buraya oturtuldu:
+ * köşegende ~118dp (bu ekranda ~355 piksel) çekiş boyu iki katına çıkarıyor,
+ * aynı kadar geri çekiş yarıya indiriyor.
+ */
+const DRAG_K = 170;
+/**
  * Tutamaklar için parçanın çevresindeki GÖRÜNMEZ pay.
  *
  * ⚠️ Android, bir görünümün SINIRLARI DIŞINA taşan çocuklarına dokunuş
@@ -543,10 +554,26 @@ function DraggableGarment({
   /** İki parmak hareketi başladıysa buraya yazılıyor. */
   const pinch = useRef<null | { dist: number; ang: number; scale: number; rot: number; x: number; y: number }>(null);
 
-  /** Hareket başlarken parçanın o anki hâlini dondur. */
+  /**
+   * Bir hareket sürüyor mu?
+   *
+   * ⚠️ Bu kilit ŞART. Hareket sırasında görünümün boyu değişiyor, yani
+   * parmağın altındaki hedef kayıyor; Android bu durumda dokunuşu yeniden
+   * dağıtabiliyor ve `grab()` bir daha çalışıyordu. Başlangıç boyu o anki
+   * (büyümüş) boya göre yeniden donunca `dx` hep baştan sayıldığı için etki
+   * BİRİKİYORDU: küçük bir çekişte bile parça uçlara yapışıyordu (cihazda
+   * ölçüldü — 30 piksellik çekiş 1.24 kat, 240 piksellik çekiş tavan).
+   * Kilitle birlikte sonuç yalnızca (başlangıç hâli + toplam parmak yolu)
+   * fonksiyonu oluyor.
+   */
+  const busy = useRef(false);
+
+  /** Hareket başlarken parçanın o anki hâlini BİR KEZ dondur. */
   const grab = () => {
     const p = cur.current.placed;
     cur.current.onSelect();
+    if (busy.current) return;
+    busy.current = true;
     const x = (pan.x as any)._value;
     const y = (pan.y as any)._value;
     start.current = { x, y };
@@ -556,6 +583,10 @@ function DraggableGarment({
       y,
       rot: liveRef.current?.rot ?? p.rot ?? 0,
     };
+  };
+  /** Hareket bitti — bir sonraki dokunuş yeniden dondurabilir. */
+  const done = () => {
+    busy.current = false;
   };
 
   // Parent state değişince (ör. yükleme) pozisyonu senkronla
@@ -582,6 +613,7 @@ function DraggableGarment({
           pinch.current = null;
           grab();
         },
+        onPanResponderTerminate: done,
         onPanResponderMove: (e, g) => {
           const t = e.nativeEvent.touches;
           if (t.length >= 2) {
@@ -623,6 +655,7 @@ function DraggableGarment({
             lastProp.current = { x: nx, y: ny };
             pinch.current = null;
             setLiveBoth(null);
+            done();
             cur.current.onTransformed({
               x: nx,
               y: ny,
@@ -635,6 +668,7 @@ function DraggableGarment({
           const ny = Math.max(-30, start.current.y + g.dy);
           lastProp.current = { x: nx, y: ny };
           pan.setValue({ x: nx, y: ny });
+          done();
           cur.current.onMoved(nx, ny);
         },
       }),
@@ -650,6 +684,7 @@ function DraggableGarment({
           onStartShouldSetPanResponder: () => true,
           onPanResponderTerminationRequest: () => false,
           onPanResponderGrant: grab,
+          onPanResponderTerminate: done,
           onPanResponderMove: (_e, g) => {
             /*
               ⚠️ Parmağın hareketi EKRAN eksenlerinde geliyor, köşeler ise
@@ -667,8 +702,17 @@ function DraggableGarment({
             // Sol/üst tutamaklarda yön ters: sola çekmek BÜYÜTÜR.
             const sx = ax ? -1 : 1;
             const sy = ay ? -1 : 1;
+            /*
+              Boyut ORANSAL değişiyor (üstel), toplamsal değil.
+              Toplamsalken küçülme ile büyüme simetrik değildi: taban boy 110
+              olduğu için en küçüğe inmek 55'lik bir çekiş yetiyor, en büyüğe
+              çıkmak 132 istiyordu — parça bir anda dibe vuruyor ya da fırlıyordu
+              ("çok küçülüyor ya da çok büyüyor"). Üstel eşlemede ileri ve geri
+              aynı mesafeyi istiyor: DRAG_K kadar çekiş boyu iki katına çıkarır,
+              aynı kadar geri çekiş yarıya indirir.
+            */
             const next = clamp(
-              (gs.current.size + (sx * lx + sy * ly) / 2) / BASE,
+              (gs.current.size / BASE) * Math.exp((sx * lx + sy * ly) / 2 / DRAG_K),
               MIN_SCALE,
               MAX_SCALE,
             );
@@ -694,6 +738,7 @@ function DraggableGarment({
             const scale = liveRef.current?.scale ?? cur.current.placed.scale;
             lastProp.current = { x: nx, y: ny };
             setLiveBoth(null);
+            done();
             cur.current.onTransformed({ x: nx, y: ny, scale });
           },
         }),
@@ -713,6 +758,7 @@ function DraggableGarment({
         onStartShouldSetPanResponder: () => true,
         onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: grab,
+        onPanResponderTerminate: done,
         onPanResponderMove: (_e, g) => {
           /*
             Tutamak parçanın YEREL olarak altında duruyor; parça dönükse
@@ -731,6 +777,7 @@ function DraggableGarment({
         onPanResponderRelease: () => {
           const rot = liveRef.current?.rot ?? cur.current.placed.rot ?? 0;
           setLiveBoth(null);
+          done();
           cur.current.onTransformed({ rot });
         },
       }),
