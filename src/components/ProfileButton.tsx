@@ -4,14 +4,17 @@ import { Pressable } from 'react-native';
 
 import { BettaAvatar } from '@/components/BettaAvatar';
 import { useStore } from '@/store/useStore';
-import { colors, getArchetype } from '@/theme';
+import { luxe } from '@/theme/luxe';
 
 /** Sağ üst köşedeki profil avatarı — tıklayınca profil ekranı açılır. */
 export function ProfileButton({ size = 40 }: { size?: number }) {
-  const archetypeId = useStore((s) => s.profile.bettaArchetypeId);
   const avatarUri = useStore((s) => s.profile.avatarUri);
   const pro = useStore((s) => s.pro);
-  const color = getArchetype(archetypeId)?.color ?? colors.aqua;
+  /*
+    Halka PALETTEN. Önce arketipin kendi doygun rengiydi (mercan, turkuaz…) ve
+    fildişi sayfalarda bağırıyordu; arketip kimliği zaten profil ekranında
+    yazıyla duruyor.
+  */
 
   return (
     <Pressable
@@ -19,7 +22,7 @@ export function ProfileButton({ size = 40 }: { size?: number }) {
       hitSlop={6}
       style={({ pressed }) => (pressed ? { opacity: 0.75 } : undefined)}
     >
-      <BettaAvatar size={size} color={color} imageUri={avatarUri} pro={pro} />
+      <BettaAvatar size={size} color={luxe.primarySoft} imageUri={avatarUri} pro={pro} />
     </Pressable>
   );
 }

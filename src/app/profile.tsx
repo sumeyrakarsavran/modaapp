@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,30 +17,50 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Backdrop } from '@/components/Backdrop';
 import { BettaAvatar } from '@/components/BettaAvatar';
-import { Wave } from '@/components/BettaFish';
 import { FluidSpecCollage } from '@/components/Community';
-import { Button, Card, Chip, SectionTitle } from '@/components/UI';
 import { resizeForProcessing } from '@/services/imageResize';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
 import { persistGarmentPhoto } from '@/services/photoStore';
 import { useStore } from '@/store/useStore';
-import { colors, getArchetype, radius, spacing, type } from '@/theme';
+import { getArchetype } from '@/theme';
+import { font, glass, iridescent, luxe, luxeRadius, luxeType } from '@/theme/luxe';
+
+/** Izgara aralığı ve kenar boşluğu — karolar birbirine yapışmasın. */
+const GRID_GAP = 5;
+const GRID_PAD = 12;
 
 export default function Profile() {
   const { profile, items, outfits, selfies, lookbooks, posts, followedIds, pro, setProfile } =
     useStore();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const myPosts = posts.filter((p) => p.userId === 'me');
   const arch = getArchetype(profile.bettaArchetypeId);
-  const ringColor = arch?.color ?? colors.aqua;
+  // Halka paletten — arketip kimliği aşağıda yazıyla duruyor (bkz. ProfileButton)
+  const ringColor = luxe.primarySoft;
 
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState(profile.name);
   const [editBio, setEditBio] = useState(profile.bio ?? '');
+  /*
+    Klavye AÇIKKEN `insets.bottom` EKLENMEZ: KeyboardAvoidingView'ın eklediği
+    klavye yüksekliği alt çubuğu zaten kapsıyor, üstüne inset binince arada
+    boşluk kalıyor.
+  */
+  const [keyboardUp, setKeyboardUp] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardUp(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardUp(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   /** Avatarı kaydet — kırpma açık (kare kadraj), küçültülüp kalıcı saklanır. */
   const saveAvatarPhoto = async (photo: PickedPhoto) => {
@@ -70,8 +92,8 @@ export default function Profile() {
       return;
     }
     Alert.alert('Profil fotoğrafı', undefined, [
-      { text: '📷 Fotoğraf çek', onPress: () => pickAvatar(true) },
-      { text: '🖼️ Galeriden seç', onPress: () => pickAvatar(false) },
+      { text: 'Fotoğraf çek', onPress: () => pickAvatar(true) },
+      { text: 'Galeriden seç', onPress: () => pickAvatar(false) },
       ...(profile.avatarUri
         ? [{ text: 'Fotoğrafı kaldır', style: 'destructive' as const, onPress: remove }]
         : []),
@@ -84,223 +106,276 @@ export default function Profile() {
     setEditOpen(false);
   };
 
+  /**
+   * Gardırobun ilgili bölümünü açar. `t` her seferinde değişiyor: sekme ekranı
+   * monte kaldığı için aynı bölüme arka arkaya gitmek de çalışsın.
+   */
+  const goWardrobe = (section: 'parcalar' | 'selfiler' | 'lookbooklar') =>
+    router.push({ pathname: '/(tabs)/wardrobe', params: { section, t: String(Date.now()) } });
+
   const followers = profile.followers ?? 0;
-  const postW = (width - spacing.lg * 2 - spacing.sm) / 2;
+  /** Üç sütun; kenar boşluğu ve aralıklar düşülerek. */
+  const cell = Math.floor((width - GRID_PAD * 2 - GRID_GAP * 2) / 3);
 
   const Stat = ({ n, label, onPress }: { n: number; label: string; onPress?: () => void }) => (
     <Pressable style={styles.stat} onPress={onPress} disabled={!onPress}>
-      <Text style={type.title}>{n.toLocaleString('tr-TR')}</Text>
-      <Text style={type.tiny}>{label}</Text>
+      <Text style={styles.statValue}>{n.toLocaleString('tr-TR')}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </Pressable>
+  );
+
+  /**
+   * Gardırop sayaçları — Instagram'daki "öne çıkanlar" halkalarının karşılığı.
+   * Eskiden ikinci bir sayaç kutusuydu; halka dizisi hem daha az yer kaplıyor
+   * hem de dokunulabilir olduğu belli oluyor.
+   */
+  const Highlight = ({
+    icon,
+    n,
+    label,
+    onPress,
+  }: {
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    n: number;
+    label: string;
+    onPress: () => void;
+  }) => (
+    <Pressable style={styles.hl} onPress={onPress}>
+      <LinearGradient
+        colors={iridescent.soft}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hlRing}
+      >
+        <View style={styles.hlInner}>
+          <Ionicons name={icon} size={17} color={luxe.primary} />
+          <Text style={styles.hlCount}>{n}</Text>
+        </View>
+      </LinearGradient>
+      <Text style={styles.hlLabel} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-      {/* Başlık: geri + ayarlar */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+      <Backdrop />
+
+      {/* Başlık: kullanıcı adı solda — Instagram'daki gibi */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-          <Ionicons name="arrow-back" size={20} color={colors.inkSoft} />
+        <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Ionicons name="arrow-back" size={22} color={luxe.primary} />
         </Pressable>
-        <Text style={type.subtitle}>Profil</Text>
-        <Pressable onPress={() => router.push('/settings')} style={styles.iconBtn}>
-          <Ionicons name="settings-outline" size={19} color={colors.inkSoft} />
+        <Text style={styles.headerName} numberOfLines={1}>
+          @{profile.username || 'betta'}
+        </Text>
+        <Pressable onPress={() => router.push('/settings')} hitSlop={8}>
+          <Ionicons name="settings-outline" size={20} color={luxe.primary} />
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 50 }}>
-        {/* Profil kartı */}
-        <View style={styles.profileHead}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Avatar + sayaçlar aynı satırda: dikey yığmak sayfayı boş gösteriyordu */}
+        <View style={styles.topRow}>
           <Pressable onPress={changeAvatar}>
-            <BettaAvatar size={112} color={ringColor} imageUri={profile.avatarUri} pro={pro} />
-            <View style={[styles.editBadge, { borderColor: ringColor }]}>
-              <Ionicons name="camera" size={15} color={ringColor} />
+            {/*
+              PRO madalyonu BURADA ÇİZİLMİYOR: kamera rozetiyle aynı köşede
+              üst üste biniyordu. Pro bilgisi zaten adın yanındaki etikette.
+            */}
+            <BettaAvatar size={84} color={ringColor} imageUri={profile.avatarUri} />
+            <View style={styles.editBadge}>
+              <Ionicons name="camera" size={12} color={luxe.onPrimary} />
             </View>
           </Pressable>
-          <Text style={[type.display, { marginTop: spacing.sm }]}>
-            {profile.name || 'Betta'}
-            {pro ? ' 🏆' : ''}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <Text style={type.caption}>@{profile.username || 'betta'}</Text>
-            <Chip
-              label={profile.isPublic ? '🌐 Herkese açık' : '🔒 Gizli'}
-              color={profile.isPublic ? colors.seagreen : colors.inkFaint}
-              active={!!profile.isPublic}
-              onPress={() => router.push('/settings')}
-              style={{ paddingVertical: 3, paddingHorizontal: 9 }}
+          <View style={styles.stats}>
+            <Stat n={myPosts.length} label="Gönderi" />
+            <Stat n={followers} label="Takipçi" />
+            <Stat
+              n={followedIds.length}
+              label="Takip"
+              onPress={() => router.push('/(tabs)/community')}
             />
           </View>
+        </View>
 
-          {profile.bio ? (
-            <Text style={[type.body, { textAlign: 'center', marginTop: spacing.sm, maxWidth: 320 }]}>
-              {profile.bio}
-            </Text>
-          ) : null}
+        {/* Ad · kimlik · bio — Instagram'ın isim/kategori/bio bloğu */}
+        <View style={styles.bioBlock}>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{profile.name || 'Betta'}</Text>
+            {pro ? <Text style={styles.proTag}>PRO</Text> : null}
+            <Pressable onPress={() => router.push('/settings')} hitSlop={6}>
+              <Text style={styles.privacy}>
+                {profile.isPublic ? 'Herkese açık' : 'Gizli'}
+              </Text>
+            </Pressable>
+          </View>
 
-          <Button
-            small
-            variant="ghost"
-            title={profile.bio ? '✏️ Profili düzenle' : '＋ Bio ekle'}
+          {/* Betta kimliği: kategori satırı. Dokununca teste gidiyor. */}
+          <Pressable onPress={() => router.push('/quiz')}>
+            {arch ? (
+              <>
+                <Text style={styles.archLine}>
+                  {arch.fish} · {arch.styleName} stil
+                </Text>
+                <Text style={styles.archNote} numberOfLines={2}>
+                  {arch.tagline}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.archLine}>Hangi betta&apos;sın? · testi çöz</Text>
+            )}
+          </Pressable>
+
+          {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
+        </View>
+
+        {/* Eylemler — Instagram'daki "Profili düzenle / Profili paylaş" satırı */}
+        <View style={styles.actions}>
+          <Pressable
+            style={styles.action}
             onPress={() => {
               setEditName(profile.name);
               setEditBio(profile.bio ?? '');
               setEditOpen(true);
             }}
-            style={{ marginTop: spacing.sm }}
-          />
-          <Wave width={200} />
+          >
+            <Text style={styles.actionText}>{profile.bio ? 'Profili düzenle' : 'Bio ekle'}</Text>
+          </Pressable>
+          <Pressable style={styles.action} onPress={() => router.push('/quiz')}>
+            <Text style={styles.actionText}>Betta testi</Text>
+          </Pressable>
+          <Pressable style={styles.actionIcon} onPress={() => router.push('/(tabs)/community')}>
+            <Ionicons name="people-outline" size={16} color={luxe.primary} />
+          </Pressable>
         </View>
 
-        {/* Sosyal sayaçlar */}
-        <View style={styles.counters}>
-          <Stat n={myPosts.length} label="Gönderi" />
-          <View style={styles.divider} />
-          <Stat n={followers} label="Takipçi" />
-          <View style={styles.divider} />
-          <Stat
-            n={followedIds.length}
-            label="Takip"
-            onPress={() => router.push('/(tabs)/community')}
-          />
-        </View>
-
-        {/* Gardırop sayaçları */}
-        <View style={[styles.counters, { marginTop: spacing.sm }]}>
-          <Stat
+        {/* Öne çıkanlar: gardırop sayaçları */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.hlRow}
+        >
+          <Highlight
+            icon="shirt-outline"
             n={items.filter((i) => !i.archived).length}
             label="Parça"
-            onPress={() => router.push('/(tabs)/wardrobe')}
+            onPress={() => goWardrobe('parcalar')}
           />
-          <Stat n={outfits.length} label="Kombin" onPress={() => router.push('/(tabs)/studio')} />
-          <Stat n={selfies.length} label="Selfie" onPress={() => router.push('/(tabs)/wardrobe')} />
-          <Stat n={lookbooks.length} label="Lookbook" onPress={() => router.push('/(tabs)/wardrobe')} />
-        </View>
+          <Highlight
+            icon="albums-outline"
+            n={outfits.length}
+            label="Kombin"
+            onPress={() =>
+              router.push({ pathname: '/(tabs)/studio', params: { mode: 'outfits', t: String(Date.now()) } })
+            }
+          />
+          <Highlight
+            icon="happy-outline"
+            n={selfies.length}
+            label="Selfie"
+            onPress={() => goWardrobe('selfiler')}
+          />
+          <Highlight
+            icon="book-outline"
+            n={lookbooks.length}
+            label="Lookbook"
+            onPress={() => goWardrobe('lookbooklar')}
+          />
+        </ScrollView>
 
-        {/* Betta kimliği */}
-        {arch ? (
-          <Card style={{ marginTop: spacing.lg, backgroundColor: arch.colorSoft }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-              <Text style={{ fontSize: 40 }}>{arch.emoji}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={[type.subtitle, { color: arch.color }]}>
-                  {arch.fish} · {arch.styleName} stil
-                </Text>
-                <Text style={type.tiny}>{arch.tagline}</Text>
-              </View>
-            </View>
-            <Text style={[type.caption, { marginTop: spacing.sm }]}>{arch.description}</Text>
-            <Button
-              small
-              variant="ghost"
-              title="Testi yeniden çöz"
-              onPress={() => router.push('/quiz')}
-              style={{ marginTop: spacing.sm, alignSelf: 'flex-start' }}
-            />
-          </Card>
-        ) : (
-          <Card style={{ marginTop: spacing.lg, backgroundColor: colors.deep }} onPress={() => router.push('/quiz')}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-              <Text style={{ fontSize: 36 }}>🐠</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={[type.subtitle, { color: '#fff' }]}>Hangi betta'sın?</Text>
-                <Text style={[type.tiny, { color: 'rgba(255,255,255,0.75)' }]}>
-                  2 dakikalık stil testiyle betta kimliğini keşfet.
-                </Text>
-              </View>
-              <Text style={{ color: colors.aqua, fontSize: 22 }}>›</Text>
-            </View>
-          </Card>
-        )}
-
-        {/* Paylaşılan gönderiler */}
-        <SectionTitle
-          title={`Gönderilerin${myPosts.length ? ` (${myPosts.length})` : ''}`}
-          style={{ marginTop: spacing.xl }}
-        />
+        {/* Gönderiler — ayrım yok, tek ızgara */}
+        <View style={styles.gridTop} />
         {myPosts.length === 0 ? (
-          <Card style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 34 }}>🫧</Text>
-            <Text style={[type.caption, { textAlign: 'center', marginTop: spacing.sm }]}>
-              Henüz gönderi yok. Bir kombin, selfie ya da lookbook'u toplulukta paylaş — burada da
-              görünsün.
-            </Text>
-            <Button
-              small
-              title="Topluluğa git"
-              onPress={() => router.push('/(tabs)/community')}
-              style={{ marginTop: spacing.md }}
-            />
-          </Card>
+          <Empty
+            icon="images-outline"
+            text="Henüz gönderi yok. Bir kombin, selfie ya da lookbook'u toplulukta paylaş."
+            action="Topluluğa git"
+            onPress={() => router.push('/(tabs)/community')}
+          />
         ) : (
-          <View style={styles.postGrid}>
+          <View style={styles.grid}>
             {myPosts.map((p) => (
               <Pressable
                 key={p.id}
-                style={{ width: postW }}
+                style={[styles.cell, { width: cell, height: cell }]}
                 onPress={() => router.push('/(tabs)/community')}
               >
                 {p.imageUri ? (
+                  /*
+                    `contain` — kırpma YOK. `cover` selfie ve sanal denemeleri
+                    kareye zorlayıp kafa/ayak kesiyordu; kombin karolarıyla da
+                    aynı görünmüyorlardı.
+                  */
                   <Image
                     source={{ uri: p.imageUri }}
-                    style={{ width: postW, height: postW, borderRadius: radius.md }}
-                    contentFit="cover"
+                    style={{ width: cell, height: cell }}
+                    contentFit="contain"
                   />
                 ) : (
-                  <View style={{ width: postW }}>
+                  <View style={{ width: cell }}>
                     <FluidSpecCollage
                       garments={p.garments}
                       frame={p.canvasFrame}
                       cropToContent={p.cropToContent}
+                      bare
                     />
                   </View>
                 )}
-                <Text style={[type.tiny, { marginTop: 4 }]} numberOfLines={2}>
-                  {p.caption}
-                </Text>
               </Pressable>
             ))}
           </View>
         )}
 
-        <Text style={[type.tiny, { textAlign: 'center', marginTop: spacing.xl }]}>
-          BETTA v1.0 · Gardırobun, akvaryumun kadar canlı 🐟
-        </Text>
+        <Text style={styles.version}>BETTA v1.0</Text>
       </ScrollView>
 
       {/* Profili düzenle modalı (isim + bio) */}
-      <Modal visible={editOpen} animationType="slide" transparent onRequestClose={() => setEditOpen(false)}>
-        <KeyboardAvoidingView
-          style={styles.modalWrap}
-          behavior="padding"
-        >
-          <View style={styles.modalCard}>
-            <SectionTitle
-              title="Profili düzenle"
-              right={<Chip label="Kapat" onPress={() => setEditOpen(false)} />}
-            />
-            <Text style={styles.label}>Ad</Text>
+      <Modal
+        visible={editOpen}
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setEditOpen(false)}
+      >
+        <KeyboardAvoidingView style={styles.modalWrap} behavior="padding">
+          <View style={[styles.modalCard, { paddingBottom: 22 + (keyboardUp ? 0 : insets.bottom) }]}>
+            <View style={styles.modalHead}>
+              <Text style={styles.modalTitle}>Profili düzenle</Text>
+              <Pressable onPress={() => setEditOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={20} color={luxe.outline} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.inputLabel}>Ad</Text>
             <TextInput
               value={editName}
               onChangeText={setEditName}
               placeholder="Adın"
-              placeholderTextColor={colors.inkFaint}
+              placeholderTextColor={luxe.outline}
               style={styles.input}
             />
-            <Text style={styles.label}>Bio</Text>
+            <Text style={styles.inputLabel}>Bio</Text>
             <TextInput
               value={editBio}
               onChangeText={setEditBio}
-              placeholder="Kendini birkaç cümleyle anlat… 🐟"
-              placeholderTextColor={colors.inkFaint}
+              placeholder="Kendini birkaç cümleyle anlat…"
+              placeholderTextColor={luxe.outline}
               style={[styles.input, { minHeight: 84, textAlignVertical: 'top' }]}
               multiline
               maxLength={160}
             />
             <Text style={styles.counter}>{editBio.length}/160</Text>
-            <Text style={[type.tiny, { marginTop: spacing.sm }]}>
-              Kullanıcı adını ve gizlilik ayarını Ayarlar'dan değiştirebilirsin.
+            <Text style={[luxeType.tiny, { marginTop: 8 }]}>
+              Kullanıcı adını ve gizlilik ayarını Ayarlar&apos;dan değiştirebilirsin.
             </Text>
-            <Button title="Kaydet" onPress={saveEdit} style={{ marginTop: spacing.md }} />
+            <Pressable style={styles.saveBtn} onPress={saveEdit}>
+              <Text style={styles.saveText}>Kaydet</Text>
+            </Pressable>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -308,80 +383,224 @@ export default function Profile() {
   );
 }
 
+function Empty({
+  icon,
+  text,
+  action,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  text: string;
+  action: string;
+  onPress: () => void;
+}) {
+  return (
+    <View style={styles.empty}>
+      <Ionicons name={icon} size={26} color={luxe.outlineSoft} />
+      <Text style={[luxeType.caption, { textAlign: 'center', marginTop: 10, maxWidth: 280 }]}>
+        {text}
+      </Text>
+      <Pressable style={styles.emptyBtn} onPress={onPress}>
+        <Text style={styles.emptyBtnText}>{action}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingTop: 6,
+    paddingBottom: 10,
   },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileHead: { alignItems: 'center', marginTop: spacing.sm },
+  headerName: { flex: 1, fontFamily: font.bodyMedium, fontSize: 16, color: luxe.ink },
+
+  topRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, gap: 18 },
   editBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: -2,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.card,
-    borderWidth: 1.5,
+    right: 0,
+    bottom: 2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: luxe.primary,
+    borderWidth: 2,
+    borderColor: luxe.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  counters: {
-    flexDirection: 'row',
-    marginTop: spacing.lg,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
+  stats: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  stat: { flex: 1, alignItems: 'center', gap: 2 },
+  statValue: { fontFamily: font.display, fontSize: 19, lineHeight: 24, color: luxe.primary },
+  statLabel: { fontFamily: font.body, fontSize: 11.5, color: luxe.outline },
+
+  bioBlock: { paddingHorizontal: 18, marginTop: 14, gap: 2 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  name: { fontFamily: font.headline, fontSize: 18, color: luxe.primary },
+  proTag: {
+    fontFamily: font.label,
+    fontSize: 8.5,
+    letterSpacing: 1.2,
+    color: luxe.primary,
+    backgroundColor: luxe.primaryContainer,
+    borderRadius: luxeRadius.pill,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    overflow: 'hidden',
   },
-  stat: { flex: 1, alignItems: 'center' },
-  divider: { width: 1, height: 28, backgroundColor: colors.border },
-  postGrid: {
+  privacy: { fontFamily: font.body, fontSize: 11.5, color: luxe.outline },
+  /** Kimlik satırı — Instagram'daki kategori metninin karşılığı. */
+  archLine: {
+    fontFamily: font.label,
+    fontSize: 9.5,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: luxe.outline,
+    marginTop: 3,
+  },
+  archNote: { fontFamily: font.body, fontStyle: 'italic', fontSize: 12.5, color: luxe.outline, marginTop: 2 },
+  bio: { fontFamily: font.body, fontSize: 13.5, lineHeight: 20, color: luxe.inkSoft, marginTop: 6 },
+
+  actions: { flexDirection: 'row', gap: 8, paddingHorizontal: 18, marginTop: 14 },
+  action: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: glass.fill,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderRadius: luxeRadius.sm,
+    paddingVertical: 8,
+  },
+  actionText: { fontFamily: font.bodyMedium, fontSize: 12.5, color: luxe.primary },
+  actionIcon: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: glass.fill,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderRadius: luxeRadius.sm,
+    paddingVertical: 8,
+  },
+
+  hlRow: { gap: 18, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 4 },
+  hl: { alignItems: 'center', width: 68, gap: 5 },
+  /** Gradyan halka + beyaz iç boşluk — Instagram'ın öne çıkanlar dili. */
+  hlRing: { width: 62, height: 62, borderRadius: 31, padding: 2 },
+  hlInner: {
+    flex: 1,
+    borderRadius: 29,
+    backgroundColor: luxe.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hlCount: { fontFamily: font.display, fontSize: 13, color: luxe.primary, marginTop: 1 },
+  hlLabel: { fontFamily: font.body, fontSize: 11, color: luxe.outline },
+
+
+  /** Izgaranın üstündeki ince ayraç — eskiden sekme çubuğu buradaydı. */
+  gridTop: { height: 1, backgroundColor: luxe.outlineSoft, marginTop: 18 },
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: GRID_GAP,
+    paddingHorizontal: GRID_PAD,
+    paddingTop: GRID_PAD,
   },
-  modalWrap: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
-  modalCard: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
+  /*
+    Karo DÜZ BEYAZ. Önce köşegen bir geçiş vardı; dokuz karo dokuz ayrı çizgi
+    verince ızgara lekeli görünüyordu. Kırpma olmadığı için boşta kalan yeri
+    sakin beyaz dolduruyor, aralıklar da karoları birbirinden ayırıyor.
+  */
+  cell: {
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: luxe.surface,
+    borderRadius: luxeRadius.md,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.inkSoft,
-    marginBottom: 6,
-    marginTop: spacing.md,
+
+  empty: { alignItems: 'center', paddingVertical: 42, paddingHorizontal: 24 },
+  emptyBtn: {
+    marginTop: 14,
+    backgroundColor: luxe.primary,
+    borderRadius: luxeRadius.pill,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
+  emptyBtnText: {
+    fontFamily: font.label,
+    fontSize: 10.5,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    color: luxe.onPrimary,
+  },
+
+  version: {
+    fontFamily: font.body,
+    fontSize: 10.5,
+    color: luxe.outline,
+    textAlign: 'center',
+    marginTop: 26,
+  },
+
+  modalWrap: { flex: 1, backgroundColor: luxe.overlay, justifyContent: 'flex-end' },
+  modalCard: {
+    backgroundColor: luxe.bg,
+    borderTopLeftRadius: luxeRadius.lg,
+    borderTopRightRadius: luxeRadius.lg,
+    padding: 22,
+  },
+  modalHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  modalTitle: {
+    fontFamily: font.headlineItalic,
+    fontStyle: 'italic',
+    fontSize: 20,
+    color: luxe.primary,
+  },
+  inputLabel: {
+    fontFamily: font.label,
+    fontSize: 9.5,
+    letterSpacing: 1.3,
+    textTransform: 'uppercase',
+    color: luxe.outline,
+    marginTop: 14,
+    marginBottom: 6,
   },
   input: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderRadius: luxeRadius.md,
+    paddingHorizontal: 14,
     paddingVertical: 11,
+    fontFamily: font.body,
     fontSize: 15,
-    color: colors.ink,
-    backgroundColor: colors.card,
+    color: luxe.ink,
+    backgroundColor: luxe.surface,
   },
-  counter: { fontSize: 11, color: colors.inkFaint, textAlign: 'right', marginTop: 4 },
+  counter: { fontFamily: font.body, fontSize: 11, color: luxe.outline, textAlign: 'right', marginTop: 4 },
+  saveBtn: {
+    marginTop: 16,
+    backgroundColor: luxe.primary,
+    borderRadius: luxeRadius.pill,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  saveText: {
+    fontFamily: font.label,
+    fontSize: 11,
+    letterSpacing: 1.3,
+    textTransform: 'uppercase',
+    color: luxe.onPrimary,
+  },
 });

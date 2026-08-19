@@ -301,6 +301,18 @@ export default function Wardrobe() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const [section, setSection] = useState<Section>('parcalar');
+  /*
+    Derin bağlantı: profildeki "öne çıkanlar" halkaları (Selfie, Lookbook…)
+    doğrudan ilgili bölümü açsın. Sekme ekranı zaten monte olduğu için
+    başlangıç değeri yetmiyor, parametre değişimi izleniyor. `t` her
+    dokunuşta değiştiği için aynı bölüme arka arkaya gitmek de çalışıyor.
+  */
+  useEffect(() => {
+    const want = params.section;
+    if (want === 'parcalar' || want === 'kombinler' || want === 'selfiler' || want === 'lookbooklar') {
+      setSection(want);
+    }
+  }, [params.section, params.t]);
 
   // Parçalar filtreleri
   const [category, setCategory] = useState<Category | 'hepsi'>('hepsi');

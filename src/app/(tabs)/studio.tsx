@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -121,6 +121,15 @@ export default function Studio() {
   // gezinme çubuğunun arkasında kalıyor.
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>('dressme');
+  /*
+    Derin bağlantı: profildeki "Kombin" halkası doğrudan Kombinlerim'i açsın.
+    Sekme monte kaldığı için parametre değişimi izleniyor (bkz. Gardırop).
+  */
+  const params = useLocalSearchParams<{ mode?: string; t?: string }>();
+  useEffect(() => {
+    const want = params.mode;
+    if (want === 'dressme' || want === 'outfits' || want === 'ai') setMode(want);
+  }, [params.mode, params.t]);
   const [indices, setIndices] = useState<Record<string, number>>({});
   const [locked, setLocked] = useState<Record<string, boolean>>({});
   /** Büyütülerek görüntülenen sanal giydirme */

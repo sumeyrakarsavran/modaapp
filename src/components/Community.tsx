@@ -85,10 +85,13 @@ export function FluidSpecCollage({
   garments,
   frame,
   cropToContent,
+  bare,
 }: {
   garments: GarmentSpec[];
   frame?: { w: number; h: number };
   cropToContent?: boolean;
+  /** Kendi zeminini/çerçevesini çizme — profil ızgarasında ortak zemin görünsün. */
+  bare?: boolean;
 }) {
   const placed = garments.filter(
     (g): g is GarmentSpec & { layout: NonNullable<GarmentSpec['layout']> } => !!g.layout,
@@ -105,7 +108,7 @@ export function FluidSpecCollage({
       const offXpct = ((fspan - frame.w) / 2 / fspan) * 100;
       const offYpct = ((fspan - frame.h) / 2 / fspan) * 100;
       return (
-        <View style={[styles.fluidCollage, { padding: 0 }]}>
+        <View style={[styles.fluidCollage, { padding: 0 }, bare && styles.fluidBare]}>
           {sorted.map((g, i) => {
             const s = CANVAS_BASE * g.layout.scale;
             const left = offXpct + (g.layout.x / fspan) * 100;
@@ -145,7 +148,7 @@ export function FluidSpecCollage({
     const extraY = (span - bh) / 2;
 
     return (
-      <View style={[styles.fluidCollage, { padding: 0 }]}>
+      <View style={[styles.fluidCollage, { padding: 0 }, bare && styles.fluidBare]}>
         {sorted.map((g, i) => {
           const s = CANVAS_BASE * g.layout.scale;
           const left = (((g.layout.x - minX + extraX) / span) * C + pad) * 100;
@@ -170,7 +173,7 @@ export function FluidSpecCollage({
 
   const shown = garments.slice(0, 4);
   return (
-    <View style={styles.fluidCollage}>
+    <View style={[styles.fluidCollage, bare && styles.fluidBare]}>
       <View style={styles.fluidGrid}>
         {shown.map((g, i) => (
           <View key={i} style={styles.fluidCell}>
@@ -482,6 +485,8 @@ const styles = StyleSheet.create({
     padding: 4,
     overflow: 'hidden',
   },
+  /** Şeffaf: arkadaki yüzey görünsün (profil ızgarası). */
+  fluidBare: { backgroundColor: 'transparent', borderWidth: 0, borderRadius: 0 },
   fluidGrid: {
     flex: 1,
     flexDirection: 'row',

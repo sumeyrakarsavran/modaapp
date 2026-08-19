@@ -93,6 +93,7 @@ export function OutfitCollage({
   layout,
   frame,
   cropToContent,
+  bare = false,
   capture = false,
 }: {
   items: WardrobeItem[];
@@ -101,6 +102,11 @@ export function OutfitCollage({
   /** Canvas içerik alanı boyutu — verilirse ve cropToContent değilse tuval çerçevesi korunur. */
   frame?: { w: number; h: number };
   cropToContent?: boolean;
+  /**
+   * Kendi zeminini ve çerçevesini ÇİZME — arkasındaki yüzey görünsün.
+   * Profil ızgarasında bütün karolar aynı zemini paylaşsın diye gerekiyor.
+   */
+  bare?: boolean;
   /**
    * Sanal denemeye gönderilecek ÜRÜN GÖRSELİ için: tüm parçalar çizilir
    * (4 sınırı yok), "+N" rozeti basılmaz, kutu beyaz ve çerçevesizdir.
@@ -122,7 +128,7 @@ export function OutfitCollage({
     const offX = (size - frame.w * f) / 2;
     const offY = (size - frame.h * f) / 2;
     return (
-      <View style={[styles.box, { width: size, height: size }, capture && styles.captureBox]}>
+      <View style={[styles.box, { width: size, height: size }, bare && styles.bareBox, capture && styles.captureBox]}>
         {placed.map((p) => {
           const s = CANVAS_BASE * p.scale * f;
           return (
@@ -169,7 +175,7 @@ export function OutfitCollage({
     const offY = pad + (size - pad * 2 - bh * factor) / 2;
 
     return (
-      <View style={[styles.box, { width: size, height: size }, capture && styles.captureBox]}>
+      <View style={[styles.box, { width: size, height: size }, bare && styles.bareBox, capture && styles.captureBox]}>
         {placed.map((p) => {
           const s = CANVAS_BASE * p.scale * factor;
           return (
@@ -209,7 +215,7 @@ export function OutfitCollage({
     const look = lookPlacement(items);
     if (look) {
       return (
-        <View style={[styles.box, { width: size, height: size }]}>
+        <View style={[styles.box, { width: size, height: size }, bare && styles.bareBox]}>
           {look.map(({ item, box }) => {
             const w = box.w * size;
             const h = box.h * size;
@@ -267,6 +273,7 @@ export function OutfitCollage({
       style={[
         styles.box,
         { width: size, height: size, padding: PAD },
+        bare && styles.bareBox,
         capture && styles.captureBox,
       ]}
     >
@@ -293,6 +300,8 @@ export function OutfitCollage({
 
 const styles = StyleSheet.create({
   captureBox: { backgroundColor: '#FFFFFF', borderWidth: 0, borderRadius: 0 },
+  /** Şeffaf: arkadaki yüzey görünsün (profil ızgarası). */
+  bareBox: { backgroundColor: 'transparent', borderWidth: 0, borderRadius: 0 },
   box: {
     backgroundColor: colors.card,
     borderRadius: radius.md,
