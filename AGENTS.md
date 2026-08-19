@@ -95,6 +95,14 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
   yetmez, aynı değişikliği `android/app/src/main/AndroidManifest.xml`'e de elle yaz.
   Doğrulama: `adb shell dumpsys package com.sumeyrakarsavran.betta | grep flags`
   → `LARGE_HEAP`. Native değişiklik → `npx expo run:android` şart, reload yetmez.
+- **Android'de `elevation` DOKUNUŞ SIRASINI da değiştirir.** Yüksek elevation'lı
+  bir kardeş görünüm, hiyerarşide KENDİNDEN SONRA gelen (yani üstte çizilen)
+  kardeşin dokunuşlarını çalıyor. Canvas'ta kanıtlandı: tuval tabakası
+  (`elevation: 10`) açık parça çekmecesinin üst yarısıyla çakışıyordu ve orada
+  başlayan kaydırmaları yutuyordu — belirti "liste aşağı iniyor ama sonuna
+  gelince yukarı dönmüyor" şeklindeydi, çünkü geri dönüş hareketi listenin üst
+  kısmından başlıyor. Çözüm: üstte olması gereken görünüme DAHA YÜKSEK
+  elevation ver (çakışmayı `zIndex` çözmez, Android elevation'a bakar).
 - **Klavye: `behavior="padding"` HER İKİ platformda da şart.** `edgeToEdgeEnabled=true`
   iken sistem pencereyi klavye için yeniden boyutlandırmaz (uygulama sistem çubuklarının
   arkasına çizer), yani manifest'teki `adjustResize` tek başına YETMEZ. Eski

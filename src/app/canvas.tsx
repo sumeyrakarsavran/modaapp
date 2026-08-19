@@ -6,6 +6,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  FlatList,
   PanResponder,
   Pressable,
   ScrollView,
@@ -40,7 +41,7 @@ const BASE = CANVAS_BASE; // yerleştirilen parçanın taban boyutu (önizlemeyl
  * ölçülerek belirlendi; kısa tutulunca karoların altı kırpılıyordu.
  */
 const DRAWER_CLOSED = 164;
-/** Izgaradaki parça karosu. */
+/** Izgaradaki parça karosunun EN KÜÇÜK boyu — sütun sayısı buna göre. */
 const CELL = 76;
 const CELL_GAP = 10;
 
@@ -82,7 +83,7 @@ function LuxeButton({
 export default function Canvas() {
   const { outfitId } = useLocalSearchParams<{ outfitId?: string }>();
   const { items, outfits, addOutfit, updateOutfit } = useStore();
-  const { height } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   /*
     Alt güvenli alan ELLE ekleniyor. `SafeAreaView edges={['bottom']}` bu
     cihazda üç tuşlu gezinme çubuğunun tamamını karşılamıyordu (telefonda
@@ -120,6 +121,13 @@ export default function Canvas() {
 
   /** Açık çekmecenin yüksekliği — ekranın yarısını geçmesin, tuval görünür kalsın. */
   const drawerH = drawerOpen ? Math.min(420, Math.round(height * 0.52)) : DRAWER_CLOSED;
+  /** Satıra kaç karo sığıyor — FlatList sütun sayısını bilmek zorunda. */
+  const cols = Math.max(3, Math.floor((width - 32 + CELL_GAP) / (CELL + CELL_GAP)));
+  /*
+    Karo boyu satırı TAM dolduracak şekilde büyütülüyor. Sabit 76 bırakılınca
+    sağda bir sütunluk boşluk kalıyor ve ızgara yarım görünüyordu.
+  */
+  const gridCell = Math.floor((width - 32 - CELL_GAP * (cols - 1)) / cols);
 
   const addToCanvas = (item: WardrobeItem) => {
     setPlaced((p) => {
@@ -174,11 +182,29 @@ export default function Canvas() {
 
   const selPlaced = placed.find((p) => p.itemId === selected);
 
-  const garmentTile = (i: WardrobeItem) => (
+  /**
+   * Çekmece başlığının sürükleme algısı.
+   * Yalnızca BAŞLIĞA bağlı — ızgaranın üstüne konsaydı parçaları kaydırmayı
+   * yutardı. Yukarı çek → aç, aşağı çek → kapat, kısa dokunuş → çevir.
+   */
+  const headDrag = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onPanResponderRelease: (_e, g) => {
+          if (g.dy < -16) setDrawerOpen(true);
+          else if (g.dy > 16) setDrawerOpen(false);
+          else setDrawerOpen((v) => !v);
+        },
+      }),
+    [],
+  );
+
+  const garmentTile = (i: WardrobeItem, size: number) => (
     <ItemThumb
       key={i.id}
       item={i}
-      size={CELL}
+      size={size}
       selected={placed.some((p) => p.itemId === i.id)}
       onPress={() => addToCanvas(i)}
     />
@@ -318,7 +344,13 @@ export default function Canvas() {
 
       {/* ————— Parça çekmecesi ————— */}
       <View style={[styles.drawer, { height: drawerH + insets.bottom, paddingBottom: insets.bottom }]}>
-        <Pressable onPress={() => setDrawerOpen((v) => !v)} style={styles.drawerHead}>
+        {/*
+          Başlık hem DOKUNUŞA hem SÜRÜKLEMEYE cevap veriyor: düğmeye basmak
+          zorunda kalmadan tutamağı yukarı çekip çekmeceyi açabilmek gerekiyor
+          (aşağı çekmek kapatıyor). Küçük hareket dokunuş sayılıp durumu
+          çeviriyor.
+        */}
+        <View {...headDrag.panHandlers} style={styles.drawerHead}>
           <View style={styles.grabber} />
           <View style={styles.drawerHeadRow}>
             <Text style={styles.drawerTitle}>Parçalar</Text>
@@ -330,7 +362,7 @@ export default function Canvas() {
               color={luxe.outline}
             />
           </View>
-        </Pressable>
+        </View>
 
         {/* Kategori süzgeci */}
         <ScrollView
@@ -355,17 +387,28 @@ export default function Canvas() {
           gardırobu kalabalık olan tüm parçalarını görebilsin.
         */}
         {drawerOpen ? (
-          <ScrollView
+          /*
+            ⚠️ Burada `flexWrap`'li bir ScrollView VARDI ve iki şeyi birden
+            yanlış yapıyordu (telefonda görüldü): sığabilecekken satıra 4 değil
+            3 karo koyuyor, ve bir kez dibe inince YUKARI KAYDIRILAMIYORDU —
+            sarmalanan satırların yüksekliğini ScrollView doğru ölçemiyor.
+            FlatList sütun sayısını kendisi biliyor, kaydırması güvenilir ve
+            kalabalık gardıropta yalnızca görünen karoları çiziyor.
+          */
+          <FlatList
             style={{ flex: 1 }}
+            data={strip}
+            key={`g${cols}`}
+            numColumns={cols}
+            keyExtractor={(i) => i.id}
+            renderItem={({ item }) => garmentTile(item, gridCell)}
+            columnWrapperStyle={cols > 1 ? { gap: CELL_GAP } : undefined}
             contentContainerStyle={styles.grid}
-            showsVerticalScrollIndicator={false}
-          >
-            {strip.length ? (
-              strip.map(garmentTile)
-            ) : (
+            showsVerticalScrollIndicator
+            ListEmptyComponent={
               <Text style={[luxeType.caption, { padding: 8 }]}>Bu kategoride parça yok.</Text>
-            )}
-          </ScrollView>
+            }
+          />
         ) : (
           <ScrollView
             horizontal
@@ -373,7 +416,7 @@ export default function Canvas() {
             contentContainerStyle={{ gap: CELL_GAP, paddingHorizontal: 16, paddingTop: 8 }}
           >
             {strip.length ? (
-              strip.map(garmentTile)
+              strip.map((i) => garmentTile(i, CELL))
             ) : (
               <Text style={[luxeType.caption, { paddingVertical: 24 }]}>
                 Bu kategoride parça yok.
@@ -632,6 +675,14 @@ const styles = StyleSheet.create({
   toolSep: { width: 1, height: 20, backgroundColor: luxe.outlineSoft, marginHorizontal: 2 },
 
   // ————— Çekmece —————
+  /*
+    ⚠️ `elevation` ŞART, süs değil. Android'de yüksek elevation'lı bir kardeş,
+    hiyerarşide SONRA gelen kardeşin dokunuşlarını da çalıyor: tuval tabakası
+    (elevation 10) açık çekmecenin ÜST yarısıyla çakışıyor ve orada başlayan
+    kaydırmaları yutuyordu. Belirti tam da buydu — liste aşağı iniyor ama
+    sonuna gelince yukarı dönmüyordu, çünkü geri dönüş hareketi listenin
+    üst kısmından başlıyor. Çekmece tabakadan yüksek olmalı.
+  */
   drawer: {
     position: 'absolute',
     left: 0,
@@ -642,6 +693,11 @@ const styles = StyleSheet.create({
     borderTopColor: luxe.outlineSoft,
     borderTopLeftRadius: luxeRadius.lg,
     borderTopRightRadius: luxeRadius.lg,
+    shadowColor: '#4A2F33',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 20,
+    elevation: 24,
   },
   drawerHead: { paddingTop: 7, paddingBottom: 2 },
   /** Tutamak — çekmecenin açılabildiğini gösteren tek işaret. */
@@ -679,9 +735,8 @@ const styles = StyleSheet.create({
   },
   pillFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   pillText: { fontFamily: font.bodyMedium, fontSize: 12, color: luxe.outline },
+  /** FlatList içerik kabı — satır arası boşluk `gap`, satır içi `columnWrapperStyle`. */
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: CELL_GAP,
     paddingHorizontal: 16,
     paddingTop: 8,
