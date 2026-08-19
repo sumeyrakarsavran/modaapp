@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
 import { chartGradient, DonutChart, HBars, Legend, ProgressBar } from '@/components/Charts';
+import { FinBlob } from '@/components/FinBlob';
 import { CARD_TRACK, GlassCard } from '@/components/GlassCard';
 import { ItemThumb } from '@/components/ItemThumb';
 import { ProfileButton } from '@/components/ProfileButton';
@@ -225,20 +226,40 @@ export default function Stats() {
           </View>
         </GlassCard>
 
-        {/* Okyanus puanı — sayfanın tek vurgulu kartı (Bugün'deki AI kartı gibi) */}
-        <GlassCard tint>
-          <FigureHead label="Okyanus puanı" value={`${stats.sustainability}/100`} />
-          <View style={{ marginTop: 16 }}>
-            <ProgressBar
-              ratio={stats.sustainability / 100}
-              gradient={chartGradient}
-              height={6}
-              track={CARD_TRACK}
-            />
+        {/*
+          Okyanus puanı — sayfanın tek vurgulu kartı (Bugün'deki AI kartı gibi).
+          Rakam, Bugün'ün gün kartlarındaki YÜZGEÇ biçiminin içinde duruyor:
+          aynı SVG yolu, aynı elle çizilmiş yamukluk. Marka biçimi burada da
+          tekrar edince sayfa "grafik ekranı" değil, aynı elden çıkmış bir
+          rapor gibi okunuyor.
+        */}
+        <GlassCard tint style={styles.scoreCard}>
+          <View style={{ flex: 1 }}>
+            <Text style={luxeType.label}>Okyanus puanı</Text>
+            <View style={{ marginTop: 14 }}>
+              <ProgressBar
+                ratio={stats.sustainability / 100}
+                gradient={chartGradient}
+                height={6}
+                track={CARD_TRACK}
+              />
+            </View>
+            <Text style={styles.note}>
+              İkinci el, el yapımı ve sahip olduğunu giymek puanı yükseltir.
+            </Text>
           </View>
-          <Text style={styles.note}>
-            İkinci el, el yapımı ve sahip olduğunu giymek puanı yükseltir.
-          </Text>
+          {/*
+            Blob BEYAZ, iridesan değil: tint kartın lila zemininde pastel geçiş
+            soluk kalıyordu (telefonda görüldü). Beyaz + gölge onu rapora
+            basılmış bir mühür gibi öne çıkarıyor.
+          */}
+          <View style={styles.medallion}>
+            <FinBlob color={luxe.surface} shadow />
+            <View style={styles.medallionText} pointerEvents="none">
+              <Text style={styles.medallionValue}>{stats.sustainability}</Text>
+              <Text style={styles.medallionMax}>/100</Text>
+            </View>
+          </View>
         </GlassCard>
 
         {/* Kompozisyon — halka solda, gösterge sağda dikey liste */}
@@ -265,16 +286,30 @@ export default function Stats() {
             title="Renk paletin"
             meta={stats.byColor.length ? `${stats.byColor.length} ton` : undefined}
           />
+          {/*
+            Lekeler yuvarlak değil YÜZGEÇ biçiminde ve BOYLARI parça sayısına
+            göre: palet böylece süs olmaktan çıkıp bir grafik oluyor — baskın
+            tonlar tek bakışta büyük duruyor. Kutu boyu sabit, blob içinde
+            ortalanıyor; yoksa sarmalanan satırlar tırtıklı görünüyor.
+          */}
           <View style={styles.paletteRow}>
-            {stats.byColor.map((c) => (
-              <View key={c.id} style={styles.paletteCell}>
-                <View style={[styles.paletteDot, { backgroundColor: c.hex }]} />
-                <Text style={styles.paletteCount}>{c.count}</Text>
-                <Text style={styles.paletteName} numberOfLines={1}>
-                  {c.label}
-                </Text>
-              </View>
-            ))}
+            {stats.byColor.map((c) => {
+              const t = c.count / stats.byColor[0].count;
+              const d = Math.round(28 + t * 26);
+              return (
+                <View key={c.id} style={styles.paletteCell}>
+                  <View style={styles.paletteSlot}>
+                    <View style={{ width: d, height: d }}>
+                      <FinBlob color={c.hex} />
+                    </View>
+                  </View>
+                  <Text style={styles.paletteCount}>{c.count}</Text>
+                  <Text style={styles.paletteName} numberOfLines={1}>
+                    {c.label}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
           {stats.byColor.length >= 3 ? (
             <Text style={styles.note}>
@@ -374,15 +409,25 @@ const styles = StyleSheet.create({
 
   donutRow: { flexDirection: 'row', alignItems: 'center', gap: 18 },
 
+  /** Puan madalyonu — kart iki sütun: solda ölçek, sağda biçim. */
+  scoreCard: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  medallion: { width: 104, height: 104 },
+  medallionText: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  medallionValue: { fontFamily: font.display, fontSize: 28, lineHeight: 32, color: luxe.primary },
+  medallionMax: { fontFamily: font.body, fontSize: 10, color: luxe.outline, marginTop: -2 },
+
   paletteRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   paletteCell: { alignItems: 'center', width: 52, gap: 3 },
-  paletteDot: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.07)',
-  },
+  /** Sabit yuva: blob boyu değişse de satırlar aynı hizada kalıyor. */
+  paletteSlot: { height: 56, justifyContent: 'center', alignItems: 'center' },
   paletteCount: { fontFamily: font.display, fontSize: 14, color: luxe.ink },
   paletteName: { fontFamily: font.body, fontSize: 10, color: luxe.outline },
 
