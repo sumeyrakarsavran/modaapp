@@ -3,32 +3,92 @@ import { View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Defs, FeDropShadow, Filter, LinearGradient, Path, Stop } from 'react-native-svg';
 
 /**
- * Örnek tasarımdaki `fin-curve` biçiminin BİREBİR karşılığı.
+ * Organik biçimler — CSS'teki ELİPTİK köşenin SVG karşılığı.
  *
  *   border-radius: 60% 40% 70% 30% / 30% 60% 40% 70%;
  *
- * Bu ELİPTİK köşe: her köşenin iki yarıçapı var (yatay = genişliğin yüzdesi,
- * dikey = yüksekliğin yüzdesi). RN'in `borderRadius`'ında karşılığı yok —
- * dört köşeye farklı piksel vermek yaklaşık bile değil, biçim "dijital"
- * duruyor. SVG'de tam karşılığı var: eliptik yay (`A rx ry ...`).
+ * Her köşenin İKİ yarıçapı var: yatay (genişliğin yüzdesi) ve dikey
+ * (yüksekliğin yüzdesi). RN'in `borderRadius`'ında karşılığı yok — dört köşeye
+ * farklı piksel vermek yaklaşık bile değil, biçim "dijital" duruyor. SVG'de tam
+ * karşılığı var: eliptik yay (`A rx ry ...`).
  *
- * Köşe yarıçapları (viewBox 100×100, yani doğrudan yüzde):
- *   sol üst  rx 60 ry 30   ·  sağ üst  rx 40 ry 60
- *   sağ alt  rx 70 ry 40   ·  sol alt  rx 30 ry 70
- * Her kenarda yarıçaplar toplamı tam %100 olduğu için düz kenar HİÇ kalmıyor;
- * biçimin organik görünmesinin sebebi bu.
+ * Yol artık ELDE YAZILMIYOR, oranlardan üretiliyor (`pathOf`) — böylece aynı
+ * mantıkla farklı siluetler tanımlanabiliyor.
+ */
+
+/** Bir siluet: köşe yarıçapları. Sıra saat yönünde — sol üst, sağ üst, sağ alt, sol alt. */
+export interface Shape {
+  /** Yatay yarıçaplar (genişliğin yüzdesi) */
+  h: [number, number, number, number];
+  /** Dikey yarıçaplar (yüksekliğin yüzdesi) */
+  v: [number, number, number, number];
+}
+
+/**
+ * Hazır siluetler.
  *
+ * Bir kenardaki iki yarıçapın toplamı %100 olduğunda o kenarda DÜZ parça hiç
+ * kalmıyor; biçimin organik görünmesinin sebebi bu. `card` bilerek böyle
+ * DEĞİL: toplamlar 100'ün altında, yani kenarların ortası düz kalıyor ve
+ * içindeki yazı taşmıyor — yalnızca köşeler elle kesilmiş gibi duruyor.
+ */
+export const SHAPES = {
+  /** Örnekteki `fin-curve` — Bugün'ün gün kartları. */
+  fin: { h: [60, 40, 70, 30], v: [30, 60, 40, 70] },
+  /** Daha yuvarlak, mühür gibi. */
+  pebble: { h: [46, 54, 44, 56], v: [54, 46, 56, 44] },
+  /** İki köşe dolgun, iki köşe sivri — yaprak. */
+  leaf: { h: [72, 28, 72, 28], v: [28, 72, 28, 72] },
+  /** Yatayda salınan, dalga gibi. */
+  wave: { h: [34, 66, 36, 64], v: [64, 36, 66, 34] },
+  /** Kart siluetı: köşeler eğri, kenarların ortası düz (yazı taşmasın). */
+  card: { h: [13, 5, 11, 7], v: [30, 13, 26, 16] },
+} as const satisfies Record<string, Shape>;
+
+export type ShapeName = keyof typeof SHAPES;
+
+/**
+ * Gölgeli blobun kutu İÇİNDE ayırdığı pay (px).
+ * Çağıranların bilmesi gerekiyor: biçimin görünen kenarı kutunun kenarı değil,
+ * bu kadar içerisi. Kart gibi kenarları hizalanması gereken yerlerde bu pay
+ * negatif kenar boşluğuyla geri alınıyor.
+ */
+export const BLOB_SHADOW_PAD = 18;
+
+/**
+ * 100×100 kutuda kapalı yol. Köşeler eliptik yay, aralar düz çizgi — yarıçap
+ * toplamı %100 olan kenarlarda çizgiler sıfır uzunlukta olup kayboluyor.
+ */
+function pathOf({ h, v }: Shape): string {
+  const [hTL, hTR, hBR, hBL] = h;
+  const [vTL, vTR, vBR, vBL] = v;
+  return [
+    `M ${hTL} 0`,
+    `L ${100 - hTR} 0`,
+    `A ${hTR} ${vTR} 0 0 1 100 ${vTR}`,
+    `L 100 ${100 - vBR}`,
+    `A ${hBR} ${vBR} 0 0 1 ${100 - hBR} 100`,
+    `L ${hBL} 100`,
+    `A ${hBL} ${vBL} 0 0 1 0 ${100 - vBL}`,
+    `L 0 ${vTL}`,
+    `A ${hTL} ${vTL} 0 0 1 ${hTL} 0`,
+    'Z',
+  ].join(' ');
+}
+
+/**
  * `preserveAspectRatio="none"`: yüzdeler CSS'te olduğu gibi kutunun ölçüsüne
  * esner.
  *
- * Gölge de SVG filtresiyle (`FeDropShadow`): RN'in gölgesi görünümün
- * DİKDÖRTGEN dış hattını kullanıyor, blobun arkasında gri bir kutu çıkıyor
- * (cihazda görüldü). Filtre gerçek biçimi takip ediyor.
+ * Gölge SVG filtresiyle (`FeDropShadow`): RN'in gölgesi görünümün DİKDÖRTGEN
+ * dış hattını kullanıyor, blobun arkasında gri bir kutu çıkıyor (cihazda
+ * görüldü). Filtre gerçek biçimi takip ediyor.
  */
 export function FinBlob({
   color,
   gradient,
   shadow,
+  variant = 'fin',
   style,
 }: {
   color: string;
@@ -38,6 +98,8 @@ export function FinBlob({
    */
   gradient?: readonly string[];
   shadow?: boolean;
+  /** Hangi siluet — bkz. `SHAPES`. */
+  variant?: ShapeName;
   /** Ek konumlandırma; varsayılan olarak kapsayıcıyı tamamen kaplar. */
   style?: StyleProp<ViewStyle>;
 }) {
@@ -47,10 +109,10 @@ export function FinBlob({
     (cihazda görüldü). Bu yüzden pay kutunun İÇİNDE: kutu bu kadar büyük,
     blob iç dikdörtgene çiziliyor.
   */
-  const M = shadow ? 18 : 0;
+  const M = shadow ? BLOB_SHADOW_PAD : 0;
   /*
     Benzersiz id: aynı ekranda birden fazla blob var (gün kartı, hava rozeti,
-    sekme). Sabit id verilirse tanımlar birbirini eziyor.
+    sekme, palet lekeleri). Sabit id verilirse tanımlar birbirini eziyor.
   */
   const uid = useId().replace(/:/g, '_');
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
@@ -101,7 +163,7 @@ export function FinBlob({
             ) : null}
           </Defs>
           <Path
-            d="M60 0 A40 60 0 0 1 100 60 A70 40 0 0 1 30 100 A30 70 0 0 1 0 30 A60 30 0 0 1 60 0 Z"
+            d={pathOf(SHAPES[variant])}
             fill={gradient ? `url(#g${uid})` : color}
             filter={shadow ? `url(#s${uid})` : undefined}
           />

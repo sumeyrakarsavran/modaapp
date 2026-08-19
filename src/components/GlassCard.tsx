@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { BLOB_SHADOW_PAD, FinBlob } from '@/components/FinBlob';
 import { luxeRadius, luxeShadow } from '@/theme/luxe';
 
 /**
@@ -52,6 +53,41 @@ export function GlassCard({
   );
 }
 
+/**
+ * Siluetli kart — dikdörtgen yerine ORGANİK dış hat.
+ *
+ * Aynı SVG mantığı (`FinBlob`), farklı oranlar: `card` siluetinde köşeler
+ * eliptik ama kenarların ortası düz kalıyor, böylece içindeki yazı taşmıyor.
+ * Bugün'ün gün kartlarındaki elle çizilmiş his kart ölçeğinde de sürüyor.
+ *
+ * ⚠️ Gölgeli blob kutunun İÇİNDE `BLOB_SHADOW_PAD` kadar pay ayırıyor (Android
+ * kutu dışına taşan gölgeyi kırpıyor). Bu pay kartın görünen kenarını içeri
+ * çekerdi ve kart komşularından dar görünürdü — negatif kenar boşluğuyla geri
+ * alınıyor, iç dolgu da aynı kadar artırılıyor. Sonuçta biçimin kenarı diğer
+ * kartların kenarıyla aynı hizada.
+ */
+export function ShapedCard({
+  children,
+  tint,
+  style,
+}: {
+  children: React.ReactNode;
+  tint?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View style={[styles.shaped, style]}>
+      <FinBlob
+        variant="card"
+        color={tint ? '#F2EFF7' : '#FFFDFD'}
+        gradient={tint ? ['#FFFFFF', '#EBE3F6'] : ['#FFFFFF', '#EBF4F4']}
+        shadow
+      />
+      {children}
+    </View>
+  );
+}
+
 /** Kartların içindeki ilerleme çubuğunun yolu — cam yüzeyde beyaz okunuyor. */
 export const CARD_TRACK = 'rgba(255,255,255,0.75)';
 
@@ -67,6 +103,11 @@ const styles = StyleSheet.create({
     ...luxeShadow.card,
   },
   cardTint: { backgroundColor: '#F2EFF7' },
+  shaped: {
+    marginHorizontal: -BLOB_SHADOW_PAD,
+    marginVertical: -BLOB_SHADOW_PAD,
+    padding: BLOB_SHADOW_PAD + 22,
+  },
   /** Hacim veren ışık geçişi — kartla aynı yuvarlaklık, kırpma gerekmiyor. */
   sheen: {
     position: 'absolute',

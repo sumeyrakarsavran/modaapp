@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Backdrop } from '@/components/Backdrop';
 import { chartGradient, DonutChart, HBars, Legend, ProgressBar } from '@/components/Charts';
 import { FinBlob } from '@/components/FinBlob';
-import { CARD_TRACK, GlassCard } from '@/components/GlassCard';
+import { CARD_TRACK, GlassCard, ShapedCard } from '@/components/GlassCard';
 import { ItemThumb } from '@/components/ItemThumb';
 import { ProfileButton } from '@/components/ProfileButton';
 import { useStore } from '@/store/useStore';
@@ -23,6 +23,9 @@ import { CATEGORIES, ITEM_COLORS, SOURCES, todayISO } from '@/types';
  * altındaki göstergeye anahtar, kaynağın kendi rengiyle eşleşmesi şart değil.
  */
 const RAMP = ['#1F6F78', '#6B4E9B', '#B93E7A', '#5FA3AA', '#9B8BC4', '#D98BB0'];
+
+/** Palet lekelerinin siluetleri — sırayla dönüyor, hepsi aynı olmasın. */
+const PALETTE_SHAPES = ['fin', 'leaf', 'wave'] as const;
 
 function daysAgo(iso: string): number {
   return Math.floor((Date.parse(todayISO()) - Date.parse(iso)) / 86400000);
@@ -233,7 +236,7 @@ export default function Stats() {
           tekrar edince sayfa "grafik ekranı" değil, aynı elden çıkmış bir
           rapor gibi okunuyor.
         */}
-        <GlassCard tint style={styles.scoreCard}>
+        <ShapedCard tint style={styles.scoreCard}>
           <View style={{ flex: 1 }}>
             <Text style={luxeType.label}>Okyanus puanı</Text>
             <View style={{ marginTop: 14 }}>
@@ -254,13 +257,13 @@ export default function Stats() {
             basılmış bir mühür gibi öne çıkarıyor.
           */}
           <View style={styles.medallion}>
-            <FinBlob color={luxe.surface} shadow />
+            <FinBlob color={luxe.surface} variant="pebble" shadow />
             <View style={styles.medallionText} pointerEvents="none">
               <Text style={styles.medallionValue}>{stats.sustainability}</Text>
               <Text style={styles.medallionMax}>/100</Text>
             </View>
           </View>
-        </GlassCard>
+        </ShapedCard>
 
         {/* Kompozisyon — halka solda, gösterge sağda dikey liste */}
         <GlassCard>
@@ -293,14 +296,15 @@ export default function Stats() {
             ortalanıyor; yoksa sarmalanan satırlar tırtıklı görünüyor.
           */}
           <View style={styles.paletteRow}>
-            {stats.byColor.map((c) => {
+            {stats.byColor.map((c, idx) => {
               const t = c.count / stats.byColor[0].count;
               const d = Math.round(28 + t * 26);
               return (
                 <View key={c.id} style={styles.paletteCell}>
                   <View style={styles.paletteSlot}>
                     <View style={{ width: d, height: d }}>
-                      <FinBlob color={c.hex} />
+                      {/* Üç ayrı oran sırayla: lekeler aynı kalıptan çıkmış gibi durmasın */}
+                      <FinBlob color={c.hex} variant={PALETTE_SHAPES[idx % PALETTE_SHAPES.length]} />
                     </View>
                   </View>
                   <Text style={styles.paletteCount}>{c.count}</Text>
