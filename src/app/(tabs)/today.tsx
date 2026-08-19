@@ -22,6 +22,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Backdrop } from '@/components/Backdrop';
 import { FinBlob } from '@/components/FinBlob';
+import { GlassCard } from '@/components/GlassCard';
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
@@ -123,50 +124,6 @@ function LuxeButton({
         </View>
       )}
     </Pressable>
-  );
-}
-
-/**
- * Cam kart (glassmorphism). RN'de `backdrop-filter` yok ve `expo-blur` kurulu
- * değil; yarı saydam beyaz dolgu + açık kenarlıkla taklit ediliyor. Zemindeki
- * radyal parıltı altından geçtiği için etki yakın duruyor.
- *
- * ⚠️ Gölge (elevation) VERİLMİYOR: dolgu yarı saydam olduğu için Android'de
- * elevation gölgesi kartın içine beyaz bir dikdörtgen olarak sızıyor
- * (cihazda görüldü). Derinliği kenarlık ve ton farkı taşıyor — DESIGN.md
- * zaten gölge yerine "tonal katmanlama" istiyor.
- */
-function GlassCard({
-  children,
-  tint,
-  style,
-}: {
-  children: React.ReactNode;
-  /** Vurgulu kart — pudra pembeye çalar. */
-  tint?: boolean;
-  style?: StyleProp<ViewStyle>;
-}) {
-  return (
-    <View style={[styles.glassCard, tint && styles.glassCardTint, style]}>
-      {/*
-        Hacim (3B) hissi: köşegen bir ışık geçişi — sol üstte aydınlık, sağ
-        altta tona çalan. Kartın KENDİ zemini değil AYRI katman ve kırpma
-        yerine aynı `borderRadius` veriliyor; gölge veren görünüme
-        `overflow: 'hidden'` eklenince Android'de çocuklar çizilmiyor.
-      */}
-      <LinearGradient
-        colors={
-          tint
-            ? ['rgba(255,255,255,0.94)', 'rgba(229,221,242,0.5)']
-            : ['rgba(255,255,255,0.97)', 'rgba(220,235,236,0.34)']
-        }
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={styles.cardSheen}
-        pointerEvents="none"
-      />
-      {children}
-    </View>
   );
 }
 
@@ -951,31 +908,6 @@ const styles = StyleSheet.create({
   heroActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
 
   // Cam kartlar
-  glassCard: {
-    borderRadius: luxeRadius.lg,
-    /*
-      Zemin OPAK: yarı saydamken gölge (elevation) eklenemiyordu — Android'de
-      gölge tabakası kartın içine beyaz bir dikdörtgen olarak sızıyor
-      (cihazda görüldü). Derinlik için opak zemin + yayvan gölge şart.
-    */
-    backgroundColor: '#FFFDFD',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.9)',
-    padding: 22,
-    overflow: 'hidden',
-    // Gölge HİYERARŞİK, temadan: hero > kart > gün kartı (bkz. luxeShadow)
-    ...luxeShadow.card,
-  },
-  glassCardTint: { backgroundColor: '#F2EFF7' },
-  /** Hacim veren ışık geçişi — kartla aynı yuvarlaklık, kırpma gerekmiyor. */
-  cardSheen: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: luxeRadius.lg,
-  },
   /** Kartın köşesinden sızan pembe hale */
   insightGlow: {
     position: 'absolute',

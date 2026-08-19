@@ -76,45 +76,85 @@ function polar(cx: number, cy: number, r: number, deg: number) {
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
 }
 
-export function Legend({ slices }: { slices: Slice[] }) {
-  return (
-    <View style={styles.legend}>
-      {slices
-        .filter((s) => s.value > 0)
-        .map((s) => (
-          <View key={s.label} style={styles.legendItem}>
+/**
+ * Gösterge. `column` verilirse halkanın YANINDA dikey liste olur — ortalanmış
+ * sarmalı satır hem yer yiyor hem de değerleri karşılaştırmayı zorlaştırıyor.
+ */
+export function Legend({ slices, column }: { slices: Slice[]; column?: boolean }) {
+  const rows = slices.filter((s) => s.value > 0);
+  if (column) {
+    return (
+      <View style={{ flex: 1, gap: 9 }}>
+        {rows.map((s) => (
+          <View key={s.label} style={styles.legendRow}>
             <View style={[styles.dot, { backgroundColor: s.color }]} />
-            <Text style={luxeType.caption}>{s.label}</Text>
+            <Text style={styles.legendLabel} numberOfLines={1}>
+              {s.label}
+            </Text>
             <Text style={styles.legendValue}>{s.value}</Text>
           </View>
         ))}
+      </View>
+    );
+  }
+  return (
+    <View style={styles.legend}>
+      {rows.map((s) => (
+        <View key={s.label} style={styles.legendItem}>
+          <View style={[styles.dot, { backgroundColor: s.color }]} />
+          <Text style={luxeType.caption}>{s.label}</Text>
+          <Text style={styles.legendValue}>{s.value}</Text>
+        </View>
+      ))}
     </View>
   );
 }
 
-/** Yatay bar grafik. Sayılar serif — rapor havası rakamlardan geliyor. */
-export function HBars({ data }: { data: { label: string; value: number; color?: string }[] }) {
+/**
+ * Yatay bar grafik. Sayılar serif — rapor havası rakamlardan geliyor.
+ *
+ * `gradient` verilirse EN UZUN bar iridesan geçişle dolar, kalanlar sakin
+ * mürekkep tonunda kalır: aksan Bugün'deki gibi tek yerde ve bilgi taşıyor
+ * (hangi kategori baskın), süs olarak dağılmıyor.
+ */
+export function HBars({
+  data,
+  gradient,
+}: {
+  data: { label: string; value: number; color?: string }[];
+  gradient?: readonly [string, string, ...string[]];
+}) {
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
     <View style={{ gap: 12 }}>
-      {data.map((d) => (
-        <View key={d.label}>
-          <View style={styles.barRow}>
-            <Text style={styles.barLabel} numberOfLines={1}>
-              {d.label}
-            </Text>
-            <Text style={styles.barValue}>{d.value}</Text>
+      {data.map((d) => {
+        const w = `${(d.value / max) * 100}%` as const;
+        const lead = gradient && d.value === max;
+        return (
+          <View key={d.label}>
+            <View style={styles.barRow}>
+              <Text style={styles.barLabel} numberOfLines={1}>
+                {d.label}
+              </Text>
+              <Text style={styles.barValue}>{d.value}</Text>
+            </View>
+            <View style={styles.barTrack}>
+              {lead ? (
+                <LinearGradient
+                  colors={gradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.barFill, { width: w }]}
+                />
+              ) : (
+                <View
+                  style={[styles.barFill, { width: w, backgroundColor: d.color ?? luxe.secondary }]}
+                />
+              )}
+            </View>
           </View>
-          <View style={styles.barTrack}>
-            <View
-              style={[
-                styles.barFill,
-                { width: `${(d.value / max) * 100}%`, backgroundColor: d.color ?? luxe.primary },
-              ]}
-            />
-          </View>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }
@@ -175,6 +215,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  legendLabel: { flex: 1, fontFamily: font.body, fontSize: 13, color: luxe.inkSoft },
   legendValue: { fontFamily: font.display, fontSize: 13, color: luxe.ink },
   dot: { width: 8, height: 8, borderRadius: 4 },
   barRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 5, gap: 8 },

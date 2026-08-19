@@ -6,10 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
 import { chartGradient, DonutChart, HBars, Legend, ProgressBar } from '@/components/Charts';
+import { CARD_TRACK, GlassCard } from '@/components/GlassCard';
 import { ItemThumb } from '@/components/ItemThumb';
 import { ProfileButton } from '@/components/ProfileButton';
 import { useStore } from '@/store/useStore';
-import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
+import { font, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 import { CATEGORIES, ITEM_COLORS, SOURCES, todayISO } from '@/types';
 
 /**
@@ -27,20 +28,27 @@ function daysAgo(iso: string): number {
 }
 
 /**
- * Rapor paneli — cam yüzey, gölgesiz.
- * ⚠️ `elevation` VERİLMİYOR: yarı saydam dolguyla birleşince Android gölgeyi
- * kartın içine beyaz bir dikdörtgen olarak sızdırıyor (Stüdyo'da görüldü).
+ * Kart başlığı — Bugün'deki "Stilistin yorumu" ile aynı kalıp: italik serif
+ * başlık, sağda küçük harf aralıklı ek bilgi.
  */
-function Panel({ children, style }: { children: React.ReactNode; style?: any }) {
-  return <View style={[styles.panel, style]}>{children}</View>;
+function CardHead({ title, meta }: { title: string; meta?: string }) {
+  return (
+    <View style={styles.cardHead}>
+      <Text style={styles.cardTitle}>{title}</Text>
+      {meta ? <Text style={luxeType.label}>{meta}</Text> : null}
+    </View>
+  );
 }
 
-/** Bölüm başlığı: serif ad, sağda küçük harf aralıklı sayaç. */
-function Head({ title, meta }: { title: string; meta?: string }) {
+/**
+ * Etiket + rakam satırı — Bugün'deki "Haftanın doluluğu" başlığıyla aynı.
+ * Rakam serif: raporun havası rakamlardan geliyor.
+ */
+function FigureHead({ label, value, onDark }: { label: string; value: string; onDark?: boolean }) {
   return (
-    <View style={styles.head}>
-      <Text style={styles.headTitle}>{title}</Text>
-      {meta ? <Text style={styles.headMeta}>{meta}</Text> : null}
+    <View style={styles.figureHead}>
+      <Text style={luxeType.label}>{label}</Text>
+      <Text style={[styles.figureValue, onDark && { color: luxe.onDark }]}>{value}</Text>
     </View>
   );
 }
@@ -51,7 +59,7 @@ function ItemStrip({
   size,
   caption,
 }: {
-  items: { id: string; name: string }[];
+  items: any[];
   size: number;
   /** Karonun altındaki tek satır — sıralama, sayı ya da maliyet. */
   caption: (item: any, index: number) => string;
@@ -62,7 +70,7 @@ function ItemStrip({
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ gap: 12, paddingTop: 2 }}
     >
-      {items.map((i: any, idx) => (
+      {items.map((i, idx) => (
         <Pressable
           key={i.id}
           onPress={() => router.push({ pathname: '/item/[id]', params: { id: i.id } })}
@@ -94,7 +102,7 @@ export default function Stats() {
 
     const bySource = SOURCES.map((s, i) => ({
       label: s.label,
-      value: active.filter((i) => i.source === s.id).length,
+      value: active.filter((it) => it.source === s.id).length,
       color: RAMP[i % RAMP.length],
     }));
 
@@ -140,16 +148,21 @@ export default function Stats() {
     };
   }, [active]);
 
+  const header = (
+    <View style={styles.header}>
+      <View style={{ flex: 1 }}>
+        <Text style={luxeType.display}>Akvaryum</Text>
+        <Text style={styles.subtitle}>Gardırobunun raporu</Text>
+      </View>
+      <ProfileButton size={36} />
+    </View>
+  );
+
   if (active.length === 0) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
         <Backdrop />
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={luxeType.display}>Akvaryum</Text>
-          </View>
-          <ProfileButton size={36} />
-        </View>
+        {header}
         <View style={styles.empty}>
           <Ionicons name="stats-chart-outline" size={30} color={luxe.outlineSoft} />
           <Text style={[luxeType.headlineItalic, { marginTop: 12 }]}>Henüz veri yok</Text>
@@ -169,98 +182,88 @@ export default function Stats() {
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
       {/* Diğer sekmelerle aynı zemin */}
       <Backdrop />
-
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={luxeType.display}>Akvaryum</Text>
-          <Text style={styles.subtitle}>Gardırobunun raporu</Text>
-        </View>
-        <ProfileButton size={36} />
-      </View>
+      {header}
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 44, gap: 14 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 44, gap: 22 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ————— Kullanım ————— */}
-        <Panel>
-          <View style={styles.usageRow}>
-            <Text style={styles.microLabel}>GARDIROP KULLANIMI</Text>
-            <Text style={styles.bigFigure}>
-              %{Math.round(stats.usage * 100)}
-            </Text>
+        {/*
+          Kullanım — Bugün'deki "Haftanın doluluğu" kartının BİREBİR kalıbı:
+          etiket + serif oran, iridesan çubuk, italik not.
+        */}
+        <GlassCard>
+          <FigureHead label="Gardırop kullanımı" value={`%${Math.round(stats.usage * 100)}`} />
+          <View style={{ marginTop: 16 }}>
+            <ProgressBar ratio={stats.usage} gradient={chartGradient} height={6} track={CARD_TRACK} />
           </View>
-          <ProgressBar ratio={stats.usage} gradient={chartGradient} height={6} />
-          <Text style={[luxeType.caption, { marginTop: 10 }]}>
+          <Text style={styles.note}>
             Son 30 günde {stats.total} parçanın {stats.wornLast30} tanesini giydin.
           </Text>
-        </Panel>
+        </GlassCard>
 
         {/*
-          Üç sayı: kutu yerine ince ayraçlı tek satır. Üç ayrı kart, üç ayrı
-          çerçeve demekti; rapor sayfası bunu tek nefeste okutuyor.
+          Üç sayı tek kartta, ince ayraçlarla. Üç ayrı kart üç ayrı çerçeve
+          demekti; okuyan tek bakışta karşılaştırabilsin.
         */}
-        <Panel style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={styles.figureCell}>
-            <Text style={styles.figure}>{stats.total}</Text>
-            <Text style={styles.microLabel}>PARÇA</Text>
+        <GlassCard style={styles.figureRow}>
+          <View style={styles.cell}>
+            <Text style={styles.cellFigure}>{stats.total}</Text>
+            <Text style={styles.cellLabel}>Parça</Text>
           </View>
           <View style={styles.divider} />
-          <View style={styles.figureCell}>
-            <Text style={styles.figure}>₺{stats.totalValue.toLocaleString('tr-TR')}</Text>
-            <Text style={styles.microLabel}>DEĞER</Text>
+          <View style={styles.cell}>
+            <Text style={styles.cellFigure}>₺{stats.totalValue.toLocaleString('tr-TR')}</Text>
+            <Text style={styles.cellLabel}>Değer</Text>
           </View>
           <View style={styles.divider} />
-          <View style={styles.figureCell}>
-            <Text style={styles.figure}>
+          <View style={styles.cell}>
+            <Text style={styles.cellFigure}>
               {stats.avgCpw != null ? `₺${stats.avgCpw.toFixed(0)}` : '—'}
             </Text>
-            <Text style={styles.microLabel}>GİYİM BAŞINA</Text>
+            <Text style={styles.cellLabel}>Giyim başına</Text>
           </View>
-        </Panel>
+        </GlassCard>
 
-        {/* ————— Okyanus puanı ————— */}
-        <View style={styles.scoreCard}>
-          <View style={styles.usageRow}>
-            <Text style={[styles.microLabel, { color: luxe.onDarkSoft }]}>OKYANUS PUANI</Text>
-            <Text style={[styles.bigFigure, { color: luxe.onDark }]}>
-              {stats.sustainability}
-              <Text style={styles.scoreMax}>/100</Text>
-            </Text>
+        {/* Okyanus puanı — sayfanın tek vurgulu kartı (Bugün'deki AI kartı gibi) */}
+        <GlassCard tint>
+          <FigureHead label="Okyanus puanı" value={`${stats.sustainability}/100`} />
+          <View style={{ marginTop: 16 }}>
+            <ProgressBar
+              ratio={stats.sustainability / 100}
+              gradient={chartGradient}
+              height={6}
+              track={CARD_TRACK}
+            />
           </View>
-          <ProgressBar
-            ratio={stats.sustainability / 100}
-            gradient={chartGradient}
-            height={6}
-            track="rgba(255,255,255,0.18)"
-          />
-          <Text style={styles.scoreNote}>
+          <Text style={styles.note}>
             İkinci el, el yapımı ve sahip olduğunu giymek puanı yükseltir.
           </Text>
-        </View>
+        </GlassCard>
 
-        {/* ————— Kompozisyon ————— */}
-        <Panel>
-          <Head title="Kompozisyon" meta="NEREDEN GELDİ" />
-          <DonutChart
-            slices={stats.bySource}
-            centerValue={String(stats.total)}
-            centerLabel="PARÇA"
-          />
-          <Legend slices={stats.bySource} />
-        </Panel>
+        {/* Kompozisyon — halka solda, gösterge sağda dikey liste */}
+        <GlassCard>
+          <CardHead title="Kompozisyon" meta="Nereden geldi" />
+          <View style={styles.donutRow}>
+            <DonutChart
+              slices={stats.bySource}
+              size={132}
+              centerValue={String(stats.total)}
+              centerLabel="PARÇA"
+            />
+            <Legend slices={stats.bySource} column />
+          </View>
+        </GlassCard>
 
-        {/* ————— Kategoriler ————— */}
-        <Panel>
-          <Head title="Kategoriler" />
-          <HBars data={stats.byCategory.filter((c) => c.value > 0)} />
-        </Panel>
+        <GlassCard>
+          <CardHead title="Kategoriler" />
+          <HBars data={stats.byCategory.filter((c) => c.value > 0)} gradient={chartGradient} />
+        </GlassCard>
 
-        {/* ————— Renk paleti ————— */}
-        <Panel>
-          <Head
+        <GlassCard>
+          <CardHead
             title="Renk paletin"
-            meta={stats.byColor.length ? `${stats.byColor.length} TON` : undefined}
+            meta={stats.byColor.length ? `${stats.byColor.length} ton` : undefined}
           />
           <View style={styles.paletteRow}>
             {stats.byColor.map((c) => (
@@ -274,17 +277,16 @@ export default function Stats() {
             ))}
           </View>
           {stats.byColor.length >= 3 ? (
-            <Text style={[luxeType.caption, { marginTop: 12 }]}>
+            <Text style={styles.note}>
               Baskın tonun {stats.byColor[0].label.toLocaleLowerCase('tr')} — kombinlerin bu renk
               etrafında kuruluyor.
             </Text>
           ) : null}
-        </Panel>
+        </GlassCard>
 
-        {/* ————— En çok giyilenler ————— */}
         {stats.mostWorn.length ? (
-          <Panel>
-            <Head title="En çok giyilenler" />
+          <GlassCard>
+            <CardHead title="En çok giyilenler" />
             <ItemStrip
               items={stats.mostWorn}
               size={92}
@@ -294,14 +296,13 @@ export default function Stats() {
                 }`
               }
             />
-          </Panel>
+          </GlassCard>
         ) : null}
 
-        {/* ————— Unutulanlar ————— */}
         {stats.neglected.length ? (
-          <Panel>
-            <Head title="Dolapta uyuyanlar" meta="45+ GÜN" />
-            <Text style={[luxeType.caption, { marginBottom: 12 }]}>
+          <GlassCard>
+            <CardHead title="Dolapta uyuyanlar" meta="45+ gün" />
+            <Text style={[styles.note, { marginTop: 0, marginBottom: 14 }]}>
               Bu hafta birini uyandır ya da arşivlemeyi düşün.
             </Text>
             <ItemStrip
@@ -313,7 +314,7 @@ export default function Stats() {
                   : 'hiç giyilmedi'
               }
             />
-          </Panel>
+          </GlassCard>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -337,56 +338,41 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
 
-  panel: {
-    backgroundColor: glass.fillStrong,
-    borderRadius: luxeRadius.lg,
-    borderWidth: 1,
-    borderColor: glass.border,
-    padding: 18,
+  cardHead: { flexDirection: 'row', alignItems: 'baseline', gap: 12, marginBottom: 16 },
+  /** Bugün'deki kart başlıklarıyla aynı: italik serif. */
+  cardTitle: {
+    flex: 1,
+    fontFamily: font.headlineItalic,
+    fontStyle: 'italic',
+    fontSize: 20,
+    lineHeight: 26,
+    color: luxe.primary,
   },
-  head: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginBottom: 14 },
-  headTitle: { flex: 1, fontFamily: font.headline, fontSize: 18, color: luxe.primary },
-  headMeta: {
-    fontFamily: font.label,
-    fontSize: 8.5,
-    letterSpacing: 1.4,
-    color: luxe.outline,
-  },
+  figureHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  figureValue: { fontFamily: font.display, fontSize: 20, color: luxe.primary },
+  /** Çubuk altındaki açıklama — Bugün'de de italik. */
+  note: { ...luxeType.caption, fontStyle: 'italic', marginTop: 12 },
 
-  microLabel: {
+  /*
+    Hücreler ÜSTTEN hizalanıyor: ortadan hizalanınca iki satıra saran etiket
+    ("giyim başına") kendi rakamını yukarı itiyor ve üç rakam aynı çizgide
+    durmuyordu. Ayraç da bu yüzden sabit boyda.
+  */
+  figureRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  cell: { flex: 1, alignItems: 'center', gap: 5 },
+  cellFigure: { fontFamily: font.display, fontSize: 19, lineHeight: 24, color: luxe.primary },
+  /** Etiket tek satıra sığsın diye ölçekten biraz dar — harf aralığı da kısık. */
+  cellLabel: {
     fontFamily: font.label,
-    fontSize: 8.5,
-    letterSpacing: 1.4,
+    fontSize: 9,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
     color: luxe.outline,
+    textAlign: 'center',
   },
-  usageRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    gap: 10,
-  },
-  /** Rapor havası rakamlardan geliyor: figürler serif. */
-  bigFigure: { fontFamily: font.display, fontSize: 30, lineHeight: 34, color: luxe.primary },
-  figureCell: { flex: 1, alignItems: 'center', gap: 4 },
-  figure: { fontFamily: font.display, fontSize: 19, lineHeight: 24, color: luxe.primary },
-  divider: { width: 1, alignSelf: 'stretch', backgroundColor: luxe.outlineSoft, marginVertical: 2 },
+  divider: { width: 1, height: 42, backgroundColor: luxe.outlineSoft },
 
-  /** Tek koyu yüzey — sayfadaki tek vurgu, o yüzden değerli. */
-  scoreCard: {
-    backgroundColor: luxe.primary,
-    borderRadius: luxeRadius.lg,
-    padding: 18,
-  },
-  scoreMax: { fontFamily: font.body, fontSize: 13, color: luxe.onDarkSoft },
-  scoreNote: {
-    fontFamily: font.body,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: luxe.onDarkSoft,
-    marginTop: 10,
-  },
+  donutRow: { flexDirection: 'row', alignItems: 'center', gap: 18 },
 
   paletteRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   paletteCell: { alignItems: 'center', width: 52, gap: 3 },
