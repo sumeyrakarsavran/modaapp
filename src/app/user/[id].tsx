@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -14,7 +14,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
-import { Avatar, FluidSpecCollage } from '@/components/Community';
+import { Avatar, FluidSpecCollage, SpecCollage } from '@/components/Community';
 import { GarmentArt } from '@/components/GarmentArt';
 import { PERSONA_SHOWCASE, PERSONAS } from '@/data/community';
 import { useStore } from '@/store/useStore';
@@ -25,11 +25,19 @@ import { font, glass, iridescent, luxe, luxeRadius, luxeType } from '@/theme/lux
 const GRID_GAP = 5;
 const GRID_PAD = 12;
 
+/**
+ * Profilde o an gösterilen bölüm. Varsayılan GÖNDERİLER: profile girince
+ * insanın beklediği şey bu. Vitrin (herkese açık parçalar, lookbook'lar)
+ * eskiden hep açıktı ve sayfayı uzatıyordu; artık halkaya dokununca açılıyor.
+ */
+type Section = 'gonderi' | 'parca' | 'kombin' | 'selfie' | 'lookbook';
+
 export default function UserProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { posts, followedIds, toggleFollow } = useStore();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const [section, setSection] = useState<Section>('gonderi');
   const user = PERSONAS.find((p) => p.id === id);
 
   if (!user) {
@@ -64,32 +72,69 @@ export default function UserProfile() {
     </View>
   );
 
-  /** Öne çıkanlar — kendi profilimizdeki halkaların aynısı. */
+  /**
+   * Öne çıkanlar — kendi profilimizdeki halkaların aynısı, ama burada
+   * SEÇİLEBİLİR: dokununca o bölüm açılıyor, tekrar dokununca gönderilere
+   * dönüyor.
+   */
   const Highlight = ({
     icon,
     n,
     label,
+    id: sec,
   }: {
     icon: React.ComponentProps<typeof Ionicons>['name'];
     n: number;
     label: string;
-  }) => (
-    <View style={styles.hl}>
-      <LinearGradient
-        colors={iridescent.soft}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hlRing}
+    id: Section;
+  }) => {
+    const on = section === sec;
+    return (
+      <Pressable
+        style={styles.hl}
+        onPress={() => setSection(on ? 'gonderi' : sec)}
       >
-        <View style={styles.hlInner}>
-          <Ionicons name={icon} size={17} color={luxe.primary} />
-          <Text style={styles.hlCount}>{n}</Text>
+        <LinearGradient
+          colors={iridescent.soft}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hlRing}
+        >
+          <View style={[styles.hlInner, on && styles.hlInnerOn]}>
+            <Ionicons name={icon} size={17} color={luxe.primary} />
+            <Text style={styles.hlCount}>{n}</Text>
+          </View>
+        </LinearGradient>
+        <Text style={[styles.hlLabel, on && styles.hlLabelOn]} numberOfLines={1}>
+          {label}
+        </Text>
+      </Pressable>
+    );
+  };
+
+  /** Bir gönderi karosu — gönderi/kombin/selfie ızgaraları aynı karoyu kullanıyor. */
+  const PostCell = ({ p }: { p: (typeof userPosts)[number] }) => (
+    <Pressable
+      style={[styles.cell, { width: cell, height: cell }]}
+      onPress={() => router.push({ pathname: '/post/[id]', params: { id: p.id, user: user.id } })}
+    >
+      {p.imageUri ? (
+        <Image
+          source={{ uri: p.imageUri }}
+          style={{ width: cell, height: cell }}
+          contentFit="contain"
+        />
+      ) : (
+        <View style={{ width: cell }}>
+          <FluidSpecCollage
+            garments={p.garments}
+            frame={p.canvasFrame}
+            cropToContent={p.cropToContent}
+            bare
+          />
         </View>
-      </LinearGradient>
-      <Text style={styles.hlLabel} numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
+      )}
+    </Pressable>
   );
 
   return (
@@ -113,9 +158,14 @@ export default function UserProfile() {
         <View style={styles.topRow}>
           <Avatar user={user} size={84} />
           <View style={styles.stats}>
+            {/*
+              Instagram'daki üçlü: Gönderi · Takipçi · Takip. Üçüncü sayaç
+              "Parça"ydı ama profil başlığında gardırop sayısı anlamsız
+              duruyordu — o bilgi zaten aşağıdaki halkada.
+            */}
             <Stat n={userPosts.length} label="Gönderi" />
             <Stat n={user.followers + (followed ? 1 : 0)} label="Takipçi" />
-            <Stat n={showcase?.items.length ?? 0} label="Parça" />
+            <Stat n={user.following ?? 0} label="Takip" />
           </View>
         </View>
 
@@ -153,76 +203,77 @@ export default function UserProfile() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.hlRow}
           >
-            <Highlight icon="shirt-outline" n={showcase.items.length} label="Parça" />
+            <Highlight
+              icon="shirt-outline"
+              n={showcase.items.length}
+              label="Parça"
+              id="parca"
+            />
             <Highlight
               icon="albums-outline"
               n={userPosts.filter((p) => p.kind === 'kombin').length}
               label="Kombin"
+              id="kombin"
             />
             <Highlight
               icon="happy-outline"
               n={userPosts.filter((p) => p.kind === 'selfie').length}
               label="Selfie"
+              id="selfie"
             />
-            <Highlight icon="book-outline" n={showcase.lookbooks.length} label="Lookbook" />
+            <Highlight
+              icon="book-outline"
+              n={showcase.lookbooks.length}
+              label="Lookbook"
+              id="lookbook"
+            />
           </ScrollView>
         ) : null}
 
-        {/* Gönderiler — dokununca kart hâlinde açılıyor (kendi profildeki gibi) */}
         <View style={styles.gridTop} />
-        {userPosts.length === 0 ? (
-          <View style={styles.empty}>
-            <Ionicons name="images-outline" size={26} color={luxe.outlineSoft} />
-            <Text style={[luxeType.caption, { marginTop: 10 }]}>Henüz gönderi paylaşmamış.</Text>
-          </View>
-        ) : (
-          <View style={styles.grid}>
-            {userPosts.map((p) => (
-              <Pressable
-                key={p.id}
-                style={[styles.cell, { width: cell, height: cell }]}
-                onPress={() =>
-                  router.push({ pathname: '/post/[id]', params: { id: p.id, user: user.id } })
-                }
-              >
-                {p.imageUri ? (
-                  <Image
-                    source={{ uri: p.imageUri }}
-                    style={{ width: cell, height: cell }}
-                    contentFit="contain"
-                  />
-                ) : (
-                  <View style={{ width: cell }}>
-                    <FluidSpecCollage
-                      garments={p.garments}
-                      frame={p.canvasFrame}
-                      cropToContent={p.cropToContent}
-                      bare
-                    />
-                  </View>
-                )}
-              </Pressable>
-            ))}
-          </View>
-        )}
 
-        {/* Herkese açık parçalar — persona'nın vitrini */}
-        {showcase?.items.length ? (
-          <>
-            <Text style={styles.sectionLabel}>HERKESE AÇIK PARÇALAR</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, paddingHorizontal: GRID_PAD }}
-            >
+        {/* ————— Gönderiler (varsayılan) ————— */}
+        {section === 'gonderi' ? (
+          userPosts.length === 0 ? (
+            <Empty text="Henüz gönderi paylaşmamış." />
+          ) : (
+            <View style={styles.grid}>
+              {userPosts.map((p) => (
+                <PostCell key={p.id} p={p} />
+              ))}
+            </View>
+          )
+        ) : null}
+
+        {/* ————— Kombin / Selfie gönderileri ————— */}
+        {section === 'kombin' || section === 'selfie' ? (
+          (() => {
+            const kind = section === 'kombin' ? 'kombin' : 'selfie';
+            const list = userPosts.filter((p) => p.kind === kind);
+            return list.length === 0 ? (
+              <Empty text={`Henüz ${kind === 'kombin' ? 'kombin' : 'selfie'} paylaşmamış.`} />
+            ) : (
+              <View style={styles.grid}>
+                {list.map((p) => (
+                  <PostCell key={p.id} p={p} />
+                ))}
+              </View>
+            );
+          })()
+        ) : null}
+
+        {/* ————— Herkese açık parçalar ————— */}
+        {section === 'parca' ? (
+          showcase?.items.length ? (
+            <View style={styles.grid}>
               {showcase.items.map((it) => (
-                <View key={it.name} style={{ width: 92 }}>
-                  <View style={styles.itemBox}>
+                <View key={it.name} style={{ width: cell }}>
+                  <View style={[styles.cell, { width: cell, height: cell }]}>
                     <GarmentArt
                       category={it.category}
                       subcategory={it.subcategory}
                       colorId={it.colorId}
-                      size={60}
+                      size={cell * 0.62}
                     />
                   </View>
                   <Text style={styles.itemName} numberOfLines={1}>
@@ -230,11 +281,50 @@ export default function UserProfile() {
                   </Text>
                 </View>
               ))}
-            </ScrollView>
-          </>
+            </View>
+          ) : (
+            <Empty text="Herkese açık parçası yok." />
+          )
+        ) : null}
+
+        {/* ————— Lookbook'lar ————— */}
+        {section === 'lookbook' ? (
+          showcase?.lookbooks.length ? (
+            <View style={{ gap: 22, paddingHorizontal: GRID_PAD }}>
+              {showcase.lookbooks.map((lb) => (
+                <View key={lb.name}>
+                  <Text style={styles.lbName}>{lb.name}</Text>
+                  <Text style={styles.lbMeta}>{lb.outfits.length} KOMBİN</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 10, paddingTop: 10 }}
+                  >
+                    {lb.outfits.map((o, i) => (
+                      /* Kırpma kabı: silüetler kendi kutularından taşıyordu. */
+                      <View key={i} style={styles.lbCell}>
+                        <SpecCollage garments={o} size={124} />
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Empty text="Herkese açık lookbook'u yok." />
+          )
         ) : null}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function Empty({ text }: { text: string }) {
+  return (
+    <View style={styles.empty}>
+      <Ionicons name="images-outline" size={26} color={luxe.outlineSoft} />
+      <Text style={[luxeType.caption, { marginTop: 10 }]}>{text}</Text>
+    </View>
   );
 }
 
@@ -299,6 +389,9 @@ const styles = StyleSheet.create({
   },
   hlCount: { fontFamily: font.display, fontSize: 13, color: luxe.primary, marginTop: 1 },
   hlLabel: { fontFamily: font.body, fontSize: 11, color: luxe.outline },
+  /** Seçili halka: iç yüzey tona çalıyor, etiket koyulaşıyor. */
+  hlInnerOn: { backgroundColor: luxe.primaryContainer },
+  hlLabelOn: { fontFamily: font.bodyMedium, color: luxe.ink },
 
   gridTop: { height: 14, borderTopWidth: 1, borderTopColor: luxe.outlineSoft, marginTop: 14 },
   grid: {
@@ -317,24 +410,24 @@ const styles = StyleSheet.create({
     borderColor: luxe.outlineSoft,
   },
 
-  sectionLabel: {
-    fontFamily: font.label,
-    fontSize: 9.5,
-    letterSpacing: 1.3,
-    color: luxe.outline,
-    paddingHorizontal: GRID_PAD,
-    marginTop: 26,
-    marginBottom: 10,
-  },
-  itemBox: {
-    width: 92,
-    height: 92,
-    backgroundColor: luxe.surface,
+  lbCell: {
+    width: 124,
+    height: 124,
     borderRadius: luxeRadius.md,
     borderWidth: 1,
     borderColor: luxe.outlineSoft,
+    backgroundColor: luxe.surface,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  lbName: { fontFamily: font.headline, fontSize: 17, color: luxe.primary },
+  lbMeta: {
+    fontFamily: font.label,
+    fontSize: 9,
+    letterSpacing: 1.3,
+    color: luxe.outline,
+    marginTop: 3,
   },
   itemName: {
     fontFamily: font.body,

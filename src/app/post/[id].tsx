@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,7 +25,6 @@ export default function PostViewer() {
     useStore();
   const insets = useSafeAreaInsets();
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
-  const listRef = useRef<FlatList<CommunityPost>>(null);
 
   /** Kimin gönderileri: `user` verilmişse onunkiler, yoksa tüm akış. */
   const feed = useMemo(() => {
@@ -33,10 +32,18 @@ export default function PostViewer() {
     return [...all].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   }, [posts, user]);
 
+  /*
+    Liste DOKUNULAN GÖNDERİDEN başlıyor, öncekiler hiç çizilmiyor.
+    Önce tüm akış veriliyor ve `initialScrollIndex` ile o gönderiye
+    kaydırılıyordu: üstteki kartlar da ölçülmek zorunda kaldığı için açılış
+    gecikiyordu (telefonda görüldü). Zaten geriye bakmaya da gerek yok —
+    kullanıcı ileri kaydırıyor.
+  */
   const startIndex = Math.max(
     0,
     feed.findIndex((p) => p.id === id),
   );
+  const visible = useMemo(() => feed.slice(startIndex), [feed, startIndex]);
 
   const owner = feed[startIndex];
   const title = owner?.userId === 'me' ? 'Gönderilerin' : 'Gönderiler';
@@ -68,32 +75,19 @@ export default function PostViewer() {
         <Text style={styles.headerTitle}>{title}</Text>
       </View>
 
-      {feed.length === 0 ? (
+      {visible.length === 0 ? (
         <Text style={[luxeType.caption, { textAlign: 'center', marginTop: 40 }]}>
           Gönderi bulunamadı.
         </Text>
       ) : (
         <FlatList
-          ref={listRef}
-          data={feed}
+          data={visible}
           keyExtractor={(p) => p.id}
           contentContainerStyle={{ padding: 20, paddingBottom: 40 + insets.bottom }}
           showsVerticalScrollIndicator={false}
-          initialScrollIndex={startIndex}
-          /*
-            Kart yükseklikleri içeriğe göre değişiyor (fotoğraf oranı, açıklama
-            uzunluğu), yani `getItemLayout` veremiyoruz. `initialScrollIndex`
-            ölçüm gelmeden başarısız olabildiği için hata yakalanıp yaklaşık
-            konuma kaydırılıyor — yoksa liste en başa düşüyor.
-          */
-          onScrollToIndexFailed={(info) => {
-            setTimeout(() => {
-              listRef.current?.scrollToOffset({
-                offset: info.averageItemLength * info.index,
-                animated: false,
-              });
-            }, 60);
-          }}
+          /* İlk kart hemen görünsün, kalanı kaydırdıkça çizilsin. */
+          initialNumToRender={1}
+          windowSize={3}
           renderItem={({ item: p }) => (
             <PostCard
               post={p}

@@ -15,6 +15,7 @@ export const PERSONAS: CommunityUser[] = [
     archetypeId: 'halfmoon',
     color: '#7B5EA7',
     followers: 12400,
+    following: 212,
   },
   {
     id: 'ateş',
@@ -24,6 +25,7 @@ export const PERSONAS: CommunityUser[] = [
     archetypeId: 'crowntail',
     color: '#E5383B',
     followers: 9800,
+    following: 348,
   },
   {
     id: 'mira',
@@ -33,6 +35,7 @@ export const PERSONAS: CommunityUser[] = [
     archetypeId: 'veiltail',
     color: '#FF4D6D',
     followers: 15200,
+    following: 176,
   },
   {
     id: 'kai',
@@ -42,6 +45,7 @@ export const PERSONAS: CommunityUser[] = [
     archetypeId: 'plakat',
     color: '#00B4D8',
     followers: 7600,
+    following: 431,
   },
   {
     id: 'pupa',
@@ -51,6 +55,7 @@ export const PERSONAS: CommunityUser[] = [
     archetypeId: 'koi',
     color: '#F4B942',
     followers: 11100,
+    following: 295,
   },
   {
     id: 'bulut',
@@ -60,6 +65,7 @@ export const PERSONAS: CommunityUser[] = [
     archetypeId: 'dumbo',
     color: '#2EC4B6',
     followers: 8900,
+    following: 260,
   },
 ];
 

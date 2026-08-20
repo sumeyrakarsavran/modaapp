@@ -334,6 +334,8 @@ export interface CommunityUser {
   /** Profil fotoğrafı (yalnızca 'me' için; personalarda yok) */
   avatarUri?: string;
   followers: number;
+  /** Takip ettiği kişi sayısı — profilde "Takip" sayacı. */
+  following?: number;
   isMe?: boolean;
 }
 
