@@ -343,7 +343,7 @@ export default function Community() {
             onOpenComments={() => setCommentsFor(p.id)}
             onOpenUser={() =>
               p.userId === 'me'
-                ? router.push('/profile')
+                ? router.push('/(tabs)/profile')
                 : router.push({ pathname: '/user/[id]', params: { id: p.userId } })
             }
             /*

@@ -98,11 +98,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="stats"
+        name="profile"
         options={{
-          title: 'Akvaryum',
+          title: 'Profil',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="waves" size={size} color={color} />
+            <Ionicons name="person-outline" size={size - 1} color={color} />
           ),
         }}
       />

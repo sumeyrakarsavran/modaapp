@@ -9,7 +9,6 @@ import { chartGradient, DonutChart, HBars, Legend, ProgressBar } from '@/compone
 import { FinBlob } from '@/components/FinBlob';
 import { CARD_TRACK, GlassCard, ShapedCard } from '@/components/GlassCard';
 import { ItemThumb } from '@/components/ItemThumb';
-import { ProfileButton } from '@/components/ProfileButton';
 import { useStore } from '@/store/useStore';
 import { font, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 import { CATEGORIES, ITEM_COLORS, SOURCES, todayISO } from '@/types';
@@ -152,13 +151,16 @@ export default function Stats() {
     };
   }, [active]);
 
+  /* Artık sekme değil, profilden açılan bir ekran — başlıkta geri oku var. */
   const header = (
     <View style={styles.header}>
+      <Pressable onPress={() => router.back()} hitSlop={8} style={{ paddingTop: 6 }}>
+        <Ionicons name="arrow-back" size={22} color={luxe.primary} />
+      </Pressable>
       <View style={{ flex: 1 }}>
         <Text style={luxeType.display}>Akvaryum</Text>
         <Text style={styles.subtitle}>Gardırobunun raporu</Text>
       </View>
-      <ProfileButton size={36} />
     </View>
   );
 
@@ -367,7 +369,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 14,
-    gap: 10,
+    gap: 14,
   },
   subtitle: {
     fontFamily: font.body,

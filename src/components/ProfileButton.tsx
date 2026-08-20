@@ -18,7 +18,7 @@ export function ProfileButton({ size = 40 }: { size?: number }) {
 
   return (
     <Pressable
-      onPress={() => router.push('/profile')}
+      onPress={() => router.push('/(tabs)/profile')}
       hitSlop={6}
       style={({ pressed }) => (pressed ? { opacity: 0.75 } : undefined)}
     >

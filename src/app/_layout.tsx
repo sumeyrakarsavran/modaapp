@@ -25,7 +25,7 @@ SplashScreen.preventAutoHideAsync();
 const ROUTE_FOR_PURPOSE = {
   garment: '/item/new',
   selfie: '/(tabs)/wardrobe',
-  avatar: '/profile',
+  avatar: '/(tabs)/profile',
   model: '/tryon',
 } as const;
 

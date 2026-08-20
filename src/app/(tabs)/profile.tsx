@@ -163,10 +163,8 @@ export default function Profile() {
       <Backdrop />
 
       {/* Başlık: kullanıcı adı solda — Instagram'daki gibi */}
+      {/* Sekme olduğu için geri oku yok — başlıkta kullanıcı adı ve ayarlar */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={22} color={luxe.primary} />
-        </Pressable>
         <Text style={styles.headerName} numberOfLines={1}>
           @{profile.username || 'betta'}
         </Text>
@@ -252,6 +250,23 @@ export default function Profile() {
             <Ionicons name="people-outline" size={16} color={luxe.primary} />
           </Pressable>
         </View>
+
+        {/*
+          Akvaryum artık sekme değil, profilin içinde. Rapor ekranları başka
+          uygulamalarda da profilin altında duruyor (Instagram'da içgörüler,
+          Spotify'da Wrapped) — sürekli gezilen bir yer değil, arada bakılan
+          bir özet.
+        */}
+        <Pressable style={styles.reportRow} onPress={() => router.push('/aquarium')}>
+          <View style={styles.reportIcon}>
+            <Ionicons name="stats-chart-outline" size={16} color={luxe.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.reportTitle}>Akvaryum</Text>
+            <Text style={styles.reportNote}>Gardırobunun raporu</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={luxe.outline} />
+        </Pressable>
 
         {/* Öne çıkanlar: gardırop sayaçları */}
         <ScrollView
@@ -417,6 +432,30 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   headerName: { flex: 1, fontFamily: font.bodyMedium, fontSize: 16, color: luxe.ink },
+  /** Akvaryum girişi — profilden açılan tek "iç sayfa". */
+  reportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 12,
+    marginHorizontal: 18,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: luxeRadius.md,
+    backgroundColor: glass.fill,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+  },
+  reportIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: luxe.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportTitle: { fontFamily: font.bodyMedium, fontSize: 14, color: luxe.ink },
+  reportNote: { fontFamily: font.body, fontSize: 11.5, color: luxe.outline },
 
   topRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, gap: 18 },
   editBadge: {
