@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,12 +15,13 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
-import { Avatar, FluidSpecCollage, SpecCollage } from '@/components/Community';
+import { Avatar, FluidSpecCollage } from '@/components/Community';
 import { GarmentArt } from '@/components/GarmentArt';
 import { PERSONA_SHOWCASE, PERSONAS } from '@/data/community';
 import { useStore } from '@/store/useStore';
 import { getArchetype } from '@/theme';
 import { font, glass, iridescent, luxe, luxeRadius, luxeType } from '@/theme/luxe';
+import type { GarmentSpec } from '@/types';
 
 /** Kendi profilimizdeki ızgarayla AYNI ölçüler — iki ekran aynı görünsün. */
 const GRID_GAP = 5;
@@ -38,6 +40,12 @@ export default function UserProfile() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [section, setSection] = useState<Section>('gonderi');
+  /**
+   * Büyütülmüş önizleme. Gönderiler dokununca kart hâlinde açılıyordu ama
+   * vitrindeki parçalar ve lookbook kombinleri dokunulamıyordu — hepsi
+   * büyüsün diye ortak bir önizleme.
+   */
+  const [preview, setPreview] = useState<{ title: string; garments: GarmentSpec[] } | null>(null);
   const user = PERSONAS.find((p) => p.id === id);
 
   if (!user) {
@@ -64,6 +72,14 @@ export default function UserProfile() {
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 
   const cell = Math.floor((width - GRID_PAD * 2 - GRID_GAP * 2) / 3);
+  /**
+   * Lookbook kartının içindeki kombin karosu — kart dolgusu da düşülüyor.
+   * Sondaki -1: yuvarlama bir piksel taşırıp ikinci karoyu alt satıra
+   * atıyordu (telefonda görüldü).
+   */
+  const lbCell = Math.floor((width - GRID_PAD * 2 - 28 - 10) / 2) - 1;
+  /** Büyütülmüş önizlemenin kenarı. */
+  const previewW = Math.min(width - 96, 320);
 
   const Stat = ({ n, label }: { n: number; label: string }) => (
     <View style={styles.stat}>
@@ -267,7 +283,22 @@ export default function UserProfile() {
           showcase?.items.length ? (
             <View style={styles.grid}>
               {showcase.items.map((it) => (
-                <View key={it.name} style={{ width: cell }}>
+                <Pressable
+                  key={it.name}
+                  style={{ width: cell }}
+                  onPress={() =>
+                    setPreview({
+                      title: it.name,
+                      garments: [
+                        {
+                          category: it.category,
+                          subcategory: it.subcategory,
+                          colorId: it.colorId,
+                        },
+                      ],
+                    })
+                  }
+                >
                   <View style={[styles.cell, { width: cell, height: cell }]}>
                     <GarmentArt
                       category={it.category}
@@ -279,7 +310,7 @@ export default function UserProfile() {
                   <Text style={styles.itemName} numberOfLines={1}>
                     {it.name}
                   </Text>
-                </View>
+                </Pressable>
               ))}
             </View>
           ) : (
@@ -290,23 +321,35 @@ export default function UserProfile() {
         {/* ————— Lookbook'lar ————— */}
         {section === 'lookbook' ? (
           showcase?.lookbooks.length ? (
-            <View style={{ gap: 22, paddingHorizontal: GRID_PAD }}>
+            /*
+              Her lookbook TEK KART. Önce başlık + serbest kolajlar diziliyordu;
+              "1 lookbook" yazarken ekranda iki kolaj görününce sayı yanlış
+              sanılıyordu (telefonda görüldü). Kart, içindeki kombinleri
+              kapsadığı için sayı da göz de aynı şeyi söylüyor.
+            */
+            <View style={{ gap: 14, paddingHorizontal: GRID_PAD }}>
               {showcase.lookbooks.map((lb) => (
-                <View key={lb.name}>
-                  <Text style={styles.lbName}>{lb.name}</Text>
-                  <Text style={styles.lbMeta}>{lb.outfits.length} KOMBİN</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 10, paddingTop: 10 }}
-                  >
+                <View key={lb.name} style={styles.lbCard}>
+                  <View style={styles.lbHead}>
+                    <Text style={styles.lbName}>{lb.name}</Text>
+                    <Text style={styles.lbMeta}>{lb.outfits.length} KOMBİN</Text>
+                  </View>
+                  <View style={styles.lbGrid}>
                     {lb.outfits.map((o, i) => (
-                      /* Kırpma kabı: silüetler kendi kutularından taşıyordu. */
-                      <View key={i} style={styles.lbCell}>
-                        <SpecCollage garments={o} size={124} />
-                      </View>
+                      <Pressable
+                        key={i}
+                        style={{ width: lbCell }}
+                        onPress={() => setPreview({ title: lb.name, garments: o })}
+                      >
+                        {/*
+                          `FluidSpecCollage` kapsayıcının genişliğini dolduruyor
+                          ve ASLA taşmıyor — `SpecCollage` sabit ölçüde çizip
+                          kutudan taşıyordu, kırpınca da kıyafetler sığmıyordu.
+                        */}
+                        <FluidSpecCollage garments={o} />
+                      </Pressable>
                     ))}
-                  </ScrollView>
+                  </View>
                 </View>
               ))}
             </View>
@@ -315,6 +358,41 @@ export default function UserProfile() {
           )
         ) : null}
       </ScrollView>
+
+      {/* Büyütülmüş önizleme — vitrin parçası ya da lookbook kombini */}
+      <Modal
+        visible={!!preview}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setPreview(null)}
+      >
+        <Pressable style={styles.previewWrap} onPress={() => setPreview(null)}>
+          <View style={styles.previewCard}>
+            {/*
+              TEK parça ızgara hücresine konmuyor: kolaj bileşeni her parçayı
+              %47'lik bir kareye yerleştirdiği için tek parça ortada minicik
+              kalıyordu. Tek parçada silüet kutunun tamamını kullanıyor.
+            */}
+            <View style={{ width: previewW, height: previewW, alignItems: 'center', justifyContent: 'center' }}>
+              {preview?.garments.length === 1 ? (
+                <GarmentArt
+                  category={preview.garments[0].category}
+                  subcategory={preview.garments[0].subcategory}
+                  colorId={preview.garments[0].colorId}
+                  size={previewW * 0.92}
+                />
+              ) : (
+                <FluidSpecCollage garments={preview?.garments ?? []} />
+              )}
+            </View>
+            <Text style={styles.previewTitle} numberOfLines={2}>
+              {preview?.title}
+            </Text>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -410,24 +488,42 @@ const styles = StyleSheet.create({
     borderColor: luxe.outlineSoft,
   },
 
-  lbCell: {
-    width: 124,
-    height: 124,
-    borderRadius: luxeRadius.md,
+  lbCard: {
+    backgroundColor: luxe.surface,
+    borderRadius: luxeRadius.lg,
     borderWidth: 1,
     borderColor: luxe.outlineSoft,
-    backgroundColor: luxe.surface,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 14,
   },
-  lbName: { fontFamily: font.headline, fontSize: 17, color: luxe.primary },
+  lbHead: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginBottom: 10 },
+  lbGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  lbName: { flex: 1, fontFamily: font.headline, fontSize: 17, color: luxe.primary },
   lbMeta: {
     fontFamily: font.label,
     fontSize: 9,
     letterSpacing: 1.3,
     color: luxe.outline,
-    marginTop: 3,
+  },
+  previewWrap: {
+    flex: 1,
+    backgroundColor: luxe.overlay,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  previewCard: {
+    backgroundColor: luxe.surface,
+    borderRadius: luxeRadius.lg,
+    padding: 18,
+    alignItems: 'center',
+    gap: 12,
+  },
+  previewTitle: {
+    fontFamily: font.headlineItalic,
+    fontStyle: 'italic',
+    fontSize: 17,
+    color: luxe.primary,
+    textAlign: 'center',
   },
   itemName: {
     fontFamily: font.body,

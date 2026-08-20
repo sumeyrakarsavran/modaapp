@@ -336,7 +336,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
-    backgroundColor: '#FAFAF8',
+    /*
+      Parçanın ARKASINDA renk YOK. Her silüetin altında açık gri bir kare
+      vardı; kolajlar yama gibi görünüyordu. Arkada kartın kendi yüzeyi ne ise
+      o duruyor.
+    */
   },
   img: { width: '100%', height: '100%', borderRadius: radius.sm },
 });
