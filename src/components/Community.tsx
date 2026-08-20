@@ -206,7 +206,15 @@ export function FluidSpecCollage({
                 left: `${box.x * 100}%`,
                 top: `${box.y * 100}%`,
                 width: `${box.w * 100}%`,
-                height: `${box.h * 100}%`,
+                /*
+                  ⚠️ Yükseklik YÜZDE DEĞİL, en-boy oranıyla. Kapsayıcının
+                  yüksekliği `aspectRatio`'dan geliyor — yani kesin bir sayı
+                  değil — ve yüzde yükseklik buna karşı çözülemeyip sıfıra
+                  düşüyor; kolaj bomboş çıkıyordu (telefonda görüldü: profil
+                  ızgarasındaki karolar bembeyaz). Kutu kare olduğu için
+                  `w/h` oranı doğru yüksekliği veriyor.
+                */
+                aspectRatio: box.w / box.h,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
@@ -214,7 +222,7 @@ export function FluidSpecCollage({
               {g.imageUri ? (
                 <Image
                   source={{ uri: g.imageUri }}
-                  style={{ width: '100%', height: '100%' }}
+                  style={{ width: '100%', aspectRatio: box.w / box.h }}
                   contentFit="contain"
                 />
               ) : (
@@ -351,10 +359,17 @@ export function PostCard({
             }}
           />
         ) : (
+          /*
+            `bare`: kolaj KENDİ çerçevesini çizmiyor. Çizerken kartın yuvarlak
+            üst köşelerinin içinde ayrı bir dikdörtgen duruyordu; üstte kartın
+            eğrisine uymayan düz bir çizgi görünüyordu. Artık kolaj doğrudan
+            kartın üstünde ve kartın kendi köşeleri geçerli.
+          */
           <FluidSpecCollage
             garments={post.garments}
             frame={post.canvasFrame}
             cropToContent={post.cropToContent}
+            bare
           />
         )}
 
@@ -465,7 +480,13 @@ const styles = StyleSheet.create({
     */
   },
   card: {
-    backgroundColor: glass.fillStrong,
+    /*
+      ⚠️ Zemin OPAK. Yarı saydamken Android gölge tabakasını kartın İÇİNE
+      beyaz bir dikdörtgen olarak sızdırıyor. Kolaj kendi beyaz kutusunu
+      çizerken bu leke görünmüyordu; kutu kaldırılınca ortaya çıktı
+      (telefonda görüldü: "arkasında ortada beyaz kare"). Bkz. GlassCard.
+    */
+    backgroundColor: '#FFFDFD',
     borderWidth: 1,
     borderColor: glass.border,
     borderRadius: luxeRadius.xl,

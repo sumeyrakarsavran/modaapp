@@ -338,7 +338,6 @@ export default function Profile() {
                       garments={p.garments}
                       frame={p.canvasFrame}
                       cropToContent={p.cropToContent}
-                      bare
                     />
                   </View>
                 )}
@@ -556,14 +555,17 @@ const styles = StyleSheet.create({
     verince ızgara lekeli görünüyordu. Kırpma olmadığı için boşta kalan yeri
     sakin beyaz dolduruyor, aralıklar da karoları birbirinden ayırıyor.
   */
+  /*
+    Karonun ÇERÇEVESİ YOK. Beyaz karo fildişi zeminde zaten kendi kendine
+    ayrışıyor; üstüne bir de ince çizgi konunca ızgara kutucuk kutucuk
+    görünüyordu ("gönderilerin etrafında çizgiler").
+  */
   cell: {
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: luxe.surface,
     borderRadius: luxeRadius.md,
-    borderWidth: 1,
-    borderColor: luxe.outlineSoft,
   },
 
   empty: { alignItems: 'center', paddingVertical: 42, paddingHorizontal: 24 },

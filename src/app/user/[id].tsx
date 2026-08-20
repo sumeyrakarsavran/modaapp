@@ -478,14 +478,17 @@ const styles = StyleSheet.create({
     gap: GRID_GAP,
     paddingHorizontal: GRID_PAD,
   },
+  /*
+    Karonun ÇERÇEVESİ YOK. Beyaz karo fildişi zeminde zaten kendi kendine
+    ayrışıyor; üstüne bir de ince çizgi konunca ızgara kutucuk kutucuk
+    görünüyordu ("gönderilerin etrafında çizgiler").
+  */
   cell: {
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: luxe.surface,
     borderRadius: luxeRadius.md,
-    borderWidth: 1,
-    borderColor: luxe.outlineSoft,
   },
 
   lbCard: {
