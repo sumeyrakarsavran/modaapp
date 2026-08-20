@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Pressable,
   ScrollView,
@@ -9,32 +11,39 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Wave } from '@/components/BettaFish';
-import { Avatar, PostCard, SpecCollage, KIND_LABEL, timeAgo } from '@/components/Community';
+import { Backdrop } from '@/components/Backdrop';
+import { Avatar, FluidSpecCollage } from '@/components/Community';
 import { GarmentArt } from '@/components/GarmentArt';
-import { Button, Card, Chip, EmptyState } from '@/components/UI';
-import { PERSONAS, PERSONA_SHOWCASE } from '@/data/community';
+import { PERSONA_SHOWCASE, PERSONAS } from '@/data/community';
 import { useStore } from '@/store/useStore';
-import { colors, getArchetype, radius, spacing, type } from '@/theme';
+import { getArchetype } from '@/theme';
+import { font, glass, iridescent, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 
-type Tab = 'gonderiler' | 'parcalar' | 'kombinler' | 'selfiler' | 'lookbooklar';
+/** Kendi profilimizdeki ızgarayla AYNI ölçüler — iki ekran aynı görünsün. */
+const GRID_GAP = 5;
+const GRID_PAD = 12;
 
 export default function UserProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { posts, followedIds, profile, toggleFollow, toggleLike } = useStore();
+  const { posts, followedIds, toggleFollow } = useStore();
   const { width } = useWindowDimensions();
-  const [tab, setTab] = useState<Tab>('gonderiler');
+  const insets = useSafeAreaInsets();
   const user = PERSONAS.find((p) => p.id === id);
 
   if (!user) {
     return (
-      <SafeAreaView style={{ flex: 1 }}>
-        <View style={{ padding: spacing.xl }}>
-          <Text style={type.subtitle}>Kullanıcı bulunamadı.</Text>
-          <Button small title="Geri" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+        <Backdrop />
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <Ionicons name="arrow-back" size={22} color={luxe.primary} />
+          </Pressable>
         </View>
+        <Text style={[luxeType.caption, { textAlign: 'center', marginTop: 40 }]}>
+          Kullanıcı bulunamadı.
+        </Text>
       </SafeAreaView>
     );
   }
@@ -45,178 +54,184 @@ export default function UserProfile() {
   const userPosts = posts
     .filter((p) => p.userId === user.id)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  const outfitPosts = userPosts.filter((p) => p.kind === 'kombin');
-  const selfiePosts = userPosts.filter((p) => p.kind === 'selfie');
 
-  const counts: Record<Tab, number> = {
-    gonderiler: userPosts.length,
-    parcalar: showcase?.items.length ?? 0,
-    kombinler: outfitPosts.length,
-    selfiler: selfiePosts.length,
-    lookbooklar: showcase?.lookbooks.length ?? 0,
-  };
+  const cell = Math.floor((width - GRID_PAD * 2 - GRID_GAP * 2) / 3);
 
-  const gridCell = (width - spacing.lg * 2 - spacing.sm * 2) / 3;
+  const Stat = ({ n, label }: { n: number; label: string }) => (
+    <View style={styles.stat}>
+      <Text style={styles.statValue}>{n.toLocaleString('tr-TR')}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+
+  /** Öne çıkanlar — kendi profilimizdeki halkaların aynısı. */
+  const Highlight = ({
+    icon,
+    n,
+    label,
+  }: {
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    n: number;
+    label: string;
+  }) => (
+    <View style={styles.hl}>
+      <LinearGradient
+        colors={iridescent.soft}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hlRing}
+      >
+        <View style={styles.hlInner}>
+          <Ionicons name={icon} size={17} color={luxe.primary} />
+          <Text style={styles.hlCount}>{n}</Text>
+        </View>
+      </LinearGradient>
+      <Text style={styles.hlLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={20} color={colors.inkSoft} />
-        </Pressable>
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+      <Backdrop />
 
-        {/* Profil başlığı */}
-        <View style={{ alignItems: 'center' }}>
-          <Avatar user={user} size={96} />
-          <Text style={[type.display, { marginTop: spacing.sm }]}>{user.name}</Text>
-          <Text style={type.caption}>@{user.username}</Text>
-          <Wave width={180} color={`${user.color}66`} />
-          <Text style={[type.body, { textAlign: 'center', marginTop: spacing.sm, maxWidth: 300 }]}>
-            {user.bio}
-          </Text>
-          <View style={styles.statsRow}>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={type.title}>
-                {(user.followers + (followed ? 1 : 0)).toLocaleString('tr-TR')}
-              </Text>
-              <Text style={type.tiny}>takipçi</Text>
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={type.title}>{userPosts.length}</Text>
-              <Text style={type.tiny}>gönderi</Text>
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={type.title}>{counts.parcalar}</Text>
-              <Text style={type.tiny}>parça</Text>
-            </View>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Ionicons name="arrow-back" size={22} color={luxe.primary} />
+        </Pressable>
+        <Text style={styles.headerName} numberOfLines={1}>
+          @{user.username}
+        </Text>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Avatar + sayaçlar — kendi profilimizle aynı satır düzeni */}
+        <View style={styles.topRow}>
+          <Avatar user={user} size={84} />
+          <View style={styles.stats}>
+            <Stat n={userPosts.length} label="Gönderi" />
+            <Stat n={user.followers + (followed ? 1 : 0)} label="Takipçi" />
+            <Stat n={showcase?.items.length ?? 0} label="Parça" />
           </View>
-          <Button
-            title={followed ? '✔ Takiptesin' : '+ Takip et'}
-            variant={followed ? 'secondary' : 'primary'}
-            onPress={() => toggleFollow(user.id)}
-            style={{ marginTop: spacing.md, minWidth: 200 }}
-          />
         </View>
 
-        {arch ? (
-          <Card style={{ marginTop: spacing.lg, backgroundColor: arch.colorSoft }}>
-            <Text style={[type.subtitle, { color: arch.color }]}>
-              {arch.emoji} {arch.fish} · {arch.styleName} stil
+        <View style={styles.bioBlock}>
+          <Text style={styles.name}>{user.name}</Text>
+          {arch ? (
+            <>
+              <Text style={styles.archLine}>
+                {arch.fish} · {arch.styleName} stil
+              </Text>
+              <Text style={styles.archNote} numberOfLines={2}>
+                {arch.tagline}
+              </Text>
+            </>
+          ) : null}
+          {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+        </View>
+
+        {/* Takip düğmesi — kendi profilimizdeki eylem satırının karşılığı */}
+        <View style={styles.actions}>
+          <Pressable
+            style={[styles.action, !followed && styles.actionSolid]}
+            onPress={() => toggleFollow(user.id)}
+          >
+            <Text style={[styles.actionText, !followed && { color: luxe.onPrimary }]}>
+              {followed ? 'Takiptesin' : 'Takip et'}
             </Text>
-            <Text style={[type.tiny, { marginTop: 2 }]}>{arch.tagline}</Text>
-          </Card>
+          </Pressable>
+        </View>
+
+        {/* Herkese açık gardırobu — öne çıkanlar halkaları */}
+        {showcase ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.hlRow}
+          >
+            <Highlight icon="shirt-outline" n={showcase.items.length} label="Parça" />
+            <Highlight
+              icon="albums-outline"
+              n={userPosts.filter((p) => p.kind === 'kombin').length}
+              label="Kombin"
+            />
+            <Highlight
+              icon="happy-outline"
+              n={userPosts.filter((p) => p.kind === 'selfie').length}
+              label="Selfie"
+            />
+            <Highlight icon="book-outline" n={showcase.lookbooks.length} label="Lookbook" />
+          </ScrollView>
         ) : null}
 
-        {/* İçerik sekmeleri */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginTop: spacing.lg }}
-          contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.md }}
-        >
-          <Chip label={`Gönderiler · ${counts.gonderiler}`} active={tab === 'gonderiler'} onPress={() => setTab('gonderiler')} />
-          <Chip label={`Parçalar · ${counts.parcalar}`} active={tab === 'parcalar'} onPress={() => setTab('parcalar')} />
-          <Chip label={`Kombinler · ${counts.kombinler}`} active={tab === 'kombinler'} onPress={() => setTab('kombinler')} />
-          <Chip label={`Selfie'ler · ${counts.selfiler}`} active={tab === 'selfiler'} onPress={() => setTab('selfiler')} />
-          <Chip label={`Lookbook'lar · ${counts.lookbooklar}`} active={tab === 'lookbooklar'} onPress={() => setTab('lookbooklar')} />
-        </ScrollView>
-
-        {/* ————— Gönderiler ————— */}
-        {tab === 'gonderiler'
-          ? userPosts.map((p) => (
-              <PostCard
+        {/* Gönderiler — dokununca kart hâlinde açılıyor (kendi profildeki gibi) */}
+        <View style={styles.gridTop} />
+        {userPosts.length === 0 ? (
+          <View style={styles.empty}>
+            <Ionicons name="images-outline" size={26} color={luxe.outlineSoft} />
+            <Text style={[luxeType.caption, { marginTop: 10 }]}>Henüz gönderi paylaşmamış.</Text>
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {userPosts.map((p) => (
+              <Pressable
                 key={p.id}
-                post={p}
-                me={profile}
-                followed={followed}
-                onToggleLike={() => toggleLike(p.id)}
-                onToggleFollow={() => toggleFollow(user.id)}
-                onOpenComments={() => router.push('/(tabs)/community')}
-                onOpenUser={() => {}}
-              />
-            ))
-          : null}
+                style={[styles.cell, { width: cell, height: cell }]}
+                onPress={() =>
+                  router.push({ pathname: '/post/[id]', params: { id: p.id, user: user.id } })
+                }
+              >
+                {p.imageUri ? (
+                  <Image
+                    source={{ uri: p.imageUri }}
+                    style={{ width: cell, height: cell }}
+                    contentFit="contain"
+                  />
+                ) : (
+                  <View style={{ width: cell }}>
+                    <FluidSpecCollage
+                      garments={p.garments}
+                      frame={p.canvasFrame}
+                      cropToContent={p.cropToContent}
+                      bare
+                    />
+                  </View>
+                )}
+              </Pressable>
+            ))}
+          </View>
+        )}
 
-        {/* ————— Parçalar (public gardırop) ————— */}
-        {tab === 'parcalar' ? (
-          showcase?.items.length ? (
-            <View style={styles.grid3}>
+        {/* Herkese açık parçalar — persona'nın vitrini */}
+        {showcase?.items.length ? (
+          <>
+            <Text style={styles.sectionLabel}>HERKESE AÇIK PARÇALAR</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10, paddingHorizontal: GRID_PAD }}
+            >
               {showcase.items.map((it) => (
-                <View key={it.name} style={{ width: gridCell }}>
-                  <View style={[styles.itemBox, { width: gridCell, height: gridCell }]}>
-                    <GarmentArt category={it.category} subcategory={it.subcategory} colorId={it.colorId} size={gridCell * 0.66} />
+                <View key={it.name} style={{ width: 92 }}>
+                  <View style={styles.itemBox}>
+                    <GarmentArt
+                      category={it.category}
+                      subcategory={it.subcategory}
+                      colorId={it.colorId}
+                      size={60}
+                    />
                   </View>
                   <Text style={styles.itemName} numberOfLines={1}>
                     {it.name}
                   </Text>
                 </View>
               ))}
-            </View>
-          ) : (
-            <EmptyState emoji="🐟" title="Henüz herkese açık parça yok" />
-          )
-        ) : null}
-
-        {/* ————— Kombinler ————— */}
-        {tab === 'kombinler' ? (
-          outfitPosts.length ? (
-            <View style={styles.grid2}>
-              {outfitPosts.map((p) => (
-                <View key={p.id} style={{ width: (width - spacing.lg * 3) / 2 }}>
-                  <SpecCollage garments={p.garments} size={(width - spacing.lg * 3) / 2} />
-                  <Text style={[type.tiny, { marginTop: 4 }]} numberOfLines={2}>
-                    {p.caption}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <EmptyState emoji="🎨" title="Henüz kombin paylaşmamış" />
-          )
-        ) : null}
-
-        {/* ————— Selfie'ler ————— */}
-        {tab === 'selfiler' ? (
-          selfiePosts.length ? (
-            selfiePosts.map((p) => (
-              <Card key={p.id} style={{ marginBottom: spacing.md }}>
-                <Text style={type.tiny}>
-                  {KIND_LABEL[p.kind]} · {timeAgo(p.createdAt)}
-                </Text>
-                <View style={{ alignItems: 'center', marginVertical: spacing.sm }}>
-                  <SpecCollage garments={p.garments} size={Math.min(width - spacing.lg * 4, 300)} />
-                </View>
-                <Text style={type.body}>{p.caption}</Text>
-              </Card>
-            ))
-          ) : (
-            <EmptyState emoji="🤳" title="Henüz selfie paylaşmamış" />
-          )
-        ) : null}
-
-        {/* ————— Lookbook'lar ————— */}
-        {tab === 'lookbooklar' ? (
-          showcase?.lookbooks.length ? (
-            showcase.lookbooks.map((lb) => (
-              <Card key={lb.name} style={{ marginBottom: spacing.md }}>
-                <Text style={type.subtitle}>
-                  {lb.emoji} {lb.name}
-                </Text>
-                <Text style={[type.tiny, { marginBottom: spacing.sm }]}>
-                  {lb.outfits.length} kombin
-                </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                    {lb.outfits.map((o, i) => (
-                      <SpecCollage key={i} garments={o} size={130} />
-                    ))}
-                  </View>
-                </ScrollView>
-              </Card>
-            ))
-          ) : (
-            <EmptyState emoji="📖" title="Henüz lookbook paylaşmamış" />
-          )
+            </ScrollView>
+          </>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -224,33 +239,110 @@ export default function UserProfile() {
 }
 
 const styles = StyleSheet.create({
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.card,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingTop: 6,
+    paddingBottom: 10,
+  },
+  headerName: { flex: 1, fontFamily: font.bodyMedium, fontSize: 16, color: luxe.ink },
+
+  topRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, gap: 18 },
+  stats: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  stat: { flex: 1, alignItems: 'center', gap: 2 },
+  statValue: { fontFamily: font.display, fontSize: 19, lineHeight: 24, color: luxe.primary },
+  statLabel: { fontFamily: font.body, fontSize: 11.5, color: luxe.outline },
+
+  bioBlock: { paddingHorizontal: 18, marginTop: 14, gap: 2 },
+  name: { fontFamily: font.headline, fontSize: 18, color: luxe.primary },
+  archLine: {
+    fontFamily: font.label,
+    fontSize: 9.5,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: luxe.outline,
+    marginTop: 3,
+  },
+  archNote: {
+    fontFamily: font.body,
+    fontStyle: 'italic',
+    fontSize: 12.5,
+    color: luxe.outline,
+    marginTop: 2,
+  },
+  bio: { fontFamily: font.body, fontSize: 13.5, lineHeight: 20, color: luxe.inkSoft, marginTop: 6 },
+
+  actions: { flexDirection: 'row', gap: 8, paddingHorizontal: 18, marginTop: 14 },
+  action: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: glass.fill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
+    borderRadius: luxeRadius.sm,
+    paddingVertical: 9,
+  },
+  actionSolid: { backgroundColor: luxe.primary, borderColor: luxe.primary },
+  actionText: { fontFamily: font.bodyMedium, fontSize: 12.5, color: luxe.primary },
+
+  hlRow: { gap: 18, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 4 },
+  hl: { alignItems: 'center', width: 68, gap: 5 },
+  hlRing: { width: 62, height: 62, borderRadius: 31, padding: 2 },
+  hlInner: {
+    flex: 1,
+    borderRadius: 29,
+    backgroundColor: luxe.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
   },
-  statsRow: { flexDirection: 'row', gap: spacing.xxl, marginTop: spacing.md },
-  grid3: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  grid2: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg },
-  itemBox: {
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
+  hlCount: { fontFamily: font.display, fontSize: 13, color: luxe.primary, marginTop: 1 },
+  hlLabel: { fontFamily: font.body, fontSize: 11, color: luxe.outline },
+
+  gridTop: { height: 14, borderTopWidth: 1, borderTopColor: luxe.outlineSoft, marginTop: 14 },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GRID_GAP,
+    paddingHorizontal: GRID_PAD,
+  },
+  cell: {
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: luxe.surface,
+    borderRadius: luxeRadius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: luxe.outlineSoft,
+  },
+
+  sectionLabel: {
+    fontFamily: font.label,
+    fontSize: 9.5,
+    letterSpacing: 1.3,
+    color: luxe.outline,
+    paddingHorizontal: GRID_PAD,
+    marginTop: 26,
+    marginBottom: 10,
+  },
+  itemBox: {
+    width: 92,
+    height: 92,
+    backgroundColor: luxe.surface,
+    borderRadius: luxeRadius.md,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   itemName: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: colors.inkSoft,
-    marginTop: 4,
+    fontFamily: font.body,
+    fontSize: 11,
+    color: luxe.outline,
+    marginTop: 5,
     textAlign: 'center',
   },
+
+  empty: { alignItems: 'center', paddingVertical: 42 },
 });

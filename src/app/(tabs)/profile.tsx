@@ -317,7 +317,9 @@ export default function Profile() {
               <Pressable
                 key={p.id}
                 style={[styles.cell, { width: cell, height: cell }]}
-                onPress={() => router.push('/(tabs)/community')}
+                onPress={() =>
+                  router.push({ pathname: '/post/[id]', params: { id: p.id, user: 'me' } })
+                }
               >
                 {p.imageUri ? (
                   /*
