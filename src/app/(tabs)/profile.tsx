@@ -33,9 +33,17 @@ import { font, glass, iridescent, luxe, luxeRadius, luxeType } from '@/theme/lux
 const GRID_GAP = 5;
 const GRID_PAD = 12;
 
+/**
+ * Profilde o an gösterilen bölüm — başkalarının profilindekiyle AYNI mantık.
+ * Halkalar gardıroba/stüdyoya götürüyordu; ama profil PAYLAŞILANLARIN yeri,
+ * kendi gardırobunu zaten sekmeden görüyorsun. Artık halkalar paylaşılan
+ * gönderileri türüne göre süzüyor.
+ */
+type Section = 'gonderi' | 'kombin' | 'selfie' | 'lookbook' | 'tryon';
+
 export default function Profile() {
-  const { profile, items, outfits, selfies, lookbooks, posts, followedIds, pro, setProfile } =
-    useStore();
+  // Gardırop sayıları artık kullanılmıyor: halkalar PAYLAŞILAN gönderileri sayıyor.
+  const { profile, posts, followedIds, pro, setProfile } = useStore();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
@@ -44,6 +52,7 @@ export default function Profile() {
   // Halka paletten — arketip kimliği aşağıda yazıyla duruyor (bkz. ProfileButton)
   const ringColor = luxe.primarySoft;
 
+  const [section, setSection] = useState<Section>('gonderi');
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState(profile.name);
   const [editBio, setEditBio] = useState(profile.bio ?? '');
@@ -106,13 +115,6 @@ export default function Profile() {
     setEditOpen(false);
   };
 
-  /**
-   * Gardırobun ilgili bölümünü açar. `t` her seferinde değişiyor: sekme ekranı
-   * monte kaldığı için aynı bölüme arka arkaya gitmek de çalışsın.
-   */
-  const goWardrobe = (section: 'parcalar' | 'selfiler' | 'lookbooklar') =>
-    router.push({ pathname: '/(tabs)/wardrobe', params: { section, t: String(Date.now()) } });
-
   const followers = profile.followers ?? 0;
   /** Üç sütun; kenar boşluğu ve aralıklar düşülerek. */
   const cell = Math.floor((width - GRID_PAD * 2 - GRID_GAP * 2) / 3);
@@ -131,32 +133,37 @@ export default function Profile() {
    */
   const Highlight = ({
     icon,
-    n,
     label,
-    onPress,
+    id: sec,
   }: {
     icon: React.ComponentProps<typeof Ionicons>['name'];
-    n: number;
     label: string;
-    onPress: () => void;
-  }) => (
-    <Pressable style={styles.hl} onPress={onPress}>
-      <LinearGradient
-        colors={iridescent.soft}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hlRing}
-      >
-        <View style={styles.hlInner}>
-          <Ionicons name={icon} size={17} color={luxe.primary} />
-          <Text style={styles.hlCount}>{n}</Text>
-        </View>
-      </LinearGradient>
-      <Text style={styles.hlLabel} numberOfLines={1}>
-        {label}
-      </Text>
-    </Pressable>
-  );
+    id: Exclude<Section, 'gonderi'>;
+  }) => {
+    const on = section === sec;
+    const n = myPosts.filter((p) => p.kind === sec).length;
+    return (
+      <Pressable style={styles.hl} onPress={() => setSection(on ? 'gonderi' : sec)}>
+        <LinearGradient
+          colors={iridescent.soft}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hlRing}
+        >
+          <View style={[styles.hlInner, on && styles.hlInnerOn]}>
+            <Ionicons name={icon} size={17} color={luxe.primary} />
+            <Text style={styles.hlCount}>{n}</Text>
+          </View>
+        </LinearGradient>
+        <Text style={[styles.hlLabel, on && styles.hlLabelOn]} numberOfLines={1}>
+          {label}
+        </Text>
+      </Pressable>
+    );
+  };
+
+  /** O an gösterilecek gönderiler — halka seçiliyse türüne göre süzülüyor. */
+  const shownPosts = section === 'gonderi' ? myPosts : myPosts.filter((p) => p.kind === section);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
@@ -274,46 +281,28 @@ export default function Profile() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.hlRow}
         >
-          <Highlight
-            icon="shirt-outline"
-            n={items.filter((i) => !i.archived).length}
-            label="Parça"
-            onPress={() => goWardrobe('parcalar')}
-          />
-          <Highlight
-            icon="albums-outline"
-            n={outfits.length}
-            label="Kombin"
-            onPress={() =>
-              router.push({ pathname: '/(tabs)/studio', params: { mode: 'outfits', t: String(Date.now()) } })
-            }
-          />
-          <Highlight
-            icon="happy-outline"
-            n={selfies.length}
-            label="Selfie"
-            onPress={() => goWardrobe('selfiler')}
-          />
-          <Highlight
-            icon="book-outline"
-            n={lookbooks.length}
-            label="Lookbook"
-            onPress={() => goWardrobe('lookbooklar')}
-          />
+          <Highlight icon="albums-outline" label="Kombin" id="kombin" />
+          <Highlight icon="happy-outline" label="Selfie" id="selfie" />
+          <Highlight icon="book-outline" label="Lookbook" id="lookbook" />
+          <Highlight icon="body-outline" label="Deneme" id="tryon" />
         </ScrollView>
 
         {/* Gönderiler — ayrım yok, tek ızgara */}
         <View style={styles.gridTop} />
-        {myPosts.length === 0 ? (
+        {shownPosts.length === 0 ? (
           <Empty
             icon="images-outline"
-            text="Henüz gönderi yok. Bir kombin, selfie ya da lookbook'u toplulukta paylaş."
+            text={
+              section === 'gonderi'
+                ? "Henüz gönderi yok. Bir kombin, selfie ya da lookbook'u toplulukta paylaş."
+                : 'Bu türde paylaşımın yok.'
+            }
             action="Topluluğa git"
             onPress={() => router.push('/(tabs)/community')}
           />
         ) : (
           <View style={styles.grid}>
-            {myPosts.map((p) => (
+            {shownPosts.map((p) => (
               <Pressable
                 key={p.id}
                 style={[styles.cell, { width: cell, height: cell }]}
@@ -539,6 +528,9 @@ const styles = StyleSheet.create({
   },
   hlCount: { fontFamily: font.display, fontSize: 13, color: luxe.primary, marginTop: 1 },
   hlLabel: { fontFamily: font.body, fontSize: 11, color: luxe.outline },
+  /** Seçili halka: iç yüzey tona çalıyor, etiket koyulaşıyor. */
+  hlInnerOn: { backgroundColor: luxe.primaryContainer },
+  hlLabelOn: { fontFamily: font.bodyMedium, color: luxe.ink },
 
 
   /** Izgaranın üstündeki ince ayraç — eskiden sekme çubuğu buradaydı. */
