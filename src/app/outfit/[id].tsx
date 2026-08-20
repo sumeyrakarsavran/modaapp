@@ -271,6 +271,9 @@ export default function OutfitDetail() {
             caption,
             garments: its.map((i) => ({
               category: i.category,
+              // Alt tür de gidiyor: yoksa ceket düz "üst" gibi çiziliyordu ve
+              // kılık yerleşiminde dış giyim katmanına oturamıyordu.
+              subcategory: i.subcategory,
               colorId: i.colorId,
               imageUri: i.imageUri,
               layout: outfit.layout?.[i.id],

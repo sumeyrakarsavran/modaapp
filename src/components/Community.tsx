@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BettaAvatar } from '@/components/BettaAvatar';
 import { GarmentArt } from '@/components/GarmentArt';
+import { lookPlacement } from '@/components/lookLayout';
 import { CANVAS_BASE } from '@/components/OutfitCollage';
 import { PERSONAS } from '@/data/community';
 import { getArchetype, radius, shadow, spacing } from '@/theme';
@@ -117,7 +118,15 @@ export function FluidSpecCollage({
             return (
               <View
                 key={i}
-                style={{ position: 'absolute', left: `${left}%`, top: `${top}%`, width: `${w}%`, aspectRatio: 1 }}
+                style={{
+                  position: 'absolute',
+                  left: `${left}%`,
+                  top: `${top}%`,
+                  width: `${w}%`,
+                  aspectRatio: 1,
+                  // Canvas'ta döndürülen parça gönderide de dönük dursun
+                  transform: g.layout.rot ? [{ rotate: `${g.layout.rot}deg` }] : undefined,
+                }}
               >
                 {g.imageUri ? (
                   <Image source={{ uri: g.imageUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
@@ -157,7 +166,14 @@ export function FluidSpecCollage({
           return (
             <View
               key={i}
-              style={{ position: 'absolute', left: `${left}%`, top: `${top}%`, width: `${w}%`, aspectRatio: 1 }}
+              style={{
+                position: 'absolute',
+                left: `${left}%`,
+                top: `${top}%`,
+                width: `${w}%`,
+                aspectRatio: 1,
+                transform: g.layout.rot ? [{ rotate: `${g.layout.rot}deg` }] : undefined,
+              }}
             >
               {g.imageUri ? (
                 <Image source={{ uri: g.imageUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
@@ -169,6 +185,51 @@ export function FluidSpecCollage({
         })}
       </View>
     );
+  }
+
+  /*
+    Canvas düzeni YOKSA kılık yerleşimi denenir — gardıroptaki kombin kolajıyla
+    AYNI modül. Yoksa kullanıcının kurduğu kombin uygulamada üst/alt/ayakkabı
+    dizilimiyle, gönderide 2x2 ızgarayla görünüyordu: "paylaşınca yerleri
+    değişmiş" şikâyeti tam olarak buydu.
+  */
+  if (garments.length >= 2) {
+    const look = lookPlacement(garments);
+    if (look) {
+      return (
+        <View style={[styles.fluidCollage, { padding: 0 }, bare && styles.fluidBare]}>
+          {look.map(({ item: g, box }, i) => (
+            <View
+              key={i}
+              style={{
+                position: 'absolute',
+                left: `${box.x * 100}%`,
+                top: `${box.y * 100}%`,
+                width: `${box.w * 100}%`,
+                height: `${box.h * 100}%`,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {g.imageUri ? (
+                <Image
+                  source={{ uri: g.imageUri }}
+                  style={{ width: '100%', height: '100%' }}
+                  contentFit="contain"
+                />
+              ) : (
+                <GarmentArt
+                  category={g.category}
+                  subcategory={g.subcategory}
+                  colorId={g.colorId}
+                  size="100%"
+                />
+              )}
+            </View>
+          ))}
+        </View>
+      );
+    }
   }
 
   const shown = garments.slice(0, 4);
