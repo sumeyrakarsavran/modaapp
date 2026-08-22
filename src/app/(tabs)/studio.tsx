@@ -21,8 +21,10 @@ import { Backdrop } from '@/components/Backdrop';
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { ItemThumb } from '@/components/ItemThumb';
 import { ShareModal } from '@/components/ShareModal';
+import { TryOnHowTo } from '@/components/TryOnHowTo';
 import { persistRemoteImage } from '@/services/photoStore';
 import { claimJob, releaseJob, TryOnPendingError, waitForJob } from '@/services/tryon';
+import { TRYON_MODELS } from '@/data/tryonModels';
 import { useStore } from '@/store/useStore';
 import { BETTA_ARCHETYPES } from '@/theme';
 import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
@@ -216,6 +218,27 @@ export default function Studio() {
 
   /** Sanal giydirme ızgarası: 3 sütun */
   const tryonCell = (Math.min(width, 700) - 40 - 20) / 3;
+  /*
+    Anlatım karelerindeki örnek: mümkünse kullanıcının SON denemesinden
+    (o denemede kullanılan manken + kombinin bir parçası + çıktı). Böylece
+    "bu bana ne yapacak" sorusu temsilî görselle değil, gerçek sonuçla
+    cevaplanıyor. Denemesi yoksa hazır manken + gardıroptan bir parça
+    gösteriliyor, sonuç karesi boş kalıyor.
+  */
+  const howToDemo = useMemo(() => {
+    const rec = tryons[0];
+    const model = TRYON_MODELS.find((m) => m.id === rec?.modelId) ?? TRYON_MODELS[0];
+    const outfit = rec?.outfitId ? outfits.find((o) => o.id === rec.outfitId) : undefined;
+    const withPhoto = (i?: WardrobeItem) => !!i?.imageUri;
+    const fromOutfit = outfit?.itemIds
+      .map((id) => items.find((i) => i.id === id))
+      .find((i) => withPhoto(i) && (i!.category === 'ust' || i!.category === 'elbise'));
+    const garment =
+      fromOutfit ??
+      items.find((i) => withPhoto(i) && (i.category === 'elbise' || i.category === 'ust')) ??
+      items.find((i) => !i.archived);
+    return { modelSource: model.source, garment, resultUri: rec?.imageUri };
+  }, [tryons, outfits, items]);
 
   const doShareTryOn = (caption: string) => {
     const t = shareTryon;
@@ -438,22 +461,6 @@ export default function Studio() {
                 fotoğrafının üzerine gerçekçi şekilde giydirsin. Almadan önce "üstümde nasıl
                 durur?" sorusunun cevabı.
               </Text>
-              <View style={styles.promoRow}>
-                <View style={styles.promoStep}>
-                  <Ionicons name="person-outline" size={18} color={luxe.inkSoft} />
-                  <Text style={[luxeType.tiny, styles.promoText]}>Model seç</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={13} color={luxe.outline} />
-                <View style={styles.promoStep}>
-                  <Ionicons name="shirt-outline" size={18} color={luxe.inkSoft} />
-                  <Text style={[luxeType.tiny, styles.promoText]}>Kıyafeti seç</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={13} color={luxe.outline} />
-                <View style={styles.promoStep}>
-                  <Ionicons name="sparkles-outline" size={18} color={luxe.inkSoft} />
-                  <Text style={[luxeType.tiny, styles.promoText]}>Üzerinde gör</Text>
-                </View>
-              </View>
               <LuxeButton
                 title="BETTA Pro'ya geç"
                 icon="arrow-forward"
@@ -462,6 +469,15 @@ export default function Studio() {
               />
             </View>
           )}
+
+          {/* Ne yaptığı TEK BAKIŞTA anlaşılsın: manken + kıyafet → giydirilmiş hâli */}
+          <View style={styles.howTo}>
+            <TryOnHowTo
+              modelSource={howToDemo.modelSource}
+              garment={howToDemo.garment}
+              resultUri={howToDemo.resultUri}
+            />
+          </View>
 
           {/* Sanal giydirme çıktıları — görseller kalıcı kopya olarak saklanır */}
           <View style={styles.sectionHead}>
@@ -910,6 +926,13 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   /** Pro kartı: altın yerine iridesan pastel çerçeve — palet tek dilde kalsın. */
+  /** Anlatım bloğu: kart değil, ince çizgiyle ayrılmış bölüm. */
+  howTo: {
+    borderTopWidth: 1,
+    borderTopColor: luxe.outlineSoft,
+    paddingTop: 16,
+    marginTop: 2,
+  },
   aiCardPro: { borderColor: luxe.primarySoft, borderWidth: 1.5 },
   aiCardHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   aiIcon: {
@@ -926,18 +949,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     color: luxe.outline,
   },
-  promoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 14,
-    backgroundColor: luxe.surfaceLow,
-    borderRadius: luxeRadius.md,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-  },
-  promoStep: { alignItems: 'center', gap: 4, flex: 1 },
-  promoText: { textAlign: 'center' },
   sectionHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 8 },
   sectionCount: {
     fontFamily: font.label,
