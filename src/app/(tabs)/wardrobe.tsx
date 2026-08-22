@@ -98,10 +98,16 @@ const Hanger = React.memo(function Hanger({
   item,
   onPress,
   dragging,
+  shelf,
 }: {
   item: WardrobeItem;
   onPress: () => void;
   dragging?: boolean;
+  /**
+   * RAF kipi: kanca ve kart çerçevesi yok — parça doğrudan rafın üstünde
+   * duruyor. Ayakkabı ve aksesuar asılmaz; onlar için askı yerine raf.
+   */
+  shelf?: boolean;
 }) {
   const swing = useRef(new Animated.Value(0)).current;
   const to = (v: number) =>
@@ -124,10 +130,10 @@ const Hanger = React.memo(function Hanger({
       }}
     >
       <Pressable onPressIn={() => to(1)} onPressOut={() => to(0)} onPress={onPress}>
-        {/* Kanca: alt kenarı olmayan yarım halka, boruya asılıyormuş gibi */}
-        <View style={styles.hook} />
-        <View style={styles.card}>
-          <View style={styles.cardImg}>
+        {/* Kanca yalnızca askı kipinde */}
+        {shelf ? null : <View style={styles.hook} />}
+        <View style={shelf ? styles.shelfItem : styles.card}>
+          <View style={shelf ? styles.shelfImg : styles.cardImg}>
             {item.imageUri ? (
               /*
                 Gerçek kıyafet fotoğrafları HER ZAMAN `contain`: arka planı
@@ -152,7 +158,7 @@ const Hanger = React.memo(function Hanger({
               </View>
             ) : null}
           </View>
-          <View style={styles.cardMeta}>
+          <View style={shelf ? styles.shelfMeta : styles.cardMeta}>
             <Text style={styles.cardName} numberOfLines={1}>
               {item.name}
             </Text>
@@ -190,11 +196,19 @@ const RACK_MAX = 10;
 /** Kartlar 8px üst üste biniyor (askılık hissi) — yuva adımı da o kadar dar. */
 const RACK_GAP = -8;
 const RACK_STEP = CARD_W + RACK_GAP;
+/**
+ * Raf kipinde parçanın yüksekliği — kanca yok, meta çizginin altında.
+ * Görsel alanı askıdakinden YÜKSEK: arkasında beyaz kutu olmadığı için parça
+ * doğrudan rafın üstünde duruyor ve daha büyük görünebiliyor.
+ */
+const SHELF_IMG_H = CARD_IMG_H + 14;
+const SHELF_H = SHELF_IMG_H + 42;
 /** `styles.rack` dolgularıyla birlikte bir rafın toplam yüksekliği. */
 const RACK_PAD_T = 19;
 const RACK_PAD_B = 14;
 const RACK_PAD_L = 20;
 const ROW_H = RACK_PAD_T + HANGER_H + RACK_PAD_B;
+const SHELF_ROW_H = RACK_PAD_T + SHELF_H + RACK_PAD_B;
 
 /**
  * Bir kategorinin askılığı: başlık + raflar.
@@ -214,6 +228,7 @@ function Rack({
   onOpen,
   onReorder,
   maxPerRow,
+  shelf,
 }: {
   title: string;
   items: WardrobeItem[];
@@ -221,8 +236,12 @@ function Rack({
   onReorder: (ids: string[]) => void;
   /** Bir rafa en fazla kaç parça. Verilmezse hepsi tek rafta. */
   maxPerRow?: number;
+  /** Askı yerine RAF: kanca ve kart yok, çizgi parçaların ALTINDA. */
+  shelf?: boolean;
 }) {
   const per = maxPerRow ?? Math.max(1, items.length);
+  const cellH = shelf ? SHELF_H : HANGER_H;
+  const rowH = shelf ? SHELF_ROW_H : ROW_H;
 
   /** Ekrandaki sıra — sürükleme boyunca yerel, bırakınca üste bildiriliyor. */
   const [order, setOrder] = useState<WardrobeItem[]>(items);
@@ -268,7 +287,7 @@ function Rack({
     const col = index % cur.current.per;
     return {
       x: RACK_PAD_L + col * RACK_STEP - (scrollX.current[row] ?? 0),
-      y: row * ROW_H + RACK_PAD_T,
+      y: row * rowH + RACK_PAD_T,
     };
   };
 
@@ -288,9 +307,9 @@ function Rack({
 
           // Kartın MERKEZİ hangi yuvanın üstündeyse hedef orası
           const cx = x + CARD_W / 2;
-          const cy = y + HANGER_H / 2;
+          const cy = y + cellH / 2;
           const rowCount = Math.ceil(c.order.length / c.per);
-          const row = Math.max(0, Math.min(rowCount - 1, Math.floor(cy / ROW_H)));
+          const row = Math.max(0, Math.min(rowCount - 1, Math.floor(cy / rowH)));
           const inRow = Math.min(c.per, c.order.length - row * c.per);
           const col = Math.max(
             0,
@@ -373,13 +392,18 @@ function Rack({
             scrollEventThrottle={16}
             contentContainerStyle={styles.rack}
           >
-            {/* Metal boru — bu rafın kancalarının arkasından geçiyor */}
+            {/*
+              Askı kipinde boru kancaların ARKASINDAN, raf kipinde çizgi
+              parçaların ALTINDAN geçiyor — parçalar rafın üstünde duruyor.
+              İkisi de aynı renkte; raf yüzeyi tek düz çizgi, parçalar arasında
+              ayraç yok.
+            */}
             <LinearGradient
               colors={[luxe.outlineSoft, luxe.surfaceHigh, luxe.outlineSoft]}
-              style={styles.rail}
+              style={[styles.rail, shelf && { top: RACK_PAD_T + SHELF_IMG_H }]}
               pointerEvents="none"
             />
-            <View style={{ width: row.length * RACK_STEP - RACK_GAP, height: HANGER_H }}>
+            <View style={{ width: row.length * RACK_STEP - RACK_GAP, height: cellH }}>
               {row.map((it, ci) => (
                 <Animated.View
                   key={it.id}
@@ -393,7 +417,7 @@ function Rack({
                   onTouchEnd={cancelHold}
                   onTouchCancel={cancelHold}
                 >
-                  <Hanger item={it} onPress={() => onOpen(it.id)} />
+                  <Hanger item={it} shelf={shelf} onPress={() => onOpen(it.id)} />
                 </Animated.View>
               ))}
             </View>
@@ -414,7 +438,7 @@ function Rack({
               elevation: 30,
             }}
           >
-            <Hanger item={dragItem} dragging onPress={() => {}} />
+            <Hanger item={dragItem} shelf={shelf} dragging onPress={() => {}} />
           </Animated.View>
         ) : null}
       </View>
@@ -851,6 +875,11 @@ export default function Wardrobe() {
                   onReorder={reorderItems}
                   // Bölme yalnızca tek kategori seçiliyken; "Hepsi"de tek raf
                   maxPerRow={category === 'hepsi' ? undefined : RACK_MAX}
+                  /*
+                    Ayakkabı ve aksesuar ASILMAZ: tek kategori seçilince raf
+                    kipine geçiyorlar. "Hepsi" görünümü olduğu gibi kalıyor.
+                  */
+                  shelf={category !== 'hepsi' && (r.id === 'ayakkabi' || r.id === 'aksesuar')}
                 />
               ))}
             </ScrollView>
@@ -1227,6 +1256,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  /** Raf kipinde parça: kart yok, çerçeve yok — doğrudan rafın üstünde. */
+  shelfItem: { width: CARD_W },
+  /*
+    Görselin arkasında ZEMİN YOK. Beyaz kutu, fotoğrafı kesiyormuş gibi
+    gösteriyordu ve raf boyunca kesintisiz bir şerit oluşturuyordu — oysa
+    parçalar arasında ayraç olmamalı, arkada sayfanın kendi zemini kalmalı.
+  */
+  shelfImg: {
+    width: '100%',
+    height: SHELF_IMG_H,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  /** Ad/renk çizginin ALTINDA, zeminsiz — raf etiketi gibi. */
+  shelfMeta: { paddingHorizontal: 6, paddingTop: 8 },
   cardMeta: { paddingHorizontal: 8, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.94)' },
   cardName: {
     fontFamily: font.label,
