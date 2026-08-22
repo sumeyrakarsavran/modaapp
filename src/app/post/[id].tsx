@@ -9,7 +9,6 @@ import { CommentsModal } from '@/components/CommentsModal';
 import { PostCard } from '@/components/Community';
 import { useStore } from '@/store/useStore';
 import { font, luxe, luxeType } from '@/theme/luxe';
-import type { CommunityPost } from '@/types';
 
 /**
  * Gönderi görüntüleyici — Instagram'da ızgaradan bir kareye dokununca açılan
@@ -21,8 +20,7 @@ import type { CommunityPost } from '@/types';
  */
 export default function PostViewer() {
   const { id, user } = useLocalSearchParams<{ id: string; user?: string }>();
-  const { posts, profile, followedIds, toggleLike, toggleFollow, deletePost, lookbooks } =
-    useStore();
+  const { posts, profile, followedIds, toggleLike, toggleFollow, deletePost } = useStore();
   const insets = useSafeAreaInsets();
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
 
@@ -47,22 +45,6 @@ export default function PostViewer() {
 
   const owner = feed[startIndex];
   const title = owner?.userId === 'me' ? 'Gönderilerin' : 'Gönderiler';
-
-  /**
-   * Lookbook gönderisinden kaynağa gitme — Topluluk'takiyle aynı davranış.
-   * Eski gönderilerde `lookbookId` yok; o zaman başlıktan en uzun eşleşmeyle
-   * bulunuyor.
-   */
-  const openLookbook = (p: CommunityPost) => {
-    let lbId = p.lookbookId;
-    if (!lbId) {
-      const match = [...lookbooks]
-        .filter((lb) => p.caption.toLocaleLowerCase('tr').includes(lb.name.toLocaleLowerCase('tr')))
-        .sort((a, b) => b.name.length - a.name.length)[0];
-      lbId = match?.id;
-    }
-    if (lbId) router.push({ pathname: '/lookbook/[id]', params: { id: lbId } });
-  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
@@ -102,7 +84,12 @@ export default function PostViewer() {
                   : router.push({ pathname: '/user/[id]', params: { id: p.userId } })
               }
               onDelete={p.userId === 'me' ? () => deletePost(p.id) : undefined}
-              onOpenLookbook={p.kind === 'lookbook' ? () => openLookbook(p) : undefined}
+              /* Paylaşılan hâli — Topluluk'takiyle aynı davranış */
+              onOpenLookbook={
+                p.kind === 'lookbook'
+                  ? () => router.push({ pathname: '/shared/[id]', params: { id: p.id } })
+                  : undefined
+              }
             />
           )}
         />

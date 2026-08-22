@@ -55,21 +55,8 @@ function trendScore(p: CommunityPost): number {
 }
 
 export default function Community() {
-  const { posts, lookbooks, followedIds, profile, toggleFollow, toggleLike, addComment, deletePost } =
+  const { posts, followedIds, profile, toggleFollow, toggleLike, addComment, deletePost } =
     useStore();
-  /**
-   * Gönderinin kaynak lookbook'u.
-   * `lookbookId` alanı sonradan eklendi — ondan ÖNCE paylaşılmış gönderilerde
-   * yok ve dokunma ölü kalıyordu. Geri düşüş: başlık lookbook adını içeriyor
-   * (`"Deniz" lookbook'um: 7 kombin`), en uzun eşleşen ad alınır ki "Yaz" adı
-   * "Yazlık"ı yanlışlıkla kapmasın.
-   */
-  const lookbookIdOf = (p: CommunityPost): string | undefined =>
-    p.lookbookId ??
-    [...lookbooks]
-      .filter((l) => l.name && p.caption?.includes(l.name))
-      .sort((a, b) => b.name.length - a.name.length)[0]?.id;
-
   const [filter, setFilter] = useState<Filter>('global');
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -347,16 +334,14 @@ export default function Community() {
                 : router.push({ pathname: '/user/[id]', params: { id: p.userId } })
             }
             /*
-              Lookbook kapağına dokununca kaynağa git. Başkasının lookbook'u
-              bizim store'umuzda yok — onun profiline gidiliyor (lookbook sekmesi orada).
+              Lookbook kapağına dokununca gönderinin PAYLAŞILAN hâli açılıyor:
+              üç sütun, düzenleme/silme yok. Önce sahibinin lookbook ekranına
+              gidiliyordu — orası kendi düzenleme ekranımız, gönderiyi herkesin
+              gördüğü gibi göstermiyor. Kendi lookbook'unu düzenlemek istersen
+              Gardırop'tan zaten açılıyor.
             */
-            onOpenLookbook={
-              p.userId === 'me'
-                ? () => {
-                    const id = lookbookIdOf(p);
-                    if (id) router.push({ pathname: '/lookbook/[id]', params: { id } });
-                  }
-                : () => router.push({ pathname: '/user/[id]', params: { id: p.userId } })
+            onOpenLookbook={() =>
+              router.push({ pathname: '/shared/[id]', params: { id: p.id } })
             }
             onDelete={p.userId === 'me' ? () => deletePost(p.id) : undefined}
           />

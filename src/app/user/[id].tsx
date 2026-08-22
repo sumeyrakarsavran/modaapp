@@ -16,12 +16,11 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Backdrop } from '@/components/Backdrop';
 import { Avatar, FluidSpecCollage } from '@/components/Community';
-import { GarmentArt } from '@/components/GarmentArt';
+import { LookbookViewer, type LookbookSet } from '@/components/LookbookViewer';
 import { PERSONA_SHOWCASE, PERSONAS } from '@/data/community';
 import { useStore } from '@/store/useStore';
 import { getArchetype } from '@/theme';
 import { font, glass, iridescent, luxe, luxeRadius, luxeType } from '@/theme/luxe';
-import type { GarmentSpec } from '@/types';
 
 /** Kendi profilimizdeki ızgarayla AYNI ölçüler — iki ekran aynı görünsün. */
 const GRID_GAP = 5;
@@ -29,10 +28,13 @@ const GRID_PAD = 12;
 
 /**
  * Profilde o an gösterilen bölüm. Varsayılan GÖNDERİLER: profile girince
- * insanın beklediği şey bu. Vitrin (herkese açık parçalar, lookbook'lar)
- * eskiden hep açıktı ve sayfayı uzatıyordu; artık halkaya dokununca açılıyor.
+ * insanın beklediği şey bu; kalanlar halkaya dokununca açılıyor.
+ *
+ * "Parçalar" KALDIRILDI: uygulamada tek tek parça paylaşma diye bir şey yok,
+ * o bölüm gerçek bir paylaşımı değil kurgu bir vitrini gösteriyordu. Yerine
+ * sanal deneme geldi — o gerçekten paylaşılabilen bir tür.
  */
-type Section = 'gonderi' | 'parca' | 'kombin' | 'selfie' | 'lookbook';
+type Section = 'gonderi' | 'kombin' | 'selfie' | 'lookbook' | 'tryon';
 
 export default function UserProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,11 +43,13 @@ export default function UserProfile() {
   const insets = useSafeAreaInsets();
   const [section, setSection] = useState<Section>('gonderi');
   /**
-   * Büyütülmüş önizleme. Gönderiler dokununca kart hâlinde açılıyordu ama
-   * vitrindeki parçalar ve lookbook kombinleri dokunulamıyordu — hepsi
-   * büyüsün diye ortak bir önizleme.
+   * Açık lookbook — kombinleri oklarla tek tek geziliyor. Önce durağan bir
+   * önizleme vardı; koleksiyonun diğer kombinlerine bakmak için kapatıp
+   * yeniden dokunmak gerekiyordu.
    */
-  const [preview, setPreview] = useState<{ title: string; garments: GarmentSpec[] } | null>(null);
+  const [lbView, setLbView] = useState<{ title: string; sets: LookbookSet[]; index: number } | null>(
+    null,
+  );
   const user = PERSONAS.find((p) => p.id === id);
 
   if (!user) {
@@ -78,8 +82,6 @@ export default function UserProfile() {
    * atıyordu (telefonda görüldü).
    */
   const lbCell = Math.floor((width - GRID_PAD * 2 - 28 - 10) / 2) - 1;
-  /** Büyütülmüş önizlemenin kenarı. */
-  const previewW = Math.min(width - 96, 320);
 
   const Stat = ({ n, label }: { n: number; label: string }) => (
     <View style={styles.stat}>
@@ -134,7 +136,20 @@ export default function UserProfile() {
       style={[styles.cell, { width: cell, height: cell }]}
       onPress={() => router.push({ pathname: '/post/[id]', params: { id: p.id, user: user.id } })}
     >
-      {p.imageUri ? (
+      {/* Lookbook gönderisi karoda da AKIŞTAKİ gibi: kombinler 2x2 */}
+      {p.outfitSets?.length ? (
+        <View style={styles.tileSets}>
+          {p.outfitSets.slice(0, 4).map((set, i) => (
+            <View key={i} style={styles.tileSetCell}>
+              <FluidSpecCollage
+                garments={set?.garments ?? []}
+                frame={set?.canvasFrame}
+                cropToContent={set?.cropToContent}
+              />
+            </View>
+          ))}
+        </View>
+      ) : p.imageUri ? (
         <Image
           source={{ uri: p.imageUri }}
           style={{ width: cell, height: cell }}
@@ -220,12 +235,6 @@ export default function UserProfile() {
             contentContainerStyle={styles.hlRow}
           >
             <Highlight
-              icon="shirt-outline"
-              n={showcase.items.length}
-              label="Parça"
-              id="parca"
-            />
-            <Highlight
               icon="albums-outline"
               n={userPosts.filter((p) => p.kind === 'kombin').length}
               label="Kombin"
@@ -242,6 +251,12 @@ export default function UserProfile() {
               n={showcase.lookbooks.length}
               label="Lookbook"
               id="lookbook"
+            />
+            <Highlight
+              icon="body-outline"
+              n={userPosts.filter((p) => p.kind === 'tryon').length}
+              label="Deneme"
+              id="tryon"
             />
           </ScrollView>
         ) : null}
@@ -262,12 +277,13 @@ export default function UserProfile() {
         ) : null}
 
         {/* ————— Kombin / Selfie gönderileri ————— */}
-        {section === 'kombin' || section === 'selfie' ? (
+        {section === 'kombin' || section === 'selfie' || section === 'tryon' ? (
           (() => {
-            const kind = section === 'kombin' ? 'kombin' : 'selfie';
-            const list = userPosts.filter((p) => p.kind === kind);
+            const list = userPosts.filter((p) => p.kind === section);
+            const adi =
+              section === 'kombin' ? 'kombin' : section === 'selfie' ? 'selfie' : 'sanal deneme';
             return list.length === 0 ? (
-              <Empty text={`Henüz ${kind === 'kombin' ? 'kombin' : 'selfie'} paylaşmamış.`} />
+              <Empty text={`Henüz ${adi} paylaşmamış.`} />
             ) : (
               <View style={styles.grid}>
                 {list.map((p) => (
@@ -276,46 +292,6 @@ export default function UserProfile() {
               </View>
             );
           })()
-        ) : null}
-
-        {/* ————— Herkese açık parçalar ————— */}
-        {section === 'parca' ? (
-          showcase?.items.length ? (
-            <View style={styles.grid}>
-              {showcase.items.map((it) => (
-                <Pressable
-                  key={it.name}
-                  style={{ width: cell }}
-                  onPress={() =>
-                    setPreview({
-                      title: it.name,
-                      garments: [
-                        {
-                          category: it.category,
-                          subcategory: it.subcategory,
-                          colorId: it.colorId,
-                        },
-                      ],
-                    })
-                  }
-                >
-                  <View style={[styles.cell, { width: cell, height: cell }]}>
-                    <GarmentArt
-                      category={it.category}
-                      subcategory={it.subcategory}
-                      colorId={it.colorId}
-                      size={cell * 0.62}
-                    />
-                  </View>
-                  <Text style={styles.itemName} numberOfLines={1}>
-                    {it.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : (
-            <Empty text="Herkese açık parçası yok." />
-          )
         ) : null}
 
         {/* ————— Lookbook'lar ————— */}
@@ -329,7 +305,17 @@ export default function UserProfile() {
             */
             <View style={{ gap: 14, paddingHorizontal: GRID_PAD }}>
               {showcase.lookbooks.map((lb) => (
-                <View key={lb.name} style={styles.lbCard}>
+                <Pressable
+                  key={lb.name}
+                  style={styles.lbCard}
+                  onPress={() =>
+                    setLbView({
+                      title: lb.name,
+                      sets: lb.outfits.map((x) => ({ garments: x })),
+                      index: 0,
+                    })
+                  }
+                >
                   <View style={styles.lbHead}>
                     <Text style={styles.lbName}>{lb.name}</Text>
                     <Text style={styles.lbMeta}>{lb.outfits.length} KOMBİN</Text>
@@ -339,7 +325,13 @@ export default function UserProfile() {
                       <Pressable
                         key={i}
                         style={{ width: lbCell }}
-                        onPress={() => setPreview({ title: lb.name, garments: o })}
+                        onPress={() =>
+                          setLbView({
+                            title: lb.name,
+                            sets: lb.outfits.map((x) => ({ garments: x })),
+                            index: i,
+                          })
+                        }
                       >
                         {/*
                           `FluidSpecCollage` kapsayıcının genişliğini dolduruyor
@@ -350,7 +342,7 @@ export default function UserProfile() {
                       </Pressable>
                     ))}
                   </View>
-                </View>
+                </Pressable>
               ))}
             </View>
           ) : (
@@ -359,40 +351,13 @@ export default function UserProfile() {
         ) : null}
       </ScrollView>
 
-      {/* Büyütülmüş önizleme — vitrin parçası ya da lookbook kombini */}
-      <Modal
-        visible={!!preview}
-        animationType="fade"
-        transparent
-        statusBarTranslucent
-        navigationBarTranslucent
-        onRequestClose={() => setPreview(null)}
-      >
-        <Pressable style={styles.previewWrap} onPress={() => setPreview(null)}>
-          <View style={styles.previewCard}>
-            {/*
-              TEK parça ızgara hücresine konmuyor: kolaj bileşeni her parçayı
-              %47'lik bir kareye yerleştirdiği için tek parça ortada minicik
-              kalıyordu. Tek parçada silüet kutunun tamamını kullanıyor.
-            */}
-            <View style={{ width: previewW, height: previewW, alignItems: 'center', justifyContent: 'center' }}>
-              {preview?.garments.length === 1 ? (
-                <GarmentArt
-                  category={preview.garments[0].category}
-                  subcategory={preview.garments[0].subcategory}
-                  colorId={preview.garments[0].colorId}
-                  size={previewW * 0.92}
-                />
-              ) : (
-                <FluidSpecCollage garments={preview?.garments ?? []} />
-              )}
-            </View>
-            <Text style={styles.previewTitle} numberOfLines={2}>
-              {preview?.title}
-            </Text>
-          </View>
-        </Pressable>
-      </Modal>
+      <LookbookViewer
+        title={lbView?.title ?? ''}
+        sets={lbView?.sets ?? []}
+        index={lbView?.index ?? null}
+        onIndex={(i) => setLbView((v) => (v ? { ...v, index: i } : v))}
+        onClose={() => setLbView(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -472,6 +437,16 @@ const styles = StyleSheet.create({
   hlLabelOn: { fontFamily: font.bodyMedium, color: luxe.ink },
 
   gridTop: { height: 14, borderTopWidth: 1, borderTopColor: luxe.outlineSoft, marginTop: 14 },
+  /** Karo içindeki lookbook ızgarası — akıştaki kartın küçük hâli. */
+  tileSets: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 2,
+  },
+  tileSetCell: { width: '48%' },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -506,34 +481,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 1.3,
     color: luxe.outline,
-  },
-  previewWrap: {
-    flex: 1,
-    backgroundColor: luxe.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  previewCard: {
-    backgroundColor: luxe.surface,
-    borderRadius: luxeRadius.lg,
-    padding: 18,
-    alignItems: 'center',
-    gap: 12,
-  },
-  previewTitle: {
-    fontFamily: font.headlineItalic,
-    fontStyle: 'italic',
-    fontSize: 17,
-    color: luxe.primary,
-    textAlign: 'center',
-  },
-  itemName: {
-    fontFamily: font.body,
-    fontSize: 11,
-    color: luxe.outline,
-    marginTop: 5,
-    textAlign: 'center',
   },
 
   empty: { alignItems: 'center', paddingVertical: 42 },
