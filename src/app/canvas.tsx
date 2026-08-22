@@ -18,6 +18,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
+import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { GarmentArt } from '@/components/GarmentArt';
 import { ItemThumb } from '@/components/ItemThumb';
 import { CANVAS_BASE } from '@/components/OutfitCollage';
@@ -68,14 +69,19 @@ function LuxeButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.lxBtn,
-        solid
-          ? { backgroundColor: luxe.primary }
-          : { backgroundColor: glass.fill, borderWidth: 1, borderColor: luxe.outlineSoft },
-        !title && { paddingHorizontal: 11 },
+        !title && { paddingHorizontal: 11 + BTN_PAD },
         pressed && { opacity: 0.82 },
         style,
       ]}
     >
+      {/* Zemin elle kesilmiş siluet — düz köşe yarıçapı değil (bkz. FinBlob). */}
+      <FinBlob
+        variant="button"
+        shadow={solid}
+        pad={BTN_PAD}
+        color={solid ? luxe.primary : glass.fill}
+        stroke={solid ? undefined : luxe.outlineSoft}
+      />
       {icon ? <Ionicons name={icon} size={14} color={fg} /> : null}
       {title ? <Text style={[styles.lxBtnText, { color: fg }]}>{title}</Text> : null}
     </Pressable>
@@ -881,9 +887,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderRadius: luxeRadius.pill,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingVertical: 10 + BTN_PAD,
+    paddingHorizontal: 15 + BTN_PAD,
   },
   lxBtnText: {
     fontFamily: font.label,

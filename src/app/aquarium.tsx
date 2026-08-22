@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
 import { chartGradient, DonutChart, HBars, Legend, ProgressBar } from '@/components/Charts';
-import { FinBlob } from '@/components/FinBlob';
+import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { CARD_TRACK, GlassCard, ShapedCard } from '@/components/GlassCard';
 import { ItemThumb } from '@/components/ItemThumb';
 import { useStore } from '@/store/useStore';
@@ -176,6 +176,7 @@ export default function Stats() {
             Gardırobuna parça ekleyip giydiklerini işaretledikçe rapor dolmaya başlar.
           </Text>
           <Pressable style={styles.cta} onPress={() => router.push('/item/new')}>
+            <FinBlob shadow pad={BTN_PAD} variant="button" color={luxe.primary} />
             <Ionicons name="add" size={14} color={luxe.onPrimary} />
             <Text style={styles.ctaText}>Parça ekle</Text>
           </Pressable>
@@ -446,10 +447,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginTop: 18,
-    backgroundColor: luxe.primary,
-    borderRadius: luxeRadius.pill,
-    paddingVertical: 11,
-    paddingHorizontal: 18,
+    paddingVertical: 11 + BTN_PAD,
+    paddingHorizontal: 18 + BTN_PAD,
   },
   ctaText: {
     fontFamily: font.label,

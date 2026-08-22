@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { font, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 
 /** Toplulukta paylaşırken kendi metnini yazabildiğin modal. */
@@ -94,6 +95,7 @@ export function ShareModal({
             style={({ pressed }) => [styles.shareBtn, pressed && { opacity: 0.85 }]}
             onPress={() => onShare(text.trim() || defaultCaption)}
           >
+            <FinBlob shadow pad={BTN_PAD} variant="button" color={luxe.primary} />
             <Text style={styles.shareText}>Paylaş</Text>
           </Pressable>
         </View>
@@ -147,9 +149,7 @@ const styles = StyleSheet.create({
   },
   shareBtn: {
     marginTop: 16,
-    backgroundColor: luxe.primary,
-    borderRadius: luxeRadius.pill,
-    paddingVertical: 13,
+    paddingVertical: 13 + BTN_PAD,
     alignItems: 'center',
   },
   shareText: {

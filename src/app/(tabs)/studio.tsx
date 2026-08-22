@@ -18,6 +18,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
+import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ShareModal } from '@/components/ShareModal';
@@ -95,14 +96,19 @@ function LuxeButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.lxBtn,
-        solid
-          ? { backgroundColor: luxe.primary }
-          : { backgroundColor: glass.fill, borderWidth: 1, borderColor: luxe.outlineSoft },
-        !title && { paddingHorizontal: 11 },
+        !title && { paddingHorizontal: 11 + BTN_PAD },
         pressed && { opacity: 0.82 },
         style,
       ]}
     >
+      {/* Zemin elle kesilmiş siluet — düz köşe yarıçapı değil (bkz. FinBlob). */}
+      <FinBlob
+        variant="button"
+        shadow={solid}
+        pad={BTN_PAD}
+        color={solid ? luxe.primary : glass.fill}
+        stroke={solid ? undefined : luxe.outlineSoft}
+      />
       {icon ? <Ionicons name={icon} size={14} color={fg} /> : null}
       {title ? <Text style={[styles.lxBtnText, { color: fg }]}>{title}</Text> : null}
     </Pressable>
@@ -783,21 +789,20 @@ export default function Studio() {
             </Text>
           ) : null}
           <View style={styles.viewerActions}>
-            <Pressable
-              style={[styles.viewerBtn, { backgroundColor: luxe.onDark }]}
-              onPress={() => setShareTryon(openTryon)}
-            >
+            <Pressable style={styles.viewerBtn} onPress={() => setShareTryon(openTryon)}>
+              <FinBlob shadow pad={BTN_PAD} variant="button" color={luxe.onDark} />
               <Ionicons name="share-social-outline" size={14} color={luxe.primary} />
               <Text style={[styles.viewerBtnText, { color: luxe.primary }]}>Toplulukta paylaş</Text>
             </Pressable>
             <Pressable
-              style={[styles.viewerBtn, styles.viewerBtnGhost]}
+              style={styles.viewerBtn}
               onPress={() => {
                 const id = openTryon?.id;
                 setOpenTryon(null);
                 if (id) setTimeout(() => confirmDeleteTryOn(id), 120);
               }}
             >
+              <FinBlob pad={BTN_PAD} variant="button" color="transparent" stroke="rgba(255,255,255,0.45)" />
               <Ionicons name="trash-outline" size={14} color={luxe.onDark} />
               <Text style={[styles.viewerBtnText, { color: luxe.onDark }]}>Sil</Text>
             </Pressable>
@@ -840,9 +845,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderRadius: luxeRadius.pill,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingVertical: 10 + BTN_PAD,
+    paddingHorizontal: 15 + BTN_PAD,
   },
   lxBtnText: {
     fontFamily: font.label,
@@ -1053,11 +1057,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderRadius: luxeRadius.pill,
-    paddingVertical: 11,
-    paddingHorizontal: 18,
+    paddingVertical: 11 + BTN_PAD,
+    paddingHorizontal: 18 + BTN_PAD,
   },
-  viewerBtnGhost: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)' },
   viewerBtnText: {
     fontFamily: font.label,
     fontSize: 10.5,

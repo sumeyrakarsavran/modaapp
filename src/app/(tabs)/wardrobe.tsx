@@ -22,6 +22,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
+import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { GarmentArt } from '@/components/GarmentArt';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { Reorderable } from '@/components/Reorderable';
@@ -518,18 +519,19 @@ function LuxeButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.btn,
-        solid
-          ? { backgroundColor: luxe.primary }
-          : {
-              backgroundColor: glass.fill,
-              borderWidth: 1,
-              borderColor: variant === 'danger' ? luxe.danger : luxe.outlineSoft,
-            },
         disabled && { opacity: 0.4 },
         pressed && { opacity: 0.82 },
         style,
       ]}
     >
+      {/* Zemin elle kesilmiş siluet — düz köşe yarıçapı değil (bkz. FinBlob). */}
+      <FinBlob
+        variant="button"
+        shadow={solid}
+        pad={BTN_PAD}
+        color={solid ? luxe.primary : glass.fill}
+        stroke={solid ? undefined : variant === 'danger' ? luxe.danger : luxe.outlineSoft}
+      />
       <View style={styles.btnRow}>
         {icon ? <Ionicons name={icon} size={14} color={fg} /> : null}
         {title ? <Text style={[styles.btnText, { color: fg }]}>{title}</Text> : null}
@@ -1361,9 +1363,8 @@ const styles = StyleSheet.create({
 
   // Düğme
   btn: {
-    borderRadius: luxeRadius.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 16 + BTN_PAD,
+    paddingVertical: 10 + BTN_PAD,
     alignItems: 'center',
     justifyContent: 'center',
   },

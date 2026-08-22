@@ -17,6 +17,7 @@ import { Backdrop } from '@/components/Backdrop';
 
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { GarmentArt } from '@/components/GarmentArt';
 import { Button, Chip, Label } from '@/components/UI';
 import {
@@ -501,6 +502,7 @@ export default function NewItem() {
           style={({ pressed }) => [styles.saveBtn, { marginTop: 4 }, pressed && { opacity: 0.85 }]}
           onPress={save}
         >
+          <FinBlob shadow pad={BTN_PAD} variant="button" color={luxe.primary} />
           <Text style={styles.saveText}>{editing ? 'Kaydet' : 'Gardıroba ekle'}</Text>
         </Pressable>
       </ScrollView>
@@ -530,12 +532,17 @@ function PillBtn({
       disabled={busy}
       style={({ pressed }) => [
         styles.pill,
-        solid
-          ? { backgroundColor: luxe.primary }
-          : { backgroundColor: glass.fill, borderWidth: 1, borderColor: luxe.outlineSoft },
         (pressed || busy) && { opacity: 0.8 },
       ]}
     >
+      {/* Zemin elle kesilmiş siluet — düz köşe yarıçapı değil (bkz. FinBlob). */}
+      <FinBlob
+        variant="button"
+        shadow={solid}
+        pad={BTN_PAD}
+        color={solid ? luxe.primary : glass.fill}
+        stroke={solid ? undefined : luxe.outlineSoft}
+      />
       <Ionicons name={icon} size={14} color={fg} />
       <Text style={[styles.pillText, { color: fg }]}>{title}</Text>
     </Pressable>
@@ -592,9 +599,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderRadius: luxeRadius.pill,
-    paddingVertical: 9,
-    paddingHorizontal: 13,
+    paddingVertical: 9 + BTN_PAD,
+    paddingHorizontal: 13 + BTN_PAD,
   },
   pillText: {
     fontFamily: font.label,
@@ -630,9 +636,7 @@ const styles = StyleSheet.create({
   swatchActive: { borderWidth: 2.5, borderColor: luxe.primaryDeep },
 
   saveBtn: {
-    backgroundColor: luxe.primary,
-    borderRadius: luxeRadius.pill,
-    paddingVertical: 14,
+    paddingVertical: 14 + BTN_PAD,
     alignItems: 'center',
   },
   saveText: {

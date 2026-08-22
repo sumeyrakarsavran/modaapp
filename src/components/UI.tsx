@@ -10,6 +10,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { spacing } from '@/theme';
 import { font, glass, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
 
@@ -49,6 +50,7 @@ export function Button({
       : variant === 'secondary'
         ? luxe.primaryDeep
         : luxe.primary;
+  const ghost = variant === 'ghost';
   return (
     <Pressable
       onPress={onPress}
@@ -56,11 +58,22 @@ export function Button({
       style={({ pressed }) => [
         styles.btn,
         small && styles.btnSmall,
-        { backgroundColor: bg, opacity: disabled ? 0.45 : pressed ? 0.85 : 1 },
-        variant === 'ghost' && { borderWidth: 1, borderColor: luxe.outlineSoft, backgroundColor: glass.fill },
+        { opacity: disabled ? 0.45 : pressed ? 0.85 : 1 },
         style,
       ]}
     >
+      {/*
+        Zemin DÜZ RENK + `borderRadius` DEĞİL, elle kesilmiş siluet: dört
+        köşenin yarıçapı birbirinden farklı, yani biçim cetvelle değil elle
+        çizilmiş duruyor. RN'in `borderRadius`'ında karşılığı yok (bkz. FinBlob).
+      */}
+      <FinBlob
+        variant="button"
+        shadow={!ghost}
+        pad={BTN_PAD}
+        color={ghost ? glass.fill : bg}
+        stroke={ghost ? luxe.outlineSoft : undefined}
+      />
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
@@ -191,13 +204,12 @@ export function Label({ children, style }: { children: React.ReactNode; style?: 
 
 const styles = StyleSheet.create({
   btn: {
-    borderRadius: luxeRadius.pill,
-    paddingVertical: 13,
-    paddingHorizontal: spacing.xl,
+    paddingVertical: 13 + BTN_PAD,
+    paddingHorizontal: spacing.xl + BTN_PAD,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnSmall: { paddingVertical: 10, paddingHorizontal: spacing.lg },
+  btnSmall: { paddingVertical: 10 + BTN_PAD, paddingHorizontal: spacing.lg + BTN_PAD },
   btnText: {
     fontFamily: font.label,
     fontSize: 11,

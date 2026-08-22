@@ -22,6 +22,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Backdrop } from '@/components/Backdrop';
 import { BettaAvatar } from '@/components/BettaAvatar';
 import { FluidSpecCollage } from '@/components/Community';
+import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { LookbookViewer, type LookbookSet } from '@/components/LookbookViewer';
 import { resizeForProcessing } from '@/services/imageResize';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
@@ -279,9 +280,11 @@ export default function Profile() {
               setEditOpen(true);
             }}
           >
+            <FinBlob pad={BTN_PAD} variant="button" color={glass.fill} stroke={luxe.outlineSoft} />
             <Text style={styles.actionText}>{profile.bio ? 'Profili düzenle' : 'Bio ekle'}</Text>
           </Pressable>
           <Pressable style={styles.action} onPress={() => router.push('/quiz')}>
+            <FinBlob pad={BTN_PAD} variant="button" color={glass.fill} stroke={luxe.outlineSoft} />
             <Text style={styles.actionText}>Betta testi</Text>
           </Pressable>
           <Pressable style={styles.actionIcon} onPress={() => router.push('/(tabs)/community')}>
@@ -504,6 +507,7 @@ export default function Profile() {
               Kullanıcı adını ve gizlilik ayarını Ayarlar&apos;dan değiştirebilirsin.
             </Text>
             <Pressable style={styles.saveBtn} onPress={saveEdit}>
+              <FinBlob shadow pad={BTN_PAD} variant="button" color={luxe.primary} />
               <Text style={styles.saveText}>Kaydet</Text>
             </Pressable>
           </View>
@@ -531,6 +535,7 @@ function Empty({
         {text}
       </Text>
       <Pressable style={styles.emptyBtn} onPress={onPress}>
+        <FinBlob shadow pad={BTN_PAD} variant="button" color={luxe.primary} />
         <Text style={styles.emptyBtnText}>{action}</Text>
       </Pressable>
     </View>
@@ -622,11 +627,13 @@ const styles = StyleSheet.create({
   action: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: glass.fill,
-    borderWidth: 1,
-    borderColor: luxe.outlineSoft,
-    borderRadius: luxeRadius.sm,
-    paddingVertical: 8,
+    justifyContent: 'center',
+    /*
+      Yükseklik AÇIK veriliyor: `flex: 1` olan bir satır çocuğunda mutlak
+      konumlu zemin (siluet) kutunun son boyunu yakalayamıyor ve biçim
+      alttan kırpılıyordu (cihazda görüldü).
+    */
+    height: 30 + 2 * BTN_PAD,
   },
   actionText: { fontFamily: font.bodyMedium, fontSize: 12.5, color: luxe.primary },
   actionIcon: {
@@ -719,10 +726,8 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: 42, paddingHorizontal: 24 },
   emptyBtn: {
     marginTop: 14,
-    backgroundColor: luxe.primary,
-    borderRadius: luxeRadius.pill,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+    paddingVertical: 10 + BTN_PAD,
+    paddingHorizontal: 18 + BTN_PAD,
   },
   emptyBtnText: {
     fontFamily: font.label,
@@ -782,9 +787,7 @@ const styles = StyleSheet.create({
   counter: { fontFamily: font.body, fontSize: 11, color: luxe.outline, textAlign: 'right', marginTop: 4 },
   saveBtn: {
     marginTop: 16,
-    backgroundColor: luxe.primary,
-    borderRadius: luxeRadius.pill,
-    paddingVertical: 13,
+    paddingVertical: 13 + BTN_PAD,
     alignItems: 'center',
   },
   saveText: {

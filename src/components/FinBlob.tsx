@@ -43,6 +43,12 @@ export const SHAPES = {
   wave: { h: [34, 66, 36, 64], v: [64, 36, 66, 34] },
   /** Kart siluetı: köşeler eğri, kenarların ortası düz (yazı taşmasın). */
   card: { h: [13, 5, 11, 7], v: [30, 13, 26, 16] },
+  /**
+   * DÜĞME siluetı: uçlar tam yuvarlak ama dört köşe birbirinden farklı —
+   * hap gibi ama elle kesilmiş. Dikey yarıçaplar %50'ye yakın (uçlar dolgun),
+   * yatay yarıçaplar küçük ve düzensiz (elle çizilmiş his).
+   */
+  button: { h: [26, 16, 22, 18], v: [55, 45, 52, 48] },
 } as const satisfies Record<string, Shape>;
 
 export type ShapeName = keyof typeof SHAPES;
@@ -54,6 +60,13 @@ export type ShapeName = keyof typeof SHAPES;
  * negatif kenar boşluğuyla geri alınıyor.
  */
 export const BLOB_SHADOW_PAD = 18;
+
+/**
+ * DÜĞMEDE gölge payı. Düğme kutusu alçak: 18px pay biçimi yiyor. Çağıran
+ * kendi iç boşluğuna bu kadar EKLİYOR, böylece görünen düğme eskisiyle aynı
+ * boyda kalıyor, pay da gölgeye gidiyor.
+ */
+export const BTN_PAD = 7;
 
 /**
  * 100×100 kutuda kapalı yol. Köşeler eliptik yay, aralar düz çizgi — yarıçap
@@ -88,6 +101,9 @@ export function FinBlob({
   color,
   gradient,
   shadow,
+  pad,
+  stroke,
+  strokeWidth = 1,
   variant = 'fin',
   style,
 }: {
@@ -98,6 +114,21 @@ export function FinBlob({
    */
   gradient?: readonly string[];
   shadow?: boolean;
+  /**
+   * Gölge/çizgi payı (px). Varsayılan `BLOB_SHADOW_PAD`; düğme gibi ALÇAK
+   * kutularda 18px payı biçimi yiyor, oralarda küçük bir değer veriliyor.
+   */
+  pad?: number;
+  /**
+   * Dış hat rengi — çerçeveli (hayalet) düğmeler için.
+   *
+   * ⚠️ `shadow` ile BİRLİKTE kullanma: çok basık kutularda (düğme) filtre
+   * biçimi ALTTAN KIRPIYOR — profildeki eylem düğmelerinde ölçüldü, kutu
+   * 134×44 doğru ölçülmesine rağmen biçim yarıda kesiliyordu. Çerçeveli
+   * düğme zaten gölge istemiyor.
+   */
+  stroke?: string;
+  strokeWidth?: number;
   /** Hangi siluet — bkz. `SHAPES`. */
   variant?: ShapeName;
   /** Ek konumlandırma; varsayılan olarak kapsayıcıyı tamamen kaplar. */
@@ -109,7 +140,12 @@ export function FinBlob({
     (cihazda görüldü). Bu yüzden pay kutunun İÇİNDE: kutu bu kadar büyük,
     blob iç dikdörtgene çiziliyor.
   */
-  const M = shadow ? BLOB_SHADOW_PAD : 0;
+  /*
+    Çizgi (stroke) yolun ÜSTÜNE ortalanır: yol tam kenara çizilirse çizginin
+    yarısı kutunun dışında kalıp kırpılır. Bu yüzden çizgili biçimde kutu
+    içinde bir kalınlık kadar pay bırakılıyor.
+  */
+  const M = pad ?? (shadow ? BLOB_SHADOW_PAD : stroke ? Math.ceil(strokeWidth) : 0);
   /*
     Benzersiz id: aynı ekranda birden fazla blob var (gün kartı, hava rozeti,
     sekme, palet lekeleri). Sabit id verilirse tanımlar birbirini eziyor.
@@ -136,9 +172,15 @@ export function FinBlob({
       }}
     >
       {box && cw > 0 && ch > 0 ? (
+        /*
+          Ölçü YALNIZCA payın yüzdesini hesaplamak için; SVG'nin kendisi
+          kapsayıcıyı yüzdeyle dolduruyor. Piksel verilirse bayat bir ölçüm
+          (esneyen satırda çocuk sonradan uzuyor) biçimi ALTTAN KIRPIYOR —
+          profildeki eylem düğmelerinde görüldü.
+        */
         <Svg
-          width={box.w}
-          height={box.h}
+          width="100%"
+          height="100%"
           viewBox={`${-mx} ${-my} ${100 + 2 * mx} ${100 + 2 * my}`}
           preserveAspectRatio="none"
         >
@@ -165,6 +207,14 @@ export function FinBlob({
           <Path
             d={pathOf(SHAPES[variant])}
             fill={gradient ? `url(#g${uid})` : color}
+            stroke={stroke}
+            strokeWidth={stroke ? strokeWidth : undefined}
+            /*
+              `preserveAspectRatio="none"` viewBox'ı iki eksende FARKLI
+              ölçeklediği için çizgi kalınlığı da bozulurdu — bu, kalınlığı
+              ölçekten muaf tutuyor.
+            */
+            vectorEffect={stroke ? 'non-scaling-stroke' : undefined}
             filter={shadow ? `url(#s${uid})` : undefined}
           />
         </Svg>
