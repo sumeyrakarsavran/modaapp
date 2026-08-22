@@ -16,16 +16,23 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
+import { CardFan } from '@/components/CardFan';
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { Chip } from '@/components/UI';
 import { askClaude, localSuggest } from '@/services/stylist';
 import { useWeather } from '@/hooks/useWeather';
 import { useStore } from '@/store/useStore';
+import type { WardrobeItem } from '@/types';
 import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 
 interface Msg {
   role: 'user' | 'assistant';
   content: string;
+  /**
+   * Önerilen parçalar. Balonda yelpaze hâlinde FOTOĞRAFLARI gösteriliyor —
+   * isim listesi okumaktansa parçayı görmek karar verdiriyor.
+   */
+  itemIds?: string[];
 }
 
 const QUICK = [
@@ -65,20 +72,38 @@ export default function Stylist() {
     };
   }, []);
 
-  const localReply = (question: string): string => {
+  const localReply = (question: string): { content: string; itemIds?: string[] } => {
     const s = localSuggest(
       items.filter((i) => !i.archived),
       todayWeather,
     );
     if (!s) {
-      return 'Gardırobunda henüz yeterli parça yok — önce birkaç üst, alt ve ayakkabı ekle, sonra sana kombin önereyim.';
+      return {
+        content:
+          'Gardırobunda henüz yeterli parça yok — önce birkaç üst, alt ve ayakkabı ekle, sonra sana kombin önereyim.',
+      };
     }
-    const names = s.itemIds
-      .map((id) => items.find((i) => i.id === id)?.name)
-      .filter(Boolean)
-      .map((n) => `• ${n}`)
-      .join('\n');
-    return `Şöyle bir kombin denedim:\n\n${names}\n\n${s.reason}\n\nBeğenmediysen tekrar sor, başkasını çıkarayım.`;
+    // İsimler SAYILMIYOR: parçalar balonun içinde yelpaze olarak görünüyor.
+    return {
+      content: `${s.reason}\n\nBeğenmediysen tekrar sor, başkasını çıkarayım.`,
+      itemIds: s.itemIds,
+    };
+  };
+
+  /**
+   * Claude serbest metin döndürüyor; içinde ADI GEÇEN parçalar yakalanıp
+   * yelpazede gösteriliyor. Kısa adlar elenmezse iki harflik bir ad her
+   * cümleye takılıp alakasız parça çıkarıyor.
+   */
+  const mentionedItems = (text: string): string[] => {
+    const low = text.toLocaleLowerCase('tr');
+    return items
+      .filter((i) => {
+        const n = i.name?.trim() ?? '';
+        return n.length >= 3 && low.includes(n.toLocaleLowerCase('tr'));
+      })
+      .slice(0, 6)
+      .map((i) => i.id);
   };
 
   const send = async (text?: string) => {
@@ -89,9 +114,9 @@ export default function Stylist() {
     setMessages(nextMsgs);
     setBusy(true);
     try {
-      let reply: string;
+      let reply: Msg;
       if (api.anthropicKey) {
-        reply = await askClaude(
+        const text = await askClaude(
           api.anthropicKey,
           content,
           items,
@@ -99,11 +124,12 @@ export default function Stylist() {
           todayWeather,
           nextMsgs.slice(1, -1), // ilk karşılama mesajını atla
         );
+        reply = { role: 'assistant', content: text, itemIds: mentionedItems(text) };
       } else {
         await new Promise((r) => setTimeout(r, 400));
-        reply = localReply(content);
+        reply = { role: 'assistant', ...localReply(content) };
       }
-      setMessages((m) => [...m, { role: 'assistant', content: reply }]);
+      setMessages((m) => [...m, reply]);
     } catch (e: any) {
       setMessages((m) => [
         ...m,
@@ -156,6 +182,19 @@ export default function Stylist() {
               key={i}
               style={[styles.bubble, m.role === 'user' ? styles.userBubble : styles.aiBubble]}
             >
+              {m.itemIds?.length ? (
+                <>
+                  <Text style={styles.lead}>Bunları önerdim</Text>
+                  <CardFan
+                    items={
+                      m.itemIds
+                        .map((id) => items.find((it) => it.id === id))
+                        .filter(Boolean) as WardrobeItem[]
+                    }
+                    onPress={(it) => router.push({ pathname: '/item/[id]', params: { id: it.id } })}
+                  />
+                </>
+              ) : null}
               <Text
                 style={[
                   luxeType.body,
@@ -222,6 +261,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   state: { ...luxeType.label, marginTop: 2 },
+  lead: { ...luxeType.label, fontSize: 10, marginBottom: 2 },
   close: {
     width: 36,
     height: 36,
@@ -233,7 +273,7 @@ const styles = StyleSheet.create({
     borderColor: luxe.outlineSoft,
   },
   bubble: {
-    maxWidth: '86%',
+    maxWidth: '92%',
     borderRadius: luxeRadius.lg,
     paddingHorizontal: 16,
     paddingVertical: 13,
