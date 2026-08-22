@@ -25,6 +25,7 @@ import { OutfitCollage } from '@/components/OutfitCollage';
 import { Reorderable } from '@/components/Reorderable';
 import { ShareModal } from '@/components/ShareModal';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
+import { LookbookIcon } from '@/components/LookbookIcon';
 import { useStore } from '@/store/useStore';
 import { radius, spacing } from '@/theme';
 import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
@@ -174,9 +175,13 @@ export default function LookbookDetail() {
               />
             </View>
           ) : (
-            <Pressable onPress={() => setEditingName(true)}>
-              <Text style={luxeType.display}>
-                {lb.emoji} {lb.name} <Ionicons name="pencil" size={14} color={luxe.outline} />
+            <Pressable
+              onPress={() => setEditingName(true)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+            >
+              <LookbookIcon value={lb.emoji} size={22} />
+              <Text style={[luxeType.display, { flexShrink: 1 }]} numberOfLines={1}>
+                {lb.name} <Ionicons name="pencil" size={14} color={luxe.outline} />
               </Text>
             </Pressable>
           )}

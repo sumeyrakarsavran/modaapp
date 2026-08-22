@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Backdrop } from '@/components/Backdrop';
 
 import { ItemThumb } from '@/components/ItemThumb';
+import { LookbookIcon } from '@/components/LookbookIcon';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ShareModal } from '@/components/ShareModal';
 import { Button, Card, Chip } from '@/components/UI';
@@ -213,7 +214,14 @@ export default function OutfitDetail() {
                     return (
                       <Chip
                         key={lb.id}
-                        label={`${lb.emoji} ${lb.name}${inside ? ' ✓' : ''}`}
+                        left={
+                          <LookbookIcon
+                            value={lb.emoji}
+                            size={13}
+                            color={inside ? luxe.primaryDeep : luxe.outline}
+                          />
+                        }
+                        label={`${lb.name}${inside ? ' ✓' : ''}`}
                         active={inside}
                         onPress={() =>
                           updateLookbook(lb.id, {

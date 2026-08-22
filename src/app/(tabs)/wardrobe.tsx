@@ -24,6 +24,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Backdrop } from '@/components/Backdrop';
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { GarmentArt } from '@/components/GarmentArt';
+import { LOOKBOOK_ICONS, LookbookIcon } from '@/components/LookbookIcon';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { Reorderable } from '@/components/Reorderable';
 import { ShareModal } from '@/components/ShareModal';
@@ -44,7 +45,6 @@ import {
 
 type Section = 'parcalar' | 'kombinler' | 'selfiler' | 'lookbooklar';
 
-const LOOKBOOK_EMOJIS = ['📖', '🌊', '🌙', '🔥', '🌸', '⚡', '🎨', '☁️', '✨', '🐟'];
 
 /** Askıdaki kartın ölçüsü; raf yüksekliği buna göre hesaplanıyor. */
 const CARD_W = 98;
@@ -178,18 +178,6 @@ const Hanger = React.memo(function Hanger({
   her biri bir fotoğraf taşıdığı için sürükleme takılıyordu. Artık yalnızca
   değişen askı çiziliyor.
 */
-/** Bölüm başlığı: sol serif ad, sağ küçük harf aralıklı sayaç. */
-function SectionHead({ title, count, unit }: { title: string; count: number; unit: string }) {
-  return (
-    <View style={[styles.rackHead, { marginBottom: 10 }]}>
-      <Text style={styles.rackTitle}>{title}</Text>
-      <Text style={styles.rackCount}>
-        {count} {unit}
-      </Text>
-    </View>
-  );
-}
-
 /** Askıdaki parçanın toplam yüksekliği — sürükle-bırak yuva hesabı için. */
 const HANGER_H = HOOK_H + CARD_IMG_H + 40;
 /** Bir rafa en fazla bu kadar parça sığıyor; fazlası alt rafa iner. */
@@ -606,6 +594,7 @@ function LuxeButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.btn,
+        !title && styles.btnIconOnly,
         disabled && { opacity: 0.4 },
         pressed && { opacity: 0.82 },
         style,
@@ -613,7 +602,8 @@ function LuxeButton({
     >
       {/* Zemin elle kesilmiş siluet — düz köşe yarıçapı değil (bkz. FinBlob). */}
       <FinBlob
-        variant="button"
+        /* Kare kutuda hap siluetı fıçıya dönüp kesik duruyor; yuvarlak oturuyor. */
+        variant={title ? 'button' : 'pebble'}
         shadow={solid}
         pad={BTN_PAD}
         color={solid ? luxe.primary : glass.fill}
@@ -803,12 +793,21 @@ export default function Wardrobe() {
         <View style={{ flex: 1 }}>
           <Text style={luxeType.display}>Gardırop</Text>
         </View>
+        {/*
+          Başlıktaki eylem düğmeleri YALNIZCA İKON: ne eklendiğini zaten
+          seçili bölüm söylüyor, yazı tekrar oluyordu. Kare kutu + yuvarlak
+          siluet, selfie bölümündekiyle aynı dil.
+        */}
         {section === 'parcalar' ? (
-          <LuxeButton icon="add" title="Ekle" onPress={() => router.push('/item/new')} />
+          <LuxeButton icon="add" onPress={() => router.push('/item/new')} />
         ) : section === 'kombinler' ? (
-          <LuxeButton icon="add" title="Kombin" onPress={() => router.push('/(tabs)/studio')} />
+          <LuxeButton icon="add" onPress={() => router.push('/(tabs)/studio')} />
         ) : section === 'selfiler' ? (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          /*
+            Aralık 0: siluet kutunun 7px içinden başlıyor (gölge payı), yani
+            iki düğme arasında zaten iki pay kadar boşluk görünüyor.
+          */
+          <View style={{ flexDirection: 'row' }}>
             <LuxeButton icon="camera-outline" onPress={() => takeSelfie(true)} />
             <LuxeButton icon="images-outline" variant="outline" onPress={() => takeSelfie(false)} />
           </View>
@@ -991,9 +990,6 @@ export default function Wardrobe() {
             data={outfits}
             keyExtractor={(o) => o.id}
             numColumns={2}
-            ListHeaderComponent={
-              <SectionHead title="Kombinler" count={outfits.length} unit="KOMBİN" />
-            }
             contentContainerStyle={{ padding: 20, gap: 18 }}
             columnWrapperStyle={{ gap: 18 }}
             renderItem={({ item: o }) => {
@@ -1044,9 +1040,6 @@ export default function Wardrobe() {
             data={selfies}
             numColumns={cols}
             keyExtractor={(s) => s.id}
-            ListHeaderComponent={
-              <SectionHead title="Selfie'ler" count={selfies.length} unit="KARE" />
-            }
             contentContainerStyle={{ padding: 20, gap: 8 }}
             columnWrapperStyle={{ gap: 8 }}
             renderItem={({ item: s }) => (
@@ -1079,7 +1072,6 @@ export default function Wardrobe() {
           />
         ) : (
           <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-            <SectionHead title="Lookbook'lar" count={lookbooks.length} unit="DEFTER" />
             {/*
               Sıralama SÜRÜKLENEREK: karta basılı tutup taşıyınca yeri
               değişiyor. Satır yüksekliği SABİT olmak zorunda — mutlak
@@ -1119,13 +1111,16 @@ export default function Wardrobe() {
                       />
                     ) : (
                       <View style={styles.lbEmpty}>
-                        <Text style={{ fontSize: 26 }}>{lb.emoji}</Text>
+                        <LookbookIcon value={lb.emoji} size={26} color={luxe.outline} />
                       </View>
                     )}
                     <View style={{ flex: 1 }}>
-                      <Text style={luxeType.headline} numberOfLines={1}>
-                        {lb.emoji} {lb.name}
-                      </Text>
+                      <View style={styles.lbTitleRow}>
+                        <LookbookIcon value={lb.emoji} size={17} />
+                        <Text style={[luxeType.headline, { flexShrink: 1 }]} numberOfLines={1}>
+                          {lb.name}
+                        </Text>
+                      </View>
                       <Text style={[luxeType.label, { marginTop: 4 }]}>
                         {lb.outfitIds.length} kombin
                       </Text>
@@ -1219,13 +1214,17 @@ export default function Wardrobe() {
               autoFocus
             />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
-              {LOOKBOOK_EMOJIS.map((e) => (
+              {LOOKBOOK_ICONS.map((name) => (
                 <Pressable
-                  key={e}
-                  onPress={() => setLbEmoji(e)}
-                  style={[styles.emojiBtn, lbEmoji === e && styles.emojiBtnActive]}
+                  key={name}
+                  onPress={() => setLbEmoji(name)}
+                  style={[styles.emojiBtn, lbEmoji === name && styles.emojiBtnActive]}
                 >
-                  <Text style={{ fontSize: 20 }}>{e}</Text>
+                  <LookbookIcon
+                    value={name}
+                    size={19}
+                    color={lbEmoji === name ? luxe.primary : luxe.outline}
+                  />
                 </Pressable>
               ))}
             </View>
@@ -1455,6 +1454,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  /**
+   * Yalnızca ikonlu düğme: kutu KARE olmalı ki siluet bozulmasın. Yatay
+   * dolgu yazılı düğmeninkiyle aynı kalınca kutu genişliyor, iki ikon düğmesi
+   * birbirinden uzak duruyordu.
+   */
+  btnIconOnly: { width: 24 + 2 * (10 + BTN_PAD), paddingHorizontal: 0 },
   btnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   btnText: {
     fontFamily: font.label,
@@ -1519,6 +1524,7 @@ const styles = StyleSheet.create({
     color: luxe.ink,
     backgroundColor: glass.fillStrong,
   },
+  lbTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   emojiBtn: {
     width: 42,
     height: 42,
