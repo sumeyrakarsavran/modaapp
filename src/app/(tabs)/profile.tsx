@@ -236,11 +236,16 @@ export default function Profile() {
           </Pressable>
           <View style={styles.stats}>
             <Stat n={myPosts.length} label="Gönderi" />
-            <Stat n={followers} label="Takipçi" />
+            {/* Sayaçlara dokununca liste açılıyor — Instagram'daki gibi */}
+            <Stat
+              n={followers}
+              label="Takipçi"
+              onPress={() => router.push({ pathname: '/people', params: { mode: 'followers' } })}
+            />
             <Stat
               n={followedIds.length}
               label="Takip"
-              onPress={() => router.push('/(tabs)/community')}
+              onPress={() => router.push({ pathname: '/people', params: { mode: 'following' } })}
             />
           </View>
         </View>

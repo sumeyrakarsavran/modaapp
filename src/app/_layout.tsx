@@ -111,6 +111,8 @@ export default function RootLayout() {
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
         <Stack.Screen name="auth" options={{ presentation: 'modal' }} />
         <Stack.Screen name="pro" options={{ presentation: 'modal' }} />
+        {/* Takipçi / takip edilen listesi */}
+        <Stack.Screen name="people" options={{ presentation: 'modal' }} />
         <Stack.Screen name="profile" />
       </Stack>
     </SafeAreaProvider>
