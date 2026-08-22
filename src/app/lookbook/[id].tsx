@@ -16,8 +16,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Image } from 'expo-image';
+
 import { Backdrop } from '@/components/Backdrop';
 
+import { GarmentArt } from '@/components/GarmentArt';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ShareModal } from '@/components/ShareModal';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
@@ -35,6 +38,8 @@ export default function LookbookDetail() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  /** Kapak olarak seçilen parçanın sırası — paylaşım kutusundan belirleniyor. */
+  const [coverIdx, setCoverIdx] = useState(0);
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(lb?.name ?? '');
   const [desc, setDesc] = useState(lb?.description ?? '');
@@ -98,6 +103,25 @@ export default function LookbookDetail() {
     }))
     .filter((s) => s.garments.length > 0);
 
+  /**
+   * Lookbook'un TÜM parçaları — kapak bunlardan biri.
+   * Aynı parça birden fazla kombinde olabilir; kapak seçiminde tekrar
+   * görünmesin diye eleniyor.
+   */
+  const coverChoices = (() => {
+    const seen = new Set<string>();
+    const out: GarmentSpec[] = [];
+    for (const set of outfitSets) {
+      for (const g of set.garments) {
+        const key = g.imageUri ?? `${g.category}-${g.subcategory ?? ''}-${g.colorId}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(g);
+      }
+    }
+    return out;
+  })();
+
   const doShare = (caption: string) => {
     sharePost({
       kind: 'lookbook',
@@ -106,11 +130,14 @@ export default function LookbookDetail() {
       garments: outfitSets[0]?.garments ?? [],
       outfitSets,
       lookbookId: lb.id,
+      // Kapak yalnızca profil ızgarasında kullanılıyor (bkz. CommunityPost.coverGarment)
+      coverGarment: coverChoices[coverIdx],
       archetypeId: profile.bettaArchetypeId,
     });
     setShareOpen(false);
     router.push('/(tabs)/community');
   };
+
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
@@ -258,19 +285,42 @@ export default function LookbookDetail() {
         visible={shareOpen}
         defaultCaption={`"${lb.name}" lookbook'um: ${lb.outfitIds.length} kombin`}
         preview={
-          /* Önizleme paylaşılacakla aynı: ilk dört kombin */
-          lbOutfits.length ? (
-            <View style={styles.sharePreview}>
-              {lbOutfits.slice(0, 4).map((o) => (
-                <OutfitCollage
-                  key={o.id}
-                  items={itemsOf(o.itemIds)}
-                  size={76}
-                  layout={o.layout}
-                  frame={o.canvasFrame}
-                  cropToContent={o.cropToContent}
-                />
-              ))}
+          /*
+            Paylaşım kutusunda KAPAK seçiliyor: profil ızgarasında lookbook
+            karosu bu tek parçayı gösteriyor. Önce ilk dört kombin önizlemesi
+            vardı; kapak seçimi paylaşım anında olmalı denince yerini bu aldı.
+          */
+          coverChoices.length ? (
+            <View style={{ gap: 8 }}>
+              <Text style={luxeType.label}>Kapak parçası</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+              >
+                {coverChoices.map((g, i) => (
+                  <Pressable
+                    key={i}
+                    onPress={() => setCoverIdx(i)}
+                    style={[styles.coverPick, i === coverIdx && styles.coverPickOn]}
+                  >
+                    {g.imageUri ? (
+                      <Image
+                        source={{ uri: g.imageUri }}
+                        style={{ width: '90%', height: '90%' }}
+                        contentFit="contain"
+                      />
+                    ) : (
+                      <GarmentArt
+                        category={g.category}
+                        subcategory={g.subcategory}
+                        colorId={g.colorId}
+                        size={54}
+                      />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
             </View>
           ) : undefined
         }
@@ -282,6 +332,18 @@ export default function LookbookDetail() {
 }
 
 const styles = StyleSheet.create({
+  /** Kapak seçici karesi — seçili olan mürekkep çerçeveyle işaretleniyor. */
+  coverPick: {
+    width: 72,
+    height: 72,
+    borderRadius: luxeRadius.md,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    backgroundColor: luxe.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverPickOn: { borderWidth: 2, borderColor: luxe.primary },
   sharePreview: {
     flexDirection: 'row',
     flexWrap: 'wrap',

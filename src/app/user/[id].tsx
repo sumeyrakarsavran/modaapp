@@ -16,11 +16,21 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Backdrop } from '@/components/Backdrop';
 import { Avatar, FluidSpecCollage } from '@/components/Community';
+import { GarmentArt } from '@/components/GarmentArt';
 import { LookbookViewer, type LookbookSet } from '@/components/LookbookViewer';
 import { PERSONA_SHOWCASE, PERSONAS } from '@/data/community';
 import { useStore } from '@/store/useStore';
 import { getArchetype } from '@/theme';
 import { font, glass, iridescent, luxe, luxeRadius, luxeType } from '@/theme/luxe';
+
+/**
+ * Lookbook gönderisindeki KOMBİN sayısı — rozette bu yazıyor.
+ * Önce parçalar sayılıyordu; lookbook bir kombin koleksiyonu olduğu için
+ * o sayı hiçbir şeye karşılık gelmiyordu.
+ */
+function outfitCount(p: { outfitSets?: unknown[] }): number {
+  return p.outfitSets?.length ?? 1;
+}
 
 /** Kendi profilimizdeki ızgarayla AYNI ölçüler — iki ekran aynı görünsün. */
 const GRID_GAP = 5;
@@ -136,18 +146,23 @@ export default function UserProfile() {
       style={[styles.cell, { width: cell, height: cell }]}
       onPress={() => router.push({ pathname: '/post/[id]', params: { id: p.id, user: user.id } })}
     >
-      {/* Lookbook gönderisi karoda da AKIŞTAKİ gibi: kombinler 2x2 */}
-      {p.outfitSets?.length ? (
-        <View style={styles.tileSets}>
-          {p.outfitSets.slice(0, 4).map((set, i) => (
-            <View key={i} style={styles.tileSetCell}>
-              <FluidSpecCollage
-                garments={set?.garments ?? []}
-                frame={set?.canvasFrame}
-                cropToContent={set?.cropToContent}
-              />
-            </View>
-          ))}
+      {p.coverGarment ? (
+        /* Lookbook karosu TEK PARÇA: paylaşırken seçilen kapak. */
+        <View style={styles.coverWrap}>
+          {p.coverGarment.imageUri ? (
+            <Image
+              source={{ uri: p.coverGarment.imageUri }}
+              style={{ width: '84%', height: '84%' }}
+              contentFit="contain"
+            />
+          ) : (
+            <GarmentArt
+              category={p.coverGarment.category}
+              subcategory={p.coverGarment.subcategory}
+              colorId={p.coverGarment.colorId}
+              size={cell * 0.7}
+            />
+          )}
         </View>
       ) : p.imageUri ? (
         <Image
@@ -165,6 +180,13 @@ export default function UserProfile() {
           />
         </View>
       )}
+      {/* Lookbook olduğu köşedeki kombin sayısından belli oluyor */}
+      {p.kind === 'lookbook' ? (
+        <View style={styles.lbBadge}>
+          <Ionicons name="albums-outline" size={10} color={luxe.onDark} />
+          <Text style={styles.lbBadgeText}>{outfitCount(p)}</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 
@@ -438,26 +460,20 @@ const styles = StyleSheet.create({
 
   gridTop: { height: 14, borderTopWidth: 1, borderTopColor: luxe.outlineSoft, marginTop: 14 },
   /** Karo içindeki lookbook ızgarası — akıştaki kartın küçük hâli. */
-  tileSets: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 2,
-  },
-  tileSetCell: { width: '48%' },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: GRID_GAP,
-    paddingHorizontal: GRID_PAD,
-  },
   /*
     Karonun ÇERÇEVESİ YOK. Beyaz karo fildişi zeminde zaten kendi kendine
     ayrışıyor; üstüne bir de ince çizgi konunca ızgara kutucuk kutucuk
     görünüyordu ("gönderilerin etrafında çizgiler").
   */
+  /** Tek parçalı kapak, karonun ortasında durur. */
+  coverWrap: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GRID_GAP,
+    paddingHorizontal: GRID_PAD,
+    paddingTop: GRID_PAD,
+  },
   cell: {
     overflow: 'hidden',
     alignItems: 'center',
@@ -466,6 +482,24 @@ const styles = StyleSheet.create({
     borderRadius: luxeRadius.md,
   },
 
+  /**
+   * Lookbook rozeti — karonun sağ üst köşesinde parça sayısı.
+   * Izgarada lookbook gönderisi diğerlerinden ayırt edilemiyordu; kapak
+   * fotoğrafı konunca büsbütün sıradan bir kare gibi duruyor.
+   */
+  lbBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(23,23,26,0.62)',
+    borderRadius: luxeRadius.pill,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  lbBadgeText: { fontFamily: font.bodyMedium, fontSize: 10.5, color: luxe.onDark },
   lbCard: {
     backgroundColor: luxe.surface,
     borderRadius: luxeRadius.lg,

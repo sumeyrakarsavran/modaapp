@@ -19,16 +19,21 @@ import { font, luxe, luxeType } from '@/theme/luxe';
  * böyle yapıyor ve "bir sonrakine bakayım" isteği ekstra dokunuş istemiyor.
  */
 export default function PostViewer() {
-  const { id, user } = useLocalSearchParams<{ id: string; user?: string }>();
+  const { id, user, kind } = useLocalSearchParams<{ id: string; user?: string; kind?: string }>();
   const { posts, profile, followedIds, toggleLike, toggleFollow, deletePost } = useStore();
   const insets = useSafeAreaInsets();
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
 
-  /** Kimin gönderileri: `user` verilmişse onunkiler, yoksa tüm akış. */
+  /**
+   * Kimin gönderileri: `user` verilmişse onunkiler, yoksa tüm akış.
+   * `kind` verilmişse yalnızca o tür — profilde bir halkaya basıp süzdüyse
+   * gönderi ekranı da aynı süzgeçle açılıyor, kaydırınca "hepsi"ne dönmüyor.
+   */
   const feed = useMemo(() => {
-    const all = user ? posts.filter((p) => p.userId === user) : posts;
+    let all = user ? posts.filter((p) => p.userId === user) : posts;
+    if (kind) all = all.filter((p) => p.kind === kind);
     return [...all].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  }, [posts, user]);
+  }, [posts, user, kind]);
 
   /*
     Liste DOKUNULAN GÖNDERİDEN başlıyor, öncekiler hiç çizilmiyor.

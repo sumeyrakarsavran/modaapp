@@ -312,6 +312,13 @@ export interface CommunityPost {
   outfitSets?: CommunityOutfitSet[];
   /** Lookbook gönderisinin kaynağı — karta dokununca bu sayfa açılıyor. */
   lookbookId?: string;
+  /**
+   * Lookbook KAPAĞI — paylaşırken seçilen TEK parça.
+   * Yalnızca profil ızgarasındaki karo kullanıyor; gönderi kartı ve lookbook
+   * sayfası eskisi gibi kombin kolajlarını gösteriyor. `imageUri`'ye
+   * yazılmıyor, o alan kartı da değiştirirdi.
+   */
+  coverGarment?: GarmentSpec;
   /** Canvas çerçevesi + kırpma tercihi (kombin paylaşımında düzenin aynen korunması için). */
   canvasFrame?: { w: number; h: number };
   cropToContent?: boolean;

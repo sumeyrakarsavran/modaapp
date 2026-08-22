@@ -22,6 +22,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Backdrop } from '@/components/Backdrop';
 import { BettaAvatar } from '@/components/BettaAvatar';
 import { FluidSpecCollage } from '@/components/Community';
+import { GarmentArt } from '@/components/GarmentArt';
 import { LookbookViewer, type LookbookSet } from '@/components/LookbookViewer';
 import { resizeForProcessing } from '@/services/imageResize';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
@@ -29,6 +30,26 @@ import { persistGarmentPhoto } from '@/services/photoStore';
 import { useStore } from '@/store/useStore';
 import { getArchetype } from '@/theme';
 import { font, glass, iridescent, luxe, luxeRadius, luxeType } from '@/theme/luxe';
+
+/**
+ * Lookbook gönderisindeki KOMBİN sayısı — rozette bu yazıyor.
+ * Önce parçalar sayılıyordu; lookbook bir kombin koleksiyonu olduğu için
+ * o sayı hiçbir şeye karşılık gelmiyordu.
+ */
+function outfitCount(p: { outfitSets?: unknown[] }): number {
+  return p.outfitSets?.length ?? 1;
+}
+
+/**
+ * Lookbook kartının başlığı. Kaynak lookbook duruyorsa adı; silinmiş ya da
+ * yeniden adlandırılmışsa açıklamadaki TIRNAK İÇİ ad. Ham açıklama başlık
+ * olarak konunca kart "…lookbook'um: 7 ko…" diye kırpılıyordu.
+ */
+function lookbookTitle(caption: string, name?: string): string {
+  if (name) return name;
+  const m = caption.match(/"([^"]+)"/);
+  return m ? m[1] : caption;
+}
 
 /** Izgara aralığı ve kenar boşluğu — karolar birbirine yapışmasın. */
 const GRID_GAP = 5;
@@ -313,39 +334,48 @@ export default function Profile() {
           />
         ) : section === 'lookbook' ? (
           /*
-            Lookbook, başkalarının profilindekiyle AYNI kalıpta: her lookbook
-            TEK kart, kombinleri içinde. Kare ızgarada tek karo olarak durunca
-            bir koleksiyon olduğu hiç belli olmuyordu.
+            Lookbook bölümü, başkalarının profilindekiyle AYNI kalıpta: her
+            lookbook tek kart, kombinleri içinde. Karta dokununca kombinler
+            büyütülüp sağa sola kaydırılıyor.
           */
-          <View style={{ gap: 14, paddingHorizontal: GRID_PAD, paddingTop: GRID_PAD }}>
+          <View style={{ gap: 14, paddingHorizontal: GRID_PAD }}>
             {shownPosts.map((p) => {
               const sets = p.outfitSets?.length ? p.outfitSets : [{ garments: p.garments }];
-              const name = lookbooks.find((lb) => lb.id === p.lookbookId)?.name ?? p.caption;
+              const title = lookbookTitle(
+                p.caption,
+                lookbooks.find((lb) => lb.id === p.lookbookId)?.name,
+              );
               return (
                 <Pressable
                   key={p.id}
                   style={styles.lbCard}
-                  onPress={() => setLbView({ title: name, sets, index: 0 })}
+                  onPress={() =>
+                    setLbView({
+                      title,
+                      sets: sets.map((set) => ({
+                        garments: set?.garments ?? [],
+                        frame: (set as { canvasFrame?: { w: number; h: number } })?.canvasFrame,
+                        cropToContent: (set as { cropToContent?: boolean })?.cropToContent,
+                      })),
+                      index: 0,
+                    })
+                  }
                 >
                   <View style={styles.lbHead}>
                     <Text style={styles.lbName} numberOfLines={1}>
-                      {name}
+                      {title}
                     </Text>
                     <Text style={styles.lbMeta}>{sets.length} KOMBİN</Text>
                   </View>
                   <View style={styles.lbGrid}>
                     {sets.slice(0, 4).map((set, i) => (
-                      <Pressable
-                        key={i}
-                        style={{ width: lbCell }}
-                        onPress={() => setLbView({ title: name, sets, index: i })}
-                      >
+                      <View key={i} style={{ width: lbCell }}>
                         <FluidSpecCollage
                           garments={set?.garments ?? []}
-                          frame={set?.canvasFrame}
-                          cropToContent={set?.cropToContent}
+                          frame={(set as { canvasFrame?: { w: number; h: number } })?.canvasFrame}
+                          cropToContent={(set as { cropToContent?: boolean })?.cropToContent}
                         />
-                      </Pressable>
+                      </View>
                     ))}
                   </View>
                 </Pressable>
@@ -359,32 +389,42 @@ export default function Profile() {
                 key={p.id}
                 style={[styles.cell, { width: cell, height: cell }]}
                 onPress={() =>
-                  router.push({ pathname: '/post/[id]', params: { id: p.id, user: 'me' } })
+                  /*
+                    Gönderi ekranı, o an EKRANDA OLAN süzgeçle açılıyor:
+                    halkaya basıp kombinlere süzdüysen kaydırınca yine
+                    kombinler geliyor, "hepsi"ne dönmüyor.
+                  */
+                  router.push({
+                    pathname: '/post/[id]',
+                    params: { id: p.id, user: 'me', ...(section !== 'gonderi' ? { kind: section } : {}) },
+                  })
                 }
               >
-                {/*
-                  Lookbook gönderisi karoda da AKIŞTAKİ gibi görünsün: bir
-                  koleksiyon olduğu belli olsun diye kombinleri 2x2 diziliyor.
-                  Önce yalnızca ilk kombin çiziliyordu, karo sıradan bir
-                  kombin gönderisinden ayırt edilemiyordu.
-                */}
-                {p.outfitSets?.length ? (
-                  <View style={styles.tileSets}>
-                    {p.outfitSets.slice(0, 4).map((set, i) => (
-                      <View key={i} style={styles.tileSetCell}>
-                        <FluidSpecCollage
-                          garments={set?.garments ?? []}
-                          frame={set?.canvasFrame}
-                          cropToContent={set?.cropToContent}
-                        />
-                      </View>
-                    ))}
+                {p.coverGarment ? (
+                  /*
+                    Lookbook karosu TEK PARÇA gösteriyor — paylaşırken seçilen
+                    kapak. Dört kombinlik kolaj karoda okunmuyordu.
+                  */
+                  <View style={styles.coverWrap}>
+                    {p.coverGarment.imageUri ? (
+                      <Image
+                        source={{ uri: p.coverGarment.imageUri }}
+                        style={{ width: '84%', height: '84%' }}
+                        contentFit="contain"
+                      />
+                    ) : (
+                      <GarmentArt
+                        category={p.coverGarment.category}
+                        subcategory={p.coverGarment.subcategory}
+                        colorId={p.coverGarment.colorId}
+                        size={cell * 0.7}
+                      />
+                    )}
                   </View>
                 ) : p.imageUri ? (
                   /*
                     `contain` — kırpma YOK. `cover` selfie ve sanal denemeleri
-                    kareye zorlayıp kafa/ayak kesiyordu; kombin karolarıyla da
-                    aynı görünmüyorlardı.
+                    kareye zorlayıp kafa/ayak kesiyordu.
                   */
                   <Image
                     source={{ uri: p.imageUri }}
@@ -400,6 +440,13 @@ export default function Profile() {
                     />
                   </View>
                 )}
+                {/* Lookbook olduğu köşedeki parça sayısından belli oluyor */}
+                {p.kind === 'lookbook' ? (
+                  <View style={styles.lbBadge}>
+                    <Ionicons name="albums-outline" size={10} color={luxe.onDark} />
+                    <Text style={styles.lbBadgeText}>{outfitCount(p)}</Text>
+                  </View>
+                ) : null}
               </Pressable>
             ))}
           </View>
@@ -613,6 +660,8 @@ const styles = StyleSheet.create({
 
   /** Izgaranın üstündeki ince ayraç — eskiden sekme çubuğu buradaydı. */
   gridTop: { height: 1, backgroundColor: luxe.outlineSoft, marginTop: 18 },
+  /** Tek parçalı kapak, karonun ortasında durur. */
+  coverWrap: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   lbCard: {
     backgroundColor: luxe.surface,
     borderRadius: luxeRadius.lg,
@@ -624,16 +673,24 @@ const styles = StyleSheet.create({
   lbName: { flex: 1, fontFamily: font.headline, fontSize: 17, color: luxe.primary },
   lbMeta: { fontFamily: font.label, fontSize: 9, letterSpacing: 1.3, color: luxe.outline },
   lbGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  /** Karo içindeki lookbook ızgarası — akıştaki kartın küçük hâli. */
-  tileSets: {
+  /**
+   * Lookbook rozeti — karonun sağ üst köşesinde kombin sayısı.
+   * Kapak fotoğrafı konunca lookbook karosu sıradan bir kareden ayırt
+   * edilemiyordu.
+   */
+  lbBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 2,
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 2,
+    gap: 3,
+    backgroundColor: 'rgba(23,23,26,0.62)',
+    borderRadius: luxeRadius.pill,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
   },
-  tileSetCell: { width: '48%' },
+  lbBadgeText: { fontFamily: font.bodyMedium, fontSize: 10.5, color: luxe.onDark },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
