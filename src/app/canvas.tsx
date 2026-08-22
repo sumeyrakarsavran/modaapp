@@ -228,19 +228,22 @@ export default function Canvas() {
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
       <Backdrop />
 
+      {/* Kaydet solda, kapat sağda — kapat yanlışlıkla basılabilecek yerde durmasın */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-          <Ionicons name="close" size={20} color={luxe.primary} />
-        </Pressable>
+        <LuxeButton icon="bookmark-outline" title="Kaydet" onPress={save} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Canvas</Text>
+          <Text style={styles.title} numberOfLines={1}>
+            Canvas
+          </Text>
           {editing ? (
             <Text style={styles.subtitle} numberOfLines={1}>
               {editing.name}
             </Text>
           ) : null}
         </View>
-        <LuxeButton icon="bookmark-outline" title="Kaydet" onPress={save} />
+        <Pressable onPress={() => router.back()} style={styles.iconBtn}>
+          <Ionicons name="close" size={20} color={luxe.primary} />
+        </Pressable>
       </View>
 
       {/* Kırpma tercihi — kaydederken kadrajın ne olacağını belirliyor */}
