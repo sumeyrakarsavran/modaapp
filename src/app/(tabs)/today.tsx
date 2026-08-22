@@ -105,14 +105,15 @@ function LuxeButton({
       disabled={loading}
       style={({ pressed }) => [
         styles.btn,
-        !title && { paddingHorizontal: 13 + BTN_PAD },
+        !title && styles.btnIconOnly,
         pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] },
         style,
       ]}
     >
       {/* Zemin elle kesilmiş siluet — düz köşe yarıçapı değil (bkz. FinBlob). */}
       <FinBlob
-        variant="button"
+        /* Kare kutuda hap siluetı fıçıya dönüyor; yuvarlak siluet oturuyor. */
+        variant={title ? 'button' : 'pebble'}
         shadow={solid}
         pad={BTN_PAD}
         color={solid ? (onDark ? luxe.onDark : luxe.primary) : onDark ? 'transparent' : glass.fill}
@@ -1065,6 +1066,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  /** Yalnızca ikonlu düğme: kutu KARE olmalı ki siluet bozulmasın. */
+  btnIconOnly: { width: 26 + 2 * (13 + BTN_PAD), paddingHorizontal: 0 },
   btnRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   btnText: {
     fontFamily: font.label,
