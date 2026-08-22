@@ -4,11 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ActionSheet } from '@/components/ActionSheet';
 import { Backdrop } from '@/components/Backdrop';
 import { BettaAvatar } from '@/components/BettaAvatar';
 import { FluidSpecCollage } from '@/components/Community';
@@ -81,6 +80,7 @@ export default function Profile() {
     null,
   );
   const [editOpen, setEditOpen] = useState(false);
+  const [avatarSheet, setAvatarSheet] = useState(false);
   const [editName, setEditName] = useState(profile.name);
   const [editBio, setEditBio] = useState(profile.bio ?? '');
   /*
@@ -121,21 +121,8 @@ export default function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
-  const changeAvatar = () => {
-    const remove = () => setProfile({ avatarUri: undefined });
-    if (Platform.OS === 'web') {
-      pickAvatar(false);
-      return;
-    }
-    Alert.alert('Profil fotoğrafı', undefined, [
-      { text: 'Fotoğraf çek', onPress: () => pickAvatar(true) },
-      { text: 'Galeriden seç', onPress: () => pickAvatar(false) },
-      ...(profile.avatarUri
-        ? [{ text: 'Fotoğrafı kaldır', style: 'destructive' as const, onPress: remove }]
-        : []),
-      { text: 'Vazgeç', style: 'cancel' as const },
-    ]);
-  };
+  /* Seçim listesi uygulamanın kendi alt sayfasında (bkz. `ActionSheet`). */
+  const changeAvatar = () => setAvatarSheet(true);
 
   const saveEdit = () => {
     setProfile({ name: editName.trim() || profile.name, bio: editBio.trim() || undefined });
@@ -200,6 +187,25 @@ export default function Profile() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
       <Backdrop />
+      <ActionSheet
+        visible={avatarSheet}
+        title="Profil fotoğrafı"
+        onClose={() => setAvatarSheet(false)}
+        actions={[
+          { label: 'Fotoğraf çek', icon: 'camera-outline', onPress: () => pickAvatar(true) },
+          { label: 'Galeriden seç', icon: 'images-outline', onPress: () => pickAvatar(false) },
+          ...(profile.avatarUri
+            ? [
+                {
+                  label: 'Fotoğrafı kaldır',
+                  icon: 'trash-outline' as const,
+                  destructive: true,
+                  onPress: () => setProfile({ avatarUri: undefined }),
+                },
+              ]
+            : []),
+        ]}
+      />
 
       {/* Başlık: kullanıcı adı solda — Instagram'daki gibi */}
       {/* Sekme olduğu için geri oku yok — başlıkta kullanıcı adı ve ayarlar */}
