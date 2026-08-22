@@ -23,6 +23,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Backdrop } from '@/components/Backdrop';
 import { GarmentArt } from '@/components/GarmentArt';
 import { OutfitCollage } from '@/components/OutfitCollage';
+import { Reorderable } from '@/components/Reorderable';
 import { ShareModal } from '@/components/ShareModal';
 import { resizeForProcessing } from '@/services/imageResize';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
@@ -45,6 +46,8 @@ const LOOKBOOK_EMOJIS = ['📖', '🌊', '🌙', '🔥', '🌸', '⚡', '🎨', 
 
 /** Askıdaki kartın ölçüsü; raf yüksekliği buna göre hesaplanıyor. */
 const CARD_W = 98;
+/** Lookbook satırının SABİT yüksekliği — sürükle-bırak yuva hesabı buna dayanıyor. */
+const LB_ROW_H = 104;
 const CARD_IMG_H = Math.round((CARD_W * 4) / 3);
 /** Askı kancasının yüksekliği — boru bu hizada geçiyor. */
 const HOOK_H = 22;
@@ -294,7 +297,7 @@ function LuxeButton({
 export default function Wardrobe() {
   const {
     items, outfits, selfies, lookbooks,
-    addSelfie, deleteSelfie, addLookbook, sharePost,
+    addSelfie, deleteSelfie, addLookbook, sharePost, reorderLookbooks,
   } = useStore();
   const { width } = useWindowDimensions();
   // Modallar alt sistem çubuğunun altında kalmasın
@@ -729,51 +732,73 @@ export default function Wardrobe() {
             }
           />
         ) : (
-          <FlatList
-            key="lookbooks"
-            data={lookbooks}
-            keyExtractor={(l) => l.id}
-            ListHeaderComponent={
-              <SectionHead title="Lookbook'lar" count={lookbooks.length} unit="DEFTER" />
-            }
-            contentContainerStyle={{ padding: 20, gap: 12 }}
-            renderItem={({ item: lb }) => {
-              const firstOutfit = outfits.find((o) => lb.outfitIds.includes(o.id));
-              const its = firstOutfit
-                ? (firstOutfit.itemIds
-                    .map((x) => items.find((i) => i.id === x))
-                    .filter(Boolean) as WardrobeItem[])
-                : [];
-              return (
-                <Pressable
-                  style={styles.lbCard}
-                  onPress={() => router.push({ pathname: '/lookbook/[id]', params: { id: lb.id } })}
-                >
-                  {its.length ? (
-                    <OutfitCollage items={its} size={84} layout={firstOutfit?.layout} frame={firstOutfit?.canvasFrame} cropToContent={firstOutfit?.cropToContent} />
-                  ) : (
-                    <View style={styles.lbEmpty}>
-                      <Text style={{ fontSize: 28 }}>{lb.emoji}</Text>
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={luxeType.headline} numberOfLines={1}>
-                      {lb.emoji} {lb.name}
-                    </Text>
-                    <Text style={[luxeType.label, { marginTop: 4 }]}>
-                      {lb.outfitIds.length} kombin
-                    </Text>
-                    {lb.description ? (
-                      <Text style={[luxeType.caption, { marginTop: 4 }]} numberOfLines={1}>
-                        {lb.description}
+          <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+            <SectionHead title="Lookbook'lar" count={lookbooks.length} unit="DEFTER" />
+            {/*
+              Sıralama SÜRÜKLENEREK: karta basılı tutup taşıyınca yeri
+              değişiyor. Satır yüksekliği SABİT olmak zorunda — mutlak
+              konumlanan karolar için yuva hesabı buna dayanıyor.
+            */}
+            <Reorderable
+              data={lookbooks}
+              keyOf={(l) => l.id}
+              columns={1}
+              cellW={width - 40}
+              cellH={LB_ROW_H}
+              gap={12}
+              onReorder={reorderLookbooks}
+              renderItem={(lb, dragging) => {
+                const cover =
+                  outfits.find((o) => o.id === lb.coverOutfitId) ??
+                  outfits.find((o) => lb.outfitIds.includes(o.id));
+                const its = cover
+                  ? (cover.itemIds
+                      .map((x) => items.find((i) => i.id === x))
+                      .filter(Boolean) as WardrobeItem[])
+                  : [];
+                return (
+                  <Pressable
+                    style={[styles.lbCard, { height: LB_ROW_H }, dragging && styles.lbCardDrag]}
+                    onPress={() =>
+                      router.push({ pathname: '/lookbook/[id]', params: { id: lb.id } })
+                    }
+                  >
+                    {its.length ? (
+                      <OutfitCollage
+                        items={its}
+                        size={72}
+                        layout={cover?.layout}
+                        frame={cover?.canvasFrame}
+                        cropToContent={cover?.cropToContent}
+                      />
+                    ) : (
+                      <View style={styles.lbEmpty}>
+                        <Text style={{ fontSize: 26 }}>{lb.emoji}</Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={luxeType.headline} numberOfLines={1}>
+                        {lb.emoji} {lb.name}
                       </Text>
-                    ) : null}
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={luxe.outline} />
-                </Pressable>
-              );
-            }}
-          />
+                      <Text style={[luxeType.label, { marginTop: 4 }]}>
+                        {lb.outfitIds.length} kombin
+                      </Text>
+                      {lb.description ? (
+                        <Text style={[luxeType.caption, { marginTop: 2 }]} numberOfLines={1}>
+                          {lb.description}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Ionicons
+                      name={dragging ? 'reorder-three' : 'chevron-forward'}
+                      size={18}
+                      color={luxe.outline}
+                    />
+                  </Pressable>
+                );
+              }}
+            />
+          </ScrollView>
         )
       ) : null}
 
@@ -1082,6 +1107,8 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingHorizontal: 32, paddingVertical: 48 },
   outfitMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
 
+  /** Sürüklenen kart: hafifçe kalkıyor. */
+  lbCardDrag: { transform: [{ scale: 1.03 }], borderColor: luxe.primarySoft },
   lbCard: {
     flexDirection: 'row',
     alignItems: 'center',

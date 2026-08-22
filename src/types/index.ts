@@ -229,6 +229,11 @@ export interface Lookbook {
   description?: string;
   outfitIds: string[];
   createdAt: string;
+  /**
+   * Kapak kombini — gardıroptaki lookbook satırında bu kombin görünüyor.
+   * Yoksa listedeki ilk kombin kapak sayılıyor.
+   */
+  coverOutfitId?: string;
 }
 
 /** Topluluk gönderilerinde kıyafetler spec olarak tutulur. Kendi paylaşımında

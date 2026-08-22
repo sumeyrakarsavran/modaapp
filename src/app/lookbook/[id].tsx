@@ -22,6 +22,7 @@ import { Backdrop } from '@/components/Backdrop';
 
 import { GarmentArt } from '@/components/GarmentArt';
 import { OutfitCollage } from '@/components/OutfitCollage';
+import { Reorderable } from '@/components/Reorderable';
 import { ShareModal } from '@/components/ShareModal';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { useStore } from '@/store/useStore';
@@ -40,6 +41,8 @@ export default function LookbookDetail() {
   const [shareOpen, setShareOpen] = useState(false);
   /** Kapak olarak seçilen KOMBİNİN sırası — paylaşım kutusundan belirleniyor. */
   const [coverIdx, setCoverIdx] = useState(0);
+  /** Izgara hücresinin genişliği — sürükle-bırak yuva hesabı buna dayanıyor. */
+  const lbCellW = (width - spacing.lg * 3) / 2;
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(lb?.name ?? '');
   const [desc, setDesc] = useState(lb?.description ?? '');
@@ -130,7 +133,13 @@ export default function LookbookDetail() {
         </Pressable>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           <Pressable
-            onPress={() => (lbOutfits.length ? setShareOpen(true) : null)}
+            onPress={() => {
+              if (!lbOutfits.length) return;
+              // Paylaşım kutusu, lookbook'un KENDİ kapağıyla açılsın
+              const i = lbOutfits.findIndex((o) => o.id === lb.coverOutfitId);
+              setCoverIdx(i >= 0 ? i : 0);
+              setShareOpen(true);
+            }}
             style={styles.iconBtn}
           >
             <Ionicons name="share-social-outline" size={18} color={luxe.primaryDeep} />
@@ -198,25 +207,51 @@ export default function LookbookDetail() {
               action={<Button small title="+ Kombin ekle" onPress={() => setPickerOpen(true)} />}
             />
           ) : (
-            <View style={styles.grid}>
-              {lbOutfits.map((o) => (
-                <View key={o.id} style={{ width: (width - spacing.lg * 3) / 2 }}>
-                  <Pressable onPress={() => router.push({ pathname: '/outfit/[id]', params: { id: o.id } })}>
+            /*
+              Kombinler SÜRÜKLENEREK sıralanıyor: karta basılı tutup taşıyınca
+              yeri değişiyor, sıra `outfitIds` üzerinden saklanıyor.
+            */
+            <Reorderable
+              data={lbOutfits}
+              keyOf={(o) => o.id}
+              columns={2}
+              cellW={lbCellW}
+              cellH={lbCellW + 26}
+              gap={spacing.md}
+              onReorder={(ids) => updateLookbook(lb.id, { outfitIds: ids })}
+              renderItem={(o, dragging) => (
+                <View style={dragging ? styles.cellDrag : undefined}>
+                  <Pressable
+                    onPress={() => router.push({ pathname: '/outfit/[id]', params: { id: o.id } })}
+                  >
                     <OutfitCollage
                       items={itemsOf(o.itemIds)}
-                      size={(width - spacing.lg * 3) / 2}
+                      size={lbCellW}
                       layout={o.layout}
                       frame={o.canvasFrame}
                       cropToContent={o.cropToContent}
                     />
                   </Pressable>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={[luxeType.caption, { flex: 1 }]} numberOfLines={1}>
                       {o.name}
                     </Text>
+                    {/* Kapak: gardıroptaki lookbook satırında bu kombin görünür */}
+                    <Pressable
+                      onPress={() => updateLookbook(lb.id, { coverOutfitId: o.id })}
+                      hitSlop={8}
+                    >
+                      <Ionicons
+                        name={lb.coverOutfitId === o.id ? 'bookmark' : 'bookmark-outline'}
+                        size={16}
+                        color={lb.coverOutfitId === o.id ? luxe.primary : luxe.outline}
+                      />
+                    </Pressable>
                     <Pressable
                       onPress={() =>
-                        updateLookbook(lb.id, { outfitIds: lb.outfitIds.filter((x) => x !== o.id) })
+                        updateLookbook(lb.id, {
+                          outfitIds: lb.outfitIds.filter((x) => x !== o.id),
+                        })
                       }
                       hitSlop={8}
                     >
@@ -224,8 +259,8 @@ export default function LookbookDetail() {
                     </Pressable>
                   </View>
                 </View>
-              ))}
-            </View>
+              )}
+            />
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -316,6 +351,8 @@ export default function LookbookDetail() {
 
 const styles = StyleSheet.create({
   /** Kapak seçici karesi — seçili olan mürekkep çerçeveyle işaretleniyor. */
+  /** Sürüklenen kombin: hafifçe kalkıyor. */
+  cellDrag: { transform: [{ scale: 1.04 }] },
   coverPick: {
     width: 92,
     height: 92,

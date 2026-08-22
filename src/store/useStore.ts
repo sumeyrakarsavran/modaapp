@@ -77,6 +77,8 @@ interface BettaState {
   addLookbook: (lb: Omit<Lookbook, 'id' | 'createdAt'>) => Lookbook;
   updateLookbook: (id: string, patch: Partial<Lookbook>) => void;
   deleteLookbook: (id: string) => void;
+  /** Lookbook'ları verilen sıraya diz (sürükle-bırak). */
+  reorderLookbooks: (ids: string[]) => void;
 
   // topluluk
   toggleFollow: (userId: string) => void;
@@ -237,6 +239,17 @@ export const useStore = create<BettaState>()(
         })),
       deleteLookbook: (id) =>
         set((s) => ({ lookbooks: s.lookbooks.filter((l) => l.id !== id) })),
+      /*
+        Sıralama, gelen id listesine göre. Listede olmayanlar (yarış durumu,
+        eş zamanlı silme) sona ekleniyor — sessizce kaybolmasınlar.
+      */
+      reorderLookbooks: (ids) =>
+        set((s) => {
+          const byId = new Map(s.lookbooks.map((l) => [l.id, l]));
+          const next = ids.map((id) => byId.get(id)).filter(Boolean) as typeof s.lookbooks;
+          const rest = s.lookbooks.filter((l) => !ids.includes(l.id));
+          return { lookbooks: [...next, ...rest] };
+        }),
 
       toggleFollow: (userId) =>
         set((s) => ({
