@@ -146,9 +146,18 @@ export default function ItemDetail() {
           <Button
             title={pro ? 'Üzerimde nasıl durur? (AI deneme)' : 'Üzerimde dene — PRO'}
             variant="dark"
+            /*
+              Doğrudan deneme ekranını açmıyor: Stüdyo'daki "Sanal deneme"
+              sekmesine götürüyor. Orada ne yaptığını anlatan vitrin ve önceki
+              giydirmeler var; deneme oradan başlıyor.
+              `t`: sekme monte kaldığı için parametre değişimini tetikler.
+            */
             onPress={() =>
               pro
-                ? router.push('/tryon')
+                ? router.push({
+                    pathname: '/(tabs)/studio',
+                    params: { mode: 'tryon', t: String(Date.now()) },
+                  })
                 : router.push('/pro')
             }
             style={{ marginTop: spacing.md }}
