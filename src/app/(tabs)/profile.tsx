@@ -433,10 +433,18 @@ export default function Profile() {
                   />
                 ) : (
                   <View style={{ width: cell }}>
+                    {/*
+                      `bare`: kolaj KENDİ çerçevesini çizmiyor. Çizerken karonun
+                      yuvarlak köşesi o dikdörtgen çerçeveyi kırpıyor ve
+                      çizginin bir kısmı görünüyordu; fotoğraflı karolarda
+                      (selfie, sanal deneme) böyle bir çerçeve olmadığı için
+                      ızgara alacalı duruyordu. Artık hepsi aynı.
+                    */}
                     <FluidSpecCollage
                       garments={p.garments}
                       frame={p.canvasFrame}
                       cropToContent={p.cropToContent}
+                      bare
                     />
                   </View>
                 )}
