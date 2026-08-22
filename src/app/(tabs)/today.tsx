@@ -195,6 +195,30 @@ export default function Today() {
     .map((id) => items.find((i) => i.id === id))
     .filter(Boolean) as typeof items;
 
+  const hasSuggestion = !!suggestion && suggestedItems.length > 0;
+  /** Öneri kartı iki farklı yerde çizilebiliyor — tek tanım, farklı boşluk. */
+  const suggestionCard = (style?: StyleProp<ViewStyle>) =>
+    suggestion ? (
+      <GlassCard tint style={style}>
+        <Text style={[luxeType.label, { color: luxe.primary }]}>Stilistin önerisi</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 10, marginTop: 14 }}
+        >
+          {suggestedItems.map((it) => (
+            <ItemThumb key={it.id} item={it} size={84} showName />
+          ))}
+        </ScrollView>
+        <Text style={[luxeType.body, { marginTop: 14 }]}>{suggestion.reason}</Text>
+        <View style={styles.rowWrap}>
+          <LuxeButton title="Bugüne planla" onPress={saveSuggestionAsOutfit} />
+          <LuxeButton variant="outline" icon="refresh-outline" title="Başka öner" onPress={shuffle} />
+          <LuxeButton variant="outline" title="Vazgeç" onPress={() => setSuggestion(null)} />
+        </View>
+      </GlassCard>
+    ) : null;
+
   const shuffle = () => {
     setSuggestion(localSuggest(activeItems, selectedWeather ?? todayWeather));
   };
@@ -490,6 +514,14 @@ export default function Today() {
               </View>
             </View>
           </View>
+        ) : hasSuggestion ? (
+          /*
+            Öneri, boş kartın YERİNE geliyor. Altta ayrı bir kart olarak
+            çizilince ekranın dışında kalıyordu: "Bana öner"e basan kişi
+            hiçbir şey olmamış sanıyordu. "Vazgeç" öneriyi silince boş kart
+            geri geliyor.
+          */
+          suggestionCard(styles.heroEmpty)
         ) : (
           <GlassCard tint style={styles.heroEmpty}>
             <Text style={[luxeType.label, { color: luxe.primary }]}>{selectedLabel}</Text>
@@ -507,27 +539,8 @@ export default function Today() {
           </GlassCard>
         )}
 
-        {/* Stilistin önerisi */}
-        {suggestion && suggestedItems.length ? (
-          <GlassCard tint style={{ marginTop: 24 }}>
-            <Text style={[luxeType.label, { color: luxe.primary }]}>Stilistin önerisi</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, marginTop: 14 }}
-            >
-              {suggestedItems.map((it) => (
-                <ItemThumb key={it.id} item={it} size={84} showName />
-              ))}
-            </ScrollView>
-            <Text style={[luxeType.body, { marginTop: 14 }]}>{suggestion.reason}</Text>
-            <View style={styles.rowWrap}>
-              <LuxeButton title="Bugüne planla" onPress={saveSuggestionAsOutfit} />
-              <LuxeButton variant="outline" icon="refresh-outline" title="Başka öner" onPress={shuffle} />
-              <LuxeButton variant="outline" title="Vazgeç" onPress={() => setSuggestion(null)} />
-            </View>
-          </GlassCard>
-        ) : null}
+        {/* Plan VARKEN istenen öneri kahramanın yerini almaz, altına gelir. */}
+        {selectedPlan && hasSuggestion ? suggestionCard({ marginTop: 24 }) : null}
 
         {/* Stilistin yorumu */}
         <GlassCard style={{ marginTop: 30 }}>
