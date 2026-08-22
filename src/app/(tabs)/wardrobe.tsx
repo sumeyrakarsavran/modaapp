@@ -276,6 +276,8 @@ function Rack({
     return v;
   };
   const startPos = useRef({ x: 0, y: 0 });
+  /** Parmağın en son bıraktığı konum — karo oradan yuvasına yaylanıyor. */
+  const lastPan = useRef({ x: 0, y: 0 });
   const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** Sabit algılayıcı içinden okunacak güncel değerler. */
@@ -305,6 +307,7 @@ function Rack({
           const x = startPos.current.x + g.dx;
           const y = startPos.current.y + g.dy;
           pan.setValue({ x, y });
+          lastPan.current = { x, y };
 
           // Kartın MERKEZİ hangi yuvanın üstündeyse hedef orası
           const cx = x + CARD_W / 2;
@@ -337,7 +340,36 @@ function Rack({
 
   const finish = () => {
     const c = cur.current;
+    const key = dragRef.current;
     dragRef.current = null;
+    /*
+      Sürüklenen karonun kendi Animated konumu, sürükleme boyunca hiç
+      güncellenmiyor (aşağıdaki etki onu atlıyor) — yani ESKİ yerinde
+      duruyor. Bırakınca yüzen kopya yok oluyor ve karo eski yerinde
+      belirip oradan yuvasına koşuyordu ("saçma hareket").
+      Çözüm: karoyu parmağın BIRAKTIĞI noktaya kurup oradan yuvasına
+      yaylandırmak. Yüzen kopya ile karo aynı noktada devraldığı için
+      hareket kesintisiz; yay da diğer karolarla aynı, ek animasyon yok.
+    */
+    if (key) {
+      const idx = c.order.findIndex((it) => it.id === key);
+      if (idx >= 0) {
+        const col = idx % c.per;
+        const row = Math.floor(idx / c.per);
+        const v = posOf(key, col);
+        // Rack ekseninden karonun bulunduğu SATIRIN yerel eksenine çevir
+        v.setValue({
+          x: lastPan.current.x - RACK_PAD_L + (scrollX.current[row] ?? 0),
+          y: lastPan.current.y - (row * rowH + RACK_PAD_T),
+        });
+        Animated.spring(v, {
+          toValue: { x: col * RACK_STEP, y: 0 },
+          useNativeDriver: true,
+          friction: 13,
+          tension: 110,
+        }).start();
+      }
+    }
     setDragId(null);
     c.onReorder(c.order.map((it) => it.id));
   };
