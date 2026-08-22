@@ -497,31 +497,11 @@ export default function NewItem() {
           />
         </View>
 
-        {/*
-          Birincil eylem markanın KENDİ geçişiyle dolu: petrol → mor → magenta.
-          Aksan uygulamada bilerek seyrek kullanılıyor; bir formun tek asıl
-          düğmesi tam da onun yeri. Üstteki ince beyaz parlama camsı bir hacim
-          veriyor, gölge de düz siyah değil geçişin morundan.
-        */}
         <Pressable
-          style={({ pressed }) => [styles.saveWrap, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}
+          style={({ pressed }) => [styles.saveBtn, { marginTop: 4 }, pressed && { opacity: 0.85 }]}
           onPress={save}
         >
-          <LinearGradient
-            colors={iridescent.full}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.saveBtn}
-          >
-            <LinearGradient
-              colors={['rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.saveGloss}
-              pointerEvents="none"
-            />
-            <Text style={styles.saveText}>{editing ? 'Kaydet' : 'Gardıroba ekle'}</Text>
-          </LinearGradient>
+          <Text style={styles.saveText}>{editing ? 'Kaydet' : 'Gardıroba ekle'}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -649,30 +629,17 @@ const styles = StyleSheet.create({
   },
   swatchActive: { borderWidth: 2.5, borderColor: luxe.primaryDeep },
 
-  saveWrap: {
-    marginTop: 6,
-    borderRadius: luxeRadius.pill,
-    // Gölge geçişin moruna çalıyor — nötr siyah gölge düğmeyi soğutuyordu
-    shadowColor: '#6B4E9B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
-  },
   saveBtn: {
+    backgroundColor: luxe.primary,
     borderRadius: luxeRadius.pill,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
   },
-  /** Üst kenardan inen ince beyaz parlama — camsı hacim. */
-  saveGloss: { position: 'absolute', left: 0, right: 0, top: 0, height: '55%' },
   saveText: {
     fontFamily: font.label,
-    fontSize: 11.5,
-    letterSpacing: 1.8,
+    fontSize: 11,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
-    color: luxe.onDark,
+    color: luxe.onPrimary,
   },
 });
