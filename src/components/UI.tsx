@@ -76,6 +76,7 @@ export function Chip({
   onPress,
   color = luxe.primaryContainer,
   emoji,
+  left,
   style,
 }: {
   label: string;
@@ -83,6 +84,11 @@ export function Chip({
   onPress?: () => void;
   color?: string;
   emoji?: string;
+  /**
+   * Etiketin solundaki öge — ince çizgi ikon ya da küçük silüet.
+   * Emoji yerine bunu kullan: sayfaların geri kalanı ince çizgi dilinde.
+   */
+  left?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
@@ -97,16 +103,16 @@ export function Chip({
         style,
       ]}
     >
-      <Text
-        style={[
-          styles.chipText,
-          { color: active ? luxe.primaryDeep : luxe.outline },
-        ]}
-        numberOfLines={1}
-      >
-        {emoji ? `${emoji} ` : ''}
-        {label}
-      </Text>
+      <View style={styles.chipRow}>
+        {left}
+        <Text
+          style={[styles.chipText, { color: active ? luxe.primaryDeep : luxe.outline }]}
+          numberOfLines={1}
+        >
+          {emoji ? `${emoji} ` : ''}
+          {label}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -204,6 +210,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 15,
   },
+  chipRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   chipText: { fontFamily: font.bodyMedium, fontSize: 12.5 },
   card: {
     backgroundColor: luxe.surface,

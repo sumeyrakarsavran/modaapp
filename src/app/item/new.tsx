@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
 
+import { LinearGradient } from 'expo-linear-gradient';
+
 import { GarmentArt } from '@/components/GarmentArt';
 import { Button, Chip, Label } from '@/components/UI';
 import {
@@ -35,7 +37,7 @@ import { classifyPhotoLabels } from '@/services/photoClassify';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
 import { useStore } from '@/store/useStore';
 import { radius, spacing } from '@/theme';
-import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
+import { font, glass, iridescent, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 import {
   CATEGORIES,
   ITEM_COLORS,
@@ -47,6 +49,14 @@ import {
   type Season,
   type Source,
 } from '@/types';
+
+/** Sezon hapları için ince çizgi ikonlar — emoji yerine. */
+const SEASON_ICON: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  ilkbahar: 'flower-outline',
+  yaz: 'sunny-outline',
+  sonbahar: 'leaf-outline',
+  kis: 'snow-outline',
+};
 
 export default function NewItem() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -265,203 +275,270 @@ export default function NewItem() {
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top', 'bottom']}>
       <Backdrop />
       <View style={styles.header}>
-        <Text style={luxeType.title}>{editing ? 'Parçayı düzenle' : 'Yeni parça'}</Text>
+        <Text style={luxeType.display}>{editing ? 'Parçayı düzenle' : 'Yeni parça'}</Text>
         <Pressable onPress={() => router.back()} style={styles.close}>
-          <Ionicons name="close" size={22} color={luxe.inkSoft} />
+          <Ionicons name="close" size={20} color={luxe.primary} />
         </Pressable>
       </View>
+
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        {/* Fotoğraf */}
-        <View style={styles.photoRow}>
-          <View style={styles.photoBox}>
-            {imageUri ? (
-              <Image source={{ uri: imageUri }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
-            ) : (
-              <GarmentArt category={category} colorId={colorId} size={90} />
-            )}
-          </View>
-          <View style={{ flex: 1, gap: spacing.sm }}>
-            <Button small variant="secondary" title="Fotoğraf çek" onPress={() => pickImage(true)} loading={processing} />
-            <Button small variant="secondary" title="Galeriden seç" onPress={() => pickImage(false)} loading={processing} />
-            {imageUri ? (
-              <Button
-                small
-                variant="ghost"
-                title="Fotoğrafı kaldır"
-                onPress={() => {
-                  setImageUri(undefined);
-                  setBgNote(null);
-                }}
+        {/* ————— Fotoğraf ————— */}
+        <View style={styles.section}>
+          <View style={styles.photoRow}>
+            <View style={styles.photoBox}>
+              {/*
+                Işıltı: parçanın arkasından geçen çok soluk iridesan hâle.
+                Bugün'deki kartların köşegen ışığıyla aynı fikir — yüzey düz
+                kalmasın, parça bir ışığın önünde dursun.
+              */}
+              <LinearGradient
+                colors={iridescent.soft}
+                start={{ x: 0.15, y: 0 }}
+                end={{ x: 0.85, y: 1 }}
+                style={styles.photoGlow}
+                pointerEvents="none"
               />
-            ) : (
-              <Text style={luxeType.tiny}>
-                Fotoğraf çekince arka plan otomatik ve ücretsiz silinir; parça temiz bir görselle
-                kaydedilir. Fotoğraf yoksa renkli silüet gösterilir.
-              </Text>
-            )}
-            {bgNote ? (
-              <Text style={[luxeType.tiny, { color: luxe.primaryDeep, fontWeight: '700' }]}>
-                {bgNote}
-              </Text>
-            ) : null}
-          </View>
-        </View>
+              {imageUri ? (
+                <Image
+                  source={{ uri: imageUri }}
+                  style={{ width: '100%', height: '100%' }}
+                  contentFit="contain"
+                />
+              ) : (
+                <GarmentArt category={category} colorId={colorId} size={74} />
+              )}
+            </View>
 
-        <Label>İsim</Label>
-        <TextInput
-          value={name}
-          onChangeText={onNameChange}
-          placeholder='Örn. "Turkuaz Saten Bluz"'
-          placeholderTextColor={luxe.outline}
-          style={styles.input}
-        />
-        <Text style={luxeType.tiny}>
-          İsimden kategori, renk, sezon ve tarz otomatik işaretlenir — istediğini değiştirebilirsin.
-        </Text>
-
-        <Label>Kategori</Label>
-        <View style={styles.wrapRow}>
-          {CATEGORIES.map((c) => (
-            <Chip
-              key={c.id}
-              label={c.label}
-              emoji={c.emoji}
-              active={category === c.id}
-              onPress={() => chooseCategory(c.id)}
-            />
-          ))}
-        </View>
-
-        {/* Alt tür — seçili kategoriye ait olanlar. Fotoğraftan otomatik gelir,
-            "Belirtme" ile boş bırakılabilir. */}
-        <Label>Tür</Label>
-        <View style={styles.wrapRow}>
-          <Chip
-            label="Belirtme"
-            active={!subcategory}
-            onPress={() => setSubcategory(undefined)}
-          />
-          {subcategoriesOf(category).map((s) => (
-            <Chip
-              key={s.id}
-              label={s.label}
-              active={subcategory === s.id}
-              onPress={() => setSubcategory(s.id)}
-            />
-          ))}
-        </View>
-
-        <Label>Renk</Label>
-        <View style={styles.wrapRow}>
-          {ITEM_COLORS.map((c) => (
-            <Pressable
-              key={c.id}
-              onPress={() => {
-                touched.current.color = true;
-                setColorId(c.id);
-              }}
-              style={[
-                styles.swatch,
-                { backgroundColor: c.hex },
-                colorId === c.id && styles.swatchActive,
-              ]}
-            >
-              {colorId === c.id ? (
-                <Ionicons
-                  name="checkmark"
-                  size={16}
-                  color={['beyaz', 'sari', 'bej'].includes(c.id) ? '#333' : '#fff'}
+            <View style={{ flex: 1, gap: 8 }}>
+              <PillBtn icon="camera-outline" title="Fotoğraf çek" onPress={() => pickImage(true)} busy={processing} />
+              <PillBtn icon="images-outline" title="Galeriden seç" variant="outline" onPress={() => pickImage(false)} busy={processing} />
+              {imageUri ? (
+                <PillBtn
+                  icon="trash-outline"
+                  title="Kaldır"
+                  variant="outline"
+                  onPress={() => {
+                    setImageUri(undefined);
+                    setBgNote(null);
+                  }}
                 />
               ) : null}
-            </Pressable>
-          ))}
-        </View>
-        <Text style={luxeType.tiny}>{ITEM_COLORS.find((c) => c.id === colorId)?.label}</Text>
-
-        <View style={{ flexDirection: 'row', gap: spacing.md }}>
-          <View style={{ flex: 1 }}>
-            <Label>Marka</Label>
-            <TextInput
-              value={brand}
-              onChangeText={setBrand}
-              placeholder="Opsiyonel"
-              placeholderTextColor={luxe.outline}
-              style={styles.input}
-            />
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Label>Fiyat (₺)</Label>
-            <TextInput
-              value={price}
-              onChangeText={setPrice}
-              placeholder="Opsiyonel"
-              placeholderTextColor={luxe.outline}
-              style={styles.input}
-              keyboardType="decimal-pad"
-            />
+
+          {imageUri ? null : (
+            <Text style={styles.hint}>
+              Fotoğraf çekince arka plan otomatik ve ücretsiz siliniyor; parça temiz bir görselle
+              kaydediliyor. Fotoğraf yoksa renkli silüet gösteriliyor.
+            </Text>
+          )}
+          {bgNote ? <Text style={styles.note}>{bgNote}</Text> : null}
+        </View>
+
+        {/* ————— Kimlik ————— */}
+        <View style={styles.section}>
+          <Label>İsim</Label>
+          <TextInput
+            value={name}
+            onChangeText={onNameChange}
+            placeholder='Örn. "Turkuaz Saten Bluz"'
+            placeholderTextColor={luxe.outline}
+            style={styles.input}
+          />
+          <Text style={styles.hint}>
+            İsimden kategori, renk, sezon ve tarz otomatik işaretleniyor — istediğini
+            değiştirebilirsin.
+          </Text>
+
+          <Label>Kategori</Label>
+          <View style={styles.wrapRow}>
+            {/*
+              Emoji YOK: kategori hapında o kategorinin kendi silüeti duruyor.
+              Sayfanın geri kalanı ince çizgi dilinde, emoji oraya yabancıydı —
+              üstelik silüet gardırop uygulamasında emojiden daha doğrudan.
+            */}
+            {CATEGORIES.map((c) => (
+              <Chip
+                key={c.id}
+                label={c.label}
+                active={category === c.id}
+                onPress={() => chooseCategory(c.id)}
+                left={<GarmentArt category={c.id} colorId={colorId} size={15} />}
+              />
+            ))}
           </View>
+
+          {/* Alt tür — seçili kategoriye ait olanlar. Fotoğraftan otomatik gelir,
+              "Belirtme" ile boş bırakılabilir. */}
+          <Label>Tür</Label>
+          <View style={styles.wrapRow}>
+            <Chip label="Belirtme" active={!subcategory} onPress={() => setSubcategory(undefined)} />
+            {subcategoriesOf(category).map((s) => (
+              <Chip
+                key={s.id}
+                label={s.label}
+                active={subcategory === s.id}
+                onPress={() => setSubcategory(s.id)}
+              />
+            ))}
+          </View>
+
+          <Label>Renk</Label>
+          <View style={styles.wrapRow}>
+            {ITEM_COLORS.map((c) => (
+              <Pressable
+                key={c.id}
+                onPress={() => {
+                  touched.current.color = true;
+                  setColorId(c.id);
+                }}
+                style={[
+                  styles.swatch,
+                  { backgroundColor: c.hex },
+                  colorId === c.id && styles.swatchActive,
+                ]}
+              >
+                {colorId === c.id ? (
+                  <Ionicons
+                    name="checkmark"
+                    size={15}
+                    color={['beyaz', 'sari', 'bej'].includes(c.id) ? '#333' : '#fff'}
+                  />
+                ) : null}
+              </Pressable>
+            ))}
+          </View>
+          <Text style={styles.hint}>{ITEM_COLORS.find((c) => c.id === colorId)?.label}</Text>
         </View>
 
-        <Label>Nereden geldi?</Label>
-        <View style={styles.wrapRow}>
-          {SOURCES.map((s) => (
-            <Chip
-              key={s.id}
-              label={s.label}
-              color={s.color}
-              active={source === s.id}
-              onPress={() => setSource(s.id)}
-            />
-          ))}
+        {/* ————— Ayrıntılar ————— */}
+        {/* Son bölümde alt çizgi yok: hemen altında kaydet düğmesi var */}
+        <View style={[styles.section, styles.sectionLast]}>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Label>Marka</Label>
+              <TextInput
+                value={brand}
+                onChangeText={setBrand}
+                placeholder="Opsiyonel"
+                placeholderTextColor={luxe.outline}
+                style={styles.input}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Label>Fiyat (₺)</Label>
+              <TextInput
+                value={price}
+                onChangeText={setPrice}
+                placeholder="Opsiyonel"
+                placeholderTextColor={luxe.outline}
+                style={styles.input}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+
+          <Label>Nereden geldi?</Label>
+          <View style={styles.wrapRow}>
+            {SOURCES.map((s) => (
+              <Chip
+                key={s.id}
+                label={s.label}
+                active={source === s.id}
+                onPress={() => setSource(s.id)}
+              />
+            ))}
+          </View>
+
+          <Label>Sezonlar</Label>
+          <View style={styles.wrapRow}>
+            {SEASONS.map((s) => (
+              <Chip
+                key={s.id}
+                label={s.label}
+                active={seasons.includes(s.id)}
+                left={
+                  <Ionicons
+                    name={SEASON_ICON[s.id]}
+                    size={13}
+                    color={seasons.includes(s.id) ? luxe.primaryDeep : luxe.outline}
+                  />
+                }
+                onPress={() => {
+                  touched.current.seasons = true;
+                  setSeasons((prev) =>
+                    prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id],
+                  );
+                }}
+              />
+            ))}
+          </View>
+
+          <Label>Etiketler</Label>
+          <TextInput
+            value={tags}
+            onChangeText={(t) => {
+              touched.current.tags = true;
+              setTags(t);
+            }}
+            placeholder="virgülle ayır: ofis, gece, rahat…"
+            placeholderTextColor={luxe.outline}
+            style={styles.input}
+          />
+
+          <Label>Not</Label>
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Opsiyonel"
+            placeholderTextColor={luxe.outline}
+            style={[styles.input, { height: 72, textAlignVertical: 'top' }]}
+            multiline
+          />
         </View>
 
-        <Label>Sezonlar</Label>
-        <View style={styles.wrapRow}>
-          {SEASONS.map((s) => (
-            <Chip
-              key={s.id}
-              label={s.label}
-              emoji={s.emoji}
-              active={seasons.includes(s.id)}
-              onPress={() => {
-                touched.current.seasons = true;
-                setSeasons((prev) =>
-                  prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id],
-                );
-              }}
-            />
-          ))}
-        </View>
-
-        <Label>Etiketler</Label>
-        <TextInput
-          value={tags}
-          onChangeText={(t) => {
-            touched.current.tags = true;
-            setTags(t);
-          }}
-          placeholder="virgülle ayır: ofis, gece, rahat…"
-          placeholderTextColor={luxe.outline}
-          style={styles.input}
-        />
-
-        <Label>Not</Label>
-        <TextInput
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Opsiyonel"
-          placeholderTextColor={luxe.outline}
-          style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
-          multiline
-        />
-
-        <Button
-          title={editing ? 'Kaydet' : 'Gardıroba ekle'}
+        <Pressable
+          style={({ pressed }) => [styles.saveBtn, { marginTop: 4 }, pressed && { opacity: 0.85 }]}
           onPress={save}
-          style={{ marginTop: spacing.xl }}
-        />
+        >
+          <Text style={styles.saveText}>{editing ? 'Kaydet' : 'Gardıroba ekle'}</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/** Hap düğme — diğer ekranlardaki editoryal düğmenin aynısı. */
+function PillBtn({
+  title,
+  icon,
+  onPress,
+  variant = 'solid',
+  busy,
+}: {
+  title: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  onPress: () => void;
+  variant?: 'solid' | 'outline';
+  busy?: boolean;
+}) {
+  const solid = variant === 'solid';
+  const fg = solid ? luxe.onPrimary : luxe.primary;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={busy}
+      style={({ pressed }) => [
+        styles.pill,
+        solid
+          ? { backgroundColor: luxe.primary }
+          : { backgroundColor: glass.fill, borderWidth: 1, borderColor: luxe.outlineSoft },
+        (pressed || busy) && { opacity: 0.8 },
+      ]}
+    >
+      <Ionicons name={icon} size={14} color={fg} />
+      <Text style={[styles.pillText, { color: fg }]}>{title}</Text>
+    </Pressable>
   );
 }
 
@@ -470,25 +547,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   close: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: luxe.surface,
+    backgroundColor: glass.fill,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: luxe.outlineSoft,
   },
-  container: { padding: spacing.lg, paddingBottom: 60 },
-  photoRow: { flexDirection: 'row', gap: spacing.lg, alignItems: 'center' },
+  container: { paddingHorizontal: 20, paddingBottom: 48, paddingTop: 2 },
+  /*
+    KART YOK. Bölümler ince bir çizgiyle ayrılıyor — kartlar sayfayı hem
+    büyütüyor hem ağırlaştırıyordu; form zaten uzun.
+  */
+  section: { paddingBottom: 16, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: luxe.outlineSoft },
+  sectionLast: { borderBottomWidth: 0, paddingBottom: 6 },
+
+
+  photoRow: { flexDirection: 'row', gap: 14, alignItems: 'center' },
   photoBox: {
-    width: 130,
-    height: 130,
-    borderRadius: radius.lg,
+    width: 108,
+    height: 108,
+    borderRadius: luxeRadius.md,
     backgroundColor: luxe.surface,
     borderWidth: 1,
     borderColor: luxe.outlineSoft,
@@ -496,19 +582,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     // Kıyafet kenarlara yapışmasın (bkz. item/[id] photo)
-    padding: spacing.sm,
+    padding: 10,
   },
+  /** Parçanın arkasındaki soluk iridesan hâle. */
+  photoGlow: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, opacity: 0.55 },
+
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: luxeRadius.pill,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+  },
+  pillText: {
+    fontFamily: font.label,
+    fontSize: 10,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
+
   input: {
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: luxe.outlineSoft,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 11,
-    fontSize: 15,
+    borderRadius: luxeRadius.md,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    fontFamily: font.body,
+    fontSize: 14.5,
     color: luxe.ink,
     backgroundColor: luxe.surface,
   },
-  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  hint: { ...luxeType.caption, fontStyle: 'italic', marginTop: 6 },
+  note: { fontFamily: font.bodyMedium, fontSize: 12.5, color: luxe.primaryDeep, marginTop: 8 },
+
+  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   swatch: {
     width: 34,
     height: 34,
@@ -519,4 +628,18 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.08)',
   },
   swatchActive: { borderWidth: 2.5, borderColor: luxe.primaryDeep },
+
+  saveBtn: {
+    backgroundColor: luxe.primary,
+    borderRadius: luxeRadius.pill,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  saveText: {
+    fontFamily: font.label,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: luxe.onPrimary,
+  },
 });
