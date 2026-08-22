@@ -80,7 +80,8 @@ function LuxeButton({
   icon,
   style,
 }: {
-  title: string;
+  /** Yalnızca ikonlu düğme için boş bırakılabilir */
+  title?: string;
   onPress: () => void;
   variant?: 'solid' | 'outline';
   /** Koyu zemin (hero) üstünde kullanılacaksa açık renklere geçer */
@@ -104,6 +105,7 @@ function LuxeButton({
       disabled={loading}
       style={({ pressed }) => [
         styles.btn,
+        !title && { paddingHorizontal: 13 + BTN_PAD },
         pressed && { opacity: 0.82, transform: [{ scale: 0.98 }] },
         style,
       ]}
@@ -121,7 +123,7 @@ function LuxeButton({
       ) : (
         <View style={styles.btnRow}>
           {icon ? <Ionicons name={icon} size={14} color={fg} /> : null}
-          <Text style={[styles.btnText, { color: fg }]}>{title}</Text>
+          {title ? <Text style={[styles.btnText, { color: fg }]}>{title}</Text> : null}
         </View>
       )}
     </Pressable>
@@ -204,17 +206,35 @@ export default function Today() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 10, marginTop: 14 }}
+          contentContainerStyle={{ gap: 10, marginTop: 12 }}
         >
           {suggestedItems.map((it) => (
-            <ItemThumb key={it.id} item={it} size={84} showName />
+            <ItemThumb key={it.id} item={it} size={72} showName />
           ))}
         </ScrollView>
-        <Text style={[luxeType.body, { marginTop: 14 }]}>{suggestion.reason}</Text>
-        <View style={styles.rowWrap}>
-          <LuxeButton title="Bugüne planla" onPress={saveSuggestionAsOutfit} />
-          <LuxeButton variant="outline" icon="refresh-outline" title="Başka öner" onPress={shuffle} />
-          <LuxeButton variant="outline" title="Vazgeç" onPress={() => setSuggestion(null)} />
+        {/*
+          Gerekçe SABİT yükseklikte (iki satır): metin uzayıp kısaldıkça
+          altındaki düğmeler yer değiştiriyordu, "Başka öner"e üst üste
+          basmak imkânsızdı. Artık düğmeler her öneride aynı yerde.
+        */}
+        <Text style={[luxeType.body, styles.suggestReason]} numberOfLines={2}>
+          {suggestion.reason}
+        </Text>
+        {/*
+          Üçü tek satıra sığmıyor, yazılar kırpılıyordu. Ana eylem kendi
+          satırında tam genişlikte; altındaki satırda "Başka öner" ve kapat.
+          İki satır da SABİT, yani düğmeler öneriden öneriye kaymıyor.
+        */}
+        <LuxeButton
+          variant="outline"
+          icon="refresh-outline"
+          title="Başka öner"
+          onPress={shuffle}
+          style={{ marginTop: 12, alignSelf: 'stretch' }}
+        />
+        <View style={styles.suggestActions}>
+          <LuxeButton title="Bugüne planla" onPress={saveSuggestionAsOutfit} style={{ flex: 1 }} />
+          <LuxeButton variant="outline" icon="close" onPress={() => setSuggestion(null)} />
         </View>
       </GlassCard>
     ) : null;
@@ -1052,6 +1072,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
+  /** İki satırlık sabit alan — düğmeler öneriden öneriye kaymasın. */
+  suggestReason: { marginTop: 12, height: 48 },
+  /** Tek satır, SARMIYOR: sarınca kartın boyu değişip düğmeler kayıyor. */
+  suggestActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 18 },
 
   // Şehir formu
