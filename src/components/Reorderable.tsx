@@ -19,6 +19,7 @@ export function Reorderable<T>({
   cellW,
   cellH,
   gap = 0,
+  gapY,
   onReorder,
   onDragChange,
   style,
@@ -29,7 +30,10 @@ export function Reorderable<T>({
   columns?: number;
   cellW: number;
   cellH: number;
+  /** Yatay aralık. Negatif olabilir — askılıkta kartlar bilerek üst üste biniyor. */
   gap?: number;
+  /** Dikey aralık; verilmezse yatayla aynı. Askılıkta raflar arası pay farklı. */
+  gapY?: number;
   /** Bırakınca yeni sıradaki anahtarlar. */
   onReorder: (keys: string[]) => void;
   /**
@@ -40,6 +44,8 @@ export function Reorderable<T>({
   onDragChange?: (dragging: boolean) => void;
   style?: ViewStyle;
 }) {
+  const gy = gapY ?? gap;
+
   /** Ekrandaki sıra — sürükleme boyunca yerel, bırakınca üste bildiriliyor. */
   const [order, setOrder] = useState<T[]>(data);
   const [dragKey, setDragKey] = useState<string | null>(null);
@@ -56,7 +62,7 @@ export function Reorderable<T>({
 
   const slot = (i: number) => ({
     x: (i % columns) * (cellW + gap),
-    y: Math.floor(i / columns) * (cellH + gap),
+    y: Math.floor(i / columns) * (cellH + gy),
   });
 
   /** Her karonun konumu — sıradaki yerine yaylanarak gidiyor. */
@@ -90,15 +96,15 @@ export function Reorderable<T>({
       }).start();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order, columns, cellW, cellH, gap]);
+  }, [order, columns, cellW, cellH, gap, gy]);
 
   /*
     Güncel değerler ref'ten okunuyor: PanResponder'lar BİR KEZ kuruluyor.
     Bağımlılığa prop konsaydı her çizimde yeni algılayıcı yaratılır, hareketin
     ortasında `gestureState` sıfırlanıp karo zıplardı (bkz. AGENTS.md).
   */
-  const cur = useRef({ order, onReorder, keyOf, columns, cellW, cellH, gap, count: data.length });
-  cur.current = { order, onReorder, keyOf, columns, cellW, cellH, gap, count: data.length };
+  const cur = useRef({ order, onReorder, keyOf, columns, cellW, cellH, gap, gy, count: data.length });
+  cur.current = { order, onReorder, keyOf, columns, cellW, cellH, gap, gy, count: data.length };
 
   const start = useRef({ x: 0, y: 0, index: 0 });
   /** Sabit algılayıcılar içinden çağrılıyor — güncel geri çağrı ref'ten. */
@@ -124,7 +130,7 @@ export function Reorderable<T>({
         const c = cur.current;
         start.current = {
           x: (i % c.columns) * (c.cellW + c.gap),
-          y: Math.floor(i / c.columns) * (c.cellH + c.gap),
+          y: Math.floor(i / c.columns) * (c.cellH + c.gy),
           index: i,
         };
       },
@@ -141,7 +147,7 @@ export function Reorderable<T>({
         */
         const rowCount = Math.ceil(c.count / c.columns);
         const col = Math.max(0, Math.min(c.columns - 1, Math.round(x / (c.cellW + c.gap))));
-        const row = Math.max(0, Math.min(rowCount - 1, Math.round(y / (c.cellH + c.gap))));
+        const row = Math.max(0, Math.min(rowCount - 1, Math.round(y / (c.cellH + c.gy))));
         const target = Math.max(0, Math.min(c.count - 1, row * c.columns + col));
         const from = c.order.findIndex((it) => c.keyOf(it) === key);
         if (target !== from && from >= 0) {
@@ -163,7 +169,7 @@ export function Reorderable<T>({
     const i = c.order.findIndex((x) => c.keyOf(x) === key);
     const s = {
       x: (i % c.columns) * (c.cellW + c.gap),
-      y: Math.floor(i / c.columns) * (c.cellH + c.gap),
+      y: Math.floor(i / c.columns) * (c.cellH + c.gy),
     };
     Animated.spring(pos(key, i), {
       toValue: s,
@@ -179,7 +185,7 @@ export function Reorderable<T>({
 
   const rows = Math.ceil(order.length / columns);
   return (
-    <View style={[{ height: rows * cellH + Math.max(0, rows - 1) * gap }, style]}>
+    <View style={[{ height: rows * cellH + Math.max(0, rows - 1) * gy }, style]}>
       {order.map((item, i) => {
         const key = keyOf(item);
         const dragging = dragKey === key;

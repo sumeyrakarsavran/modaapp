@@ -9,6 +9,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -184,33 +185,173 @@ function SectionHead({ title, count, unit }: { title: string; count: number; uni
 
 /** Askıdaki parçanın toplam yüksekliği — sürükle-bırak yuva hesabı için. */
 const HANGER_H = HOOK_H + CARD_IMG_H + 40;
+/** Bir rafa en fazla bu kadar parça sığıyor; fazlası alt rafa iner. */
+const RACK_MAX = 10;
+/** Kartlar 8px üst üste biniyor (askılık hissi) — yuva adımı da o kadar dar. */
+const RACK_GAP = -8;
+const RACK_STEP = CARD_W + RACK_GAP;
+/** `styles.rack` dolgularıyla birlikte bir rafın toplam yüksekliği. */
+const RACK_PAD_T = 19;
+const RACK_PAD_B = 14;
+const RACK_PAD_L = 20;
+const ROW_H = RACK_PAD_T + HANGER_H + RACK_PAD_B;
 
 /**
- * Bir kategorinin askılığı: başlık + parça sayısı + boru + yatay raf.
+ * Bir kategorinin askılığı: başlık + raflar.
  *
- * Parçalar basılı tutulup sürüklenerek sıralanabiliyor — ama YALNIZCA kendi
- * kategorisi içinde: her raf ayrı bir liste, sıralama da o rafın parçalarıyla
- * sınırlı.
+ * Parçalar basılı tutulup sürüklenerek sıralanıyor — kendi KATEGORİSİ içinde,
+ * ama raflar arası da serbest: alttaki rafa taşınabiliyor.
+ *
+ * ⚠️ Her raf KENDİ yatay ScrollView'ında (biri kayınca hepsi kaymasın diye),
+ * bu yüzden sürükleme raf düzeyinde: sürüklenen parça rafın dışında, rafların
+ * ÜSTÜNDE yüzen bir kopya olarak çiziliyor. Hedef yuva hesaplanırken her rafın
+ * kendi kaydırma konumu (`scrollX`) hesaba katılıyor — yoksa kaydırılmış bir
+ * rafta parça yanlış yere düşüyor.
  */
 function Rack({
   title,
   items,
   onOpen,
   onReorder,
+  maxPerRow,
 }: {
   title: string;
   items: WardrobeItem[];
   onOpen: (id: string) => void;
   onReorder: (ids: string[]) => void;
+  /** Bir rafa en fazla kaç parça. Verilmezse hepsi tek rafta. */
+  maxPerRow?: number;
 }) {
+  const per = maxPerRow ?? Math.max(1, items.length);
+
+  /** Ekrandaki sıra — sürükleme boyunca yerel, bırakınca üste bildiriliyor. */
+  const [order, setOrder] = useState<WardrobeItem[]>(items);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const dragRef = useRef<string | null>(null);
+  useEffect(() => {
+    // Sürükleme sürerken dışarıdan gelen listeyle ezme — karo zıplar
+    if (dragRef.current) return;
+    setOrder(items);
+  }, [items]);
+
+  const rows: WardrobeItem[][] = [];
+  for (let i = 0; i < order.length; i += per) rows.push(order.slice(i, i + per));
+
+  const scrollX = useRef<number[]>([]);
+  const pan = useRef(new Animated.ValueXY()).current;
+
   /*
-    Sürükleme sürerken yatay kaydırma KAPANIYOR: açık kalırsa ScrollView
-    hareketi kapıyor ve karo parmağı takip etmiyor.
+    Karolar rafın İÇİNDE mutlak konumlu ve her biri kendi Animated değerine
+    sahip: sıra değişince yerlerine YAYLANARAK gidiyorlar. Düz flex dizilimde
+    her değişiklik sert bir sıçrama oluyordu — "çok manuel duruyor" tam olarak
+    buydu. Animasyon `transform` üzerinden, yani native sürücüyle.
   */
-  const [dragging, setDragging] = useState(false);
-  // Kartlar 8px üst üste biniyor (askılık hissi) — yuva aralığı da o kadar dar
-  const GAP = -8;
-  const width = items.length * (CARD_W + GAP) - GAP;
+  const posRef = useRef(new Map<string, Animated.ValueXY>());
+  const posOf = (id: string, col: number) => {
+    let v = posRef.current.get(id);
+    if (!v) {
+      v = new Animated.ValueXY({ x: col * RACK_STEP, y: 0 });
+      posRef.current.set(id, v);
+    }
+    return v;
+  };
+  const startPos = useRef({ x: 0, y: 0 });
+  const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Sabit algılayıcı içinden okunacak güncel değerler. */
+  const cur = useRef({ order, per, onReorder });
+  cur.current = { order, per, onReorder };
+
+  /** Bir parçanın rafındaki YEREL konumu (kaydırma düşülmüş). */
+  const localPos = (index: number) => {
+    const row = Math.floor(index / cur.current.per);
+    const col = index % cur.current.per;
+    return {
+      x: RACK_PAD_L + col * RACK_STEP - (scrollX.current[row] ?? 0),
+      y: row * ROW_H + RACK_PAD_T,
+    };
+  };
+
+  const responder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: () => !!dragRef.current,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderMove: (_e, g) => {
+          const c = cur.current;
+          const key = dragRef.current;
+          if (!key) return;
+          const x = startPos.current.x + g.dx;
+          const y = startPos.current.y + g.dy;
+          pan.setValue({ x, y });
+
+          // Kartın MERKEZİ hangi yuvanın üstündeyse hedef orası
+          const cx = x + CARD_W / 2;
+          const cy = y + HANGER_H / 2;
+          const rowCount = Math.ceil(c.order.length / c.per);
+          const row = Math.max(0, Math.min(rowCount - 1, Math.floor(cy / ROW_H)));
+          const inRow = Math.min(c.per, c.order.length - row * c.per);
+          const col = Math.max(
+            0,
+            Math.min(
+              inRow - 1,
+              Math.round((cx - RACK_PAD_L - CARD_W / 2 + (scrollX.current[row] ?? 0)) / RACK_STEP),
+            ),
+          );
+          const target = Math.max(0, Math.min(c.order.length - 1, row * c.per + col));
+          const from = c.order.findIndex((it) => it.id === key);
+          if (from >= 0 && target !== from) {
+            const next = [...c.order];
+            const [moved] = next.splice(from, 1);
+            next.splice(target, 0, moved);
+            setOrder(next);
+          }
+        },
+        onPanResponderRelease: () => finish(),
+        onPanResponderTerminate: () => finish(),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const finish = () => {
+    const c = cur.current;
+    dragRef.current = null;
+    setDragId(null);
+    c.onReorder(c.order.map((it) => it.id));
+  };
+
+  const beginHold = (item: WardrobeItem) => {
+    hold.current = setTimeout(() => {
+      const c = cur.current;
+      const i = c.order.findIndex((x) => x.id === item.id);
+      if (i < 0) return;
+      const p = localPos(i);
+      startPos.current = p;
+      pan.setValue(p);
+      dragRef.current = item.id;
+      setDragId(item.id);
+    }, 220);
+  };
+  const cancelHold = () => {
+    if (hold.current) clearTimeout(hold.current);
+  };
+
+  useEffect(() => {
+    order.forEach((it, i) => {
+      if (it.id === dragRef.current) return;
+      Animated.spring(posOf(it.id, i % per), {
+        toValue: { x: (i % per) * RACK_STEP, y: 0 },
+        useNativeDriver: true,
+        friction: 13,
+        tension: 110,
+      }).start();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order, per]);
+
+  const dragItem = order.find((it) => it.id === dragId);
 
   return (
     <View style={{ marginBottom: 20 }}>
@@ -218,33 +359,65 @@ function Rack({
         <Text style={styles.rackTitle}>{title}</Text>
         <Text style={styles.rackCount}>{items.length} PARÇA</Text>
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        scrollEnabled={!dragging}
-        contentContainerStyle={styles.rack}
-      >
-        {/* Metal boru — kancaların arkasından geçiyor */}
-        <LinearGradient
-          colors={[luxe.outlineSoft, luxe.surfaceHigh, luxe.outlineSoft]}
-          style={styles.rail}
-          pointerEvents="none"
-        />
-        <Reorderable
-          data={items}
-          keyOf={(i) => i.id}
-          columns={Math.max(1, items.length)}
-          cellW={CARD_W}
-          cellH={HANGER_H}
-          gap={GAP}
-          style={{ width }}
-          onDragChange={setDragging}
-          onReorder={onReorder}
-          renderItem={(it, drag) => (
-            <Hanger item={it} dragging={drag} onPress={() => onOpen(it.id)} />
-          )}
-        />
-      </ScrollView>
+
+      <View {...responder.panHandlers}>
+        {rows.map((row, r) => (
+          <ScrollView
+            key={r}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={!dragId}
+            onScroll={(e) => {
+              scrollX.current[r] = e.nativeEvent.contentOffset.x;
+            }}
+            scrollEventThrottle={16}
+            contentContainerStyle={styles.rack}
+          >
+            {/* Metal boru — bu rafın kancalarının arkasından geçiyor */}
+            <LinearGradient
+              colors={[luxe.outlineSoft, luxe.surfaceHigh, luxe.outlineSoft]}
+              style={styles.rail}
+              pointerEvents="none"
+            />
+            <View style={{ width: row.length * RACK_STEP - RACK_GAP, height: HANGER_H }}>
+              {row.map((it, ci) => (
+                <Animated.View
+                  key={it.id}
+                  style={{
+                    position: 'absolute',
+                    width: CARD_W,
+                    transform: posOf(it.id, ci).getTranslateTransform(),
+                    opacity: it.id === dragId ? 0 : 1,
+                  }}
+                  onTouchStart={() => beginHold(it)}
+                  onTouchEnd={cancelHold}
+                  onTouchCancel={cancelHold}
+                >
+                  <Hanger item={it} onPress={() => onOpen(it.id)} />
+                </Animated.View>
+              ))}
+            </View>
+          </ScrollView>
+        ))}
+
+        {/* Sürüklenen parça rafların ÜSTÜNDE yüzüyor — raf sınırına takılmasın */}
+        {dragItem ? (
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: CARD_W,
+              transform: pan.getTranslateTransform(),
+              zIndex: 30,
+              elevation: 30,
+            }}
+          >
+            <Hanger item={dragItem} dragging onPress={() => {}} />
+          </Animated.View>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -676,6 +849,8 @@ export default function Wardrobe() {
                   items={r.items}
                   onOpen={openItem}
                   onReorder={reorderItems}
+                  // Bölme yalnızca tek kategori seçiliyken; "Hepsi"de tek raf
+                  maxPerRow={category === 'hepsi' ? undefined : RACK_MAX}
                 />
               ))}
             </ScrollView>
@@ -1003,7 +1178,7 @@ const styles = StyleSheet.create({
     Kancaların üstten taşabilmesi için raf dolgusu cömert; kartlar örnekteki
     gibi hafifçe üst üste biniyor (negatif boşluk).
   */
-  rack: { paddingTop: 19, paddingBottom: 12, paddingHorizontal: 20, gap: 0 },
+  rack: { paddingTop: 19, paddingBottom: 14, paddingHorizontal: 20, gap: 0 },
   rail: {
     position: 'absolute',
     left: 0,
