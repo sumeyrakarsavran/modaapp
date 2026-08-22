@@ -2,10 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
+import { ConfirmModal } from '@/components/ConfirmModal';
 
 import { GarmentArt } from '@/components/GarmentArt';
 import { OutfitCollage } from '@/components/OutfitCollage';
@@ -19,6 +20,7 @@ export default function ItemDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { items, outfits, toggleFavorite, toggleArchived, deleteItem, logWear, pro } = useStore();
   const item = items.find((i) => i.id === id);
+  const [askDelete, setAskDelete] = React.useState(false);
 
   if (!item) {
     return (
@@ -40,25 +42,26 @@ export default function ItemDetail() {
   const inOutfits = outfits.filter((o) => o.itemIds.includes(item.id));
   const wornToday = item.wearDates.includes(todayISO());
 
-  const confirmDelete = () => {
-    const doDelete = () => {
-      deleteItem(item.id);
-      router.back();
-    };
-    if (Platform.OS === 'web') {
-      // Web'de Alert butonları desteklenmez
-      if (window.confirm(`"${item.name}" silinsin mi? Bu işlem geri alınamaz.`)) doDelete();
-    } else {
-      Alert.alert('Parçayı sil', `"${item.name}" silinsin mi? Bu işlem geri alınamaz.`, [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Sil', style: 'destructive', onPress: doDelete },
-      ]);
-    }
-  };
+  /*
+    Onay sistemin `Alert.alert`'i DEĞİL: o kutu Android'in kendi tipografisi
+    ve mavi düğmeleriyle çıkıyor, uygulamanın dilinden kopuyordu.
+  */
+  const confirmDelete = () => setAskDelete(true);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
       <Backdrop />
+      <ConfirmModal
+        visible={askDelete}
+        title="Parçayı sil"
+        message={`"${item.name}" gardırobundan kalkacak. Bu işlem geri alınamaz.`}
+        onConfirm={() => {
+          setAskDelete(false);
+          deleteItem(item.id);
+          router.back();
+        }}
+        onCancel={() => setAskDelete(false)}
+      />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
           <Ionicons name="arrow-back" size={20} color={luxe.inkSoft} />
