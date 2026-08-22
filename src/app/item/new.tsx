@@ -3,7 +3,6 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { Backdrop } from '@/components/Backdrop';
 
 import { LinearGradient } from 'expo-linear-gradient';
@@ -66,6 +66,8 @@ export default function NewItem() {
   const editing = useMemo(() => items.find((i) => i.id === id), [items, id]);
 
   const [name, setName] = useState(editing?.name ?? '');
+  /** Uygulamanın kendi uyarı kutusu (sistem `Alert`'i yerine). */
+  const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null);
   const [category, setCategory] = useState<Category>(editing?.category ?? 'ust');
   const [subcategory, setSubcategory] = useState<string | undefined>(editing?.subcategory);
   const [colorId, setColorId] = useState(editing?.colorId ?? 'siyah');
@@ -249,7 +251,7 @@ export default function NewItem() {
 
   const save = () => {
     if (!name.trim()) {
-      Alert.alert('İsim gerekli', 'Parçaya bir isim ver (örn. "Siyah Deri Ceket").');
+      setNotice({ title: 'İsim gerekli', message: 'Parçaya bir isim ver (örn. "Siyah Deri Ceket").' });
       return;
     }
     const data = {
@@ -279,6 +281,14 @@ export default function NewItem() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top', 'bottom']}>
       <Backdrop />
+      <ConfirmModal
+        notice
+        visible={!!notice}
+        title={notice?.title ?? ''}
+        message={notice?.message}
+        onConfirm={() => setNotice(null)}
+        onCancel={() => setNotice(null)}
+      />
       <View style={styles.header}>
         <Text style={luxeType.display}>{editing ? 'Parçayı düzenle' : 'Yeni parça'}</Text>
         <Pressable onPress={() => router.back()} style={styles.close}>

@@ -4,13 +4,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   FlatList,
   KeyboardAvoidingView,
   Modal,
   PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +21,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Backdrop } from '@/components/Backdrop';
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { GarmentArt } from '@/components/GarmentArt';
 import { LOOKBOOK_ICONS, LookbookIcon } from '@/components/LookbookIcon';
 import { OutfitCollage } from '@/components/OutfitCollage';
@@ -652,6 +651,7 @@ export default function Wardrobe() {
 
   // Selfie görüntüleme + paylaşım
   const [openSelfie, setOpenSelfie] = useState<Selfie | null>(null);
+  const [askDeleteSelfie, setAskDeleteSelfie] = useState<Selfie | null>(null);
   const [shareSelfieOpen, setShareSelfieOpen] = useState<Selfie | null>(null);
 
   // Lookbook oluşturma
@@ -713,18 +713,7 @@ export default function Wardrobe() {
   }, [params]);
 
   const confirmDeleteSelfie = (s: Selfie) => {
-    const doDelete = () => {
-      deleteSelfie(s.id);
-      setOpenSelfie(null);
-    };
-    if (Platform.OS === 'web') {
-      if (window.confirm('Selfie silinsin mi?')) doDelete();
-    } else {
-      Alert.alert('Selfie sil', 'Bu selfie silinsin mi?', [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Sil', style: 'destructive', onPress: doDelete },
-      ]);
-    }
+    setAskDeleteSelfie(s);
   };
 
   const doShareSelfie = (caption: string) => {
@@ -789,6 +778,17 @@ export default function Wardrobe() {
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
       {/* Bugün ile AYNI zemin — ekranlar arası geçişte ton atlamasın. */}
       <Backdrop />
+      <ConfirmModal
+        visible={!!askDeleteSelfie}
+        title="Selfie'yi sil"
+        message="Bu selfie arşivinden kalkacak. Bu işlem geri alınamaz."
+        onConfirm={() => {
+          if (askDeleteSelfie) deleteSelfie(askDeleteSelfie.id);
+          setAskDeleteSelfie(null);
+          setOpenSelfie(null);
+        }}
+        onCancel={() => setAskDeleteSelfie(null)}
+      />
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={luxeType.display}>Gardırop</Text>

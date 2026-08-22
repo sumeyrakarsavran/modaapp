@@ -4,7 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   FlatList,
   PanResponder,
@@ -17,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { Backdrop } from '@/components/Backdrop';
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { GarmentArt } from '@/components/GarmentArt';
@@ -120,6 +120,8 @@ export default function Canvas() {
    * değişse `canvasFrame` de değişir ve kaydedilen kadraj kayardı.
    */
   const [drawerOpen, setDrawerOpen] = useState(false);
+  /** Uygulamanın kendi uyarı kutusu (sistem `Alert`'i yerine). */
+  const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null);
   // Kırpma tercihi: kapalı = tuval çerçevesi aynen korunur (WYSIWYG)
   const [cropToContent, setCropToContent] = useState<boolean>(editing?.cropToContent ?? false);
   const canvasSize = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -164,7 +166,7 @@ export default function Canvas() {
 
   const save = () => {
     if (placed.length < 2) {
-      Alert.alert('Eksik kolaj', 'En az iki parça yerleştir.');
+      setNotice({ title: 'Eksik kolaj', message: 'En az iki parça yerleştir.' });
       return;
     }
     const layout: Record<
@@ -227,6 +229,14 @@ export default function Canvas() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
       <Backdrop />
+      <ConfirmModal
+        notice
+        visible={!!notice}
+        title={notice?.title ?? ''}
+        message={notice?.message}
+        onConfirm={() => setNotice(null)}
+        onCancel={() => setNotice(null)}
+      />
 
       {/* Kaydet solda, kapat sağda — kapat yanlışlıkla basılabilecek yerde durmasın */}
       <View style={styles.header}>

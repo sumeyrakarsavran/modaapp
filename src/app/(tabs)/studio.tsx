@@ -4,10 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { Backdrop } from '@/components/Backdrop';
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { ItemThumb } from '@/components/ItemThumb';
@@ -143,6 +142,8 @@ export default function Studio() {
   const [locked, setLocked] = useState<Record<string, boolean>>({});
   /** Büyütülerek görüntülenen sanal giydirme */
   const [openTryon, setOpenTryon] = useState<TryOnRecord | null>(null);
+  const [askDeleteTryOn, setAskDeleteTryOn] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null);
   const [shareTryon, setShareTryon] = useState<TryOnRecord | null>(null);
   /**
    * "Giydir beni" alanının ÖLÇÜLEN yüksekliği.
@@ -257,17 +258,8 @@ export default function Studio() {
     setTimeout(() => router.push('/(tabs)/community'), 120);
   };
 
-  const confirmDeleteTryOn = (id: string) => {
-    const doDelete = () => deleteTryOn(id);
-    if (Platform.OS === 'web') {
-      if (window.confirm('Bu sanal giydirme silinsin mi?')) doDelete();
-    } else {
-      Alert.alert('Sil', 'Bu sanal giydirme silinsin mi?', [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Sil', style: 'destructive', onPress: doDelete },
-      ]);
-    }
-  };
+  /** Onay kutusu uygulamanın kendi kutusu (bkz. `ConfirmModal`). */
+  const confirmDeleteTryOn = (id: string) => setAskDeleteTryOn(id);
 
   const active = items.filter((i) => !i.archived);
   const pools = useMemo(() => {
@@ -325,7 +317,7 @@ export default function Studio() {
 
   const saveOutfit = () => {
     if (chosen.length < 2) {
-      Alert.alert('Eksik kombin', 'En az iki parça seçili olmalı.');
+      setNotice({ title: 'Eksik kombin', message: 'En az iki parça seçili olmalı.' });
       return;
     }
     // Etiketlere göre en yakın betta arketipini bul
@@ -403,6 +395,24 @@ export default function Studio() {
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
       {/* Bugün · Gardırop · Topluluk ile AYNI zemin */}
       <Backdrop />
+      <ConfirmModal
+        visible={!!askDeleteTryOn}
+        title="Sanal giydirmeyi sil"
+        message="Bu giydirme kaydı silinsin mi? Bu işlem geri alınamaz."
+        onConfirm={() => {
+          if (askDeleteTryOn) deleteTryOn(askDeleteTryOn);
+          setAskDeleteTryOn(null);
+        }}
+        onCancel={() => setAskDeleteTryOn(null)}
+      />
+      <ConfirmModal
+        notice
+        visible={!!notice}
+        title={notice?.title ?? ''}
+        message={notice?.message}
+        onConfirm={() => setNotice(null)}
+        onCancel={() => setNotice(null)}
+      />
 
       <View style={styles.header}>
         <Text style={luxeType.display}>Stüdyo</Text>

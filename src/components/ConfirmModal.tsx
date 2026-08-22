@@ -19,6 +19,7 @@ export function ConfirmModal({
   confirmLabel = 'Sil',
   cancelLabel = 'Vazgeç',
   destructive = true,
+  notice,
   onConfirm,
   onCancel,
 }: {
@@ -29,6 +30,12 @@ export function ConfirmModal({
   cancelLabel?: string;
   /** Kırmızı dolgu — geri alınamaz eylemler için. */
   destructive?: boolean;
+  /**
+   * Uyarı kipi: seçim yok, tek "Tamam" düğmesi. "İsim gerekli" gibi bilgi
+   * kutuları da sistem uyarısıyla çıkmasın diye.
+   */
+  notice?: boolean;
+  /** Uyarı kipinde çağrılmaz. */
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -49,13 +56,19 @@ export function ConfirmModal({
             <Text style={[luxeType.body, { marginTop: 8 }]}>{message}</Text>
           ) : null}
           <View style={styles.row}>
-            <Button variant="ghost" title={cancelLabel} onPress={onCancel} style={{ flex: 1 }} />
-            <Button
-              variant={destructive ? 'danger' : 'primary'}
-              title={confirmLabel}
-              onPress={onConfirm}
-              style={{ flex: 1 }}
-            />
+            {notice ? (
+              <Button title="Tamam" onPress={onCancel} style={{ flex: 1 }} />
+            ) : (
+              <>
+                <Button variant="ghost" title={cancelLabel} onPress={onCancel} style={{ flex: 1 }} />
+                <Button
+                  variant={destructive ? 'danger' : 'primary'}
+                  title={confirmLabel}
+                  onPress={onConfirm}
+                  style={{ flex: 1 }}
+                />
+              </>
+            )}
           </View>
         </Pressable>
       </Pressable>

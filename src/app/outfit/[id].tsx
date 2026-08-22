@@ -2,9 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
 
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { ItemThumb } from '@/components/ItemThumb';
 import { LookbookIcon } from '@/components/LookbookIcon';
 import { OutfitCollage } from '@/components/OutfitCollage';
@@ -34,6 +33,7 @@ export default function OutfitDetail() {
     updateOutfit, deleteOutfit, wearOutfit, setPlan, sharePost, updateLookbook,
   } = useStore();
   const [lbPickerOpen, setLbPickerOpen] = useState(false);
+  const [askDelete, setAskDelete] = useState(false);
   const [shared, setShared] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const { width } = useWindowDimensions();
@@ -59,23 +59,23 @@ export default function OutfitDetail() {
   const wornToday = outfit.wearDates.includes(todayISO());
 
   const confirmDelete = () => {
-    const doDelete = () => {
-      deleteOutfit(outfit.id);
-      router.back();
-    };
-    if (Platform.OS === 'web') {
-      if (window.confirm('Kombin silinsin mi?')) doDelete();
-    } else {
-      Alert.alert('Kombini sil', 'Bu kombin silinsin mi?', [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Sil', style: 'destructive', onPress: doDelete },
-      ]);
-    }
+    setAskDelete(true);
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
       <Backdrop />
+      <ConfirmModal
+        visible={askDelete}
+        title="Kombini sil"
+        message="Bu kombin silinsin mi? Parçaların gardırobunda kalır."
+        onConfirm={() => {
+          setAskDelete(false);
+          deleteOutfit(outfit.id);
+          router.back();
+        }}
+        onCancel={() => setAskDelete(false)}
+      />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
           <Ionicons name="arrow-back" size={20} color={luxe.inkSoft} />

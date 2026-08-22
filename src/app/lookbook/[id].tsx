@@ -2,10 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,6 +23,7 @@ import { OutfitCollage } from '@/components/OutfitCollage';
 import { Reorderable } from '@/components/Reorderable';
 import { ShareModal } from '@/components/ShareModal';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { LookbookIcon } from '@/components/LookbookIcon';
 import { useStore } from '@/store/useStore';
 import { radius, spacing } from '@/theme';
@@ -39,6 +38,7 @@ export default function LookbookDetail() {
   const lb = lookbooks.find((l) => l.id === id);
 
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [askDelete, setAskDelete] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   /** Kapak olarak seçilen KOMBİNİN sırası — paylaşım kutusundan belirleniyor. */
   const [coverIdx, setCoverIdx] = useState(0);
@@ -72,14 +72,7 @@ export default function LookbookDetail() {
       deleteLookbook(lb.id);
       router.back();
     };
-    if (Platform.OS === 'web') {
-      if (window.confirm(`"${lb.name}" lookbook'u silinsin mi? (Kombinler silinmez.)`)) doDelete();
-    } else {
-      Alert.alert('Lookbook sil', `"${lb.name}" silinsin mi? Kombinlerin silinmez.`, [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Sil', style: 'destructive', onPress: doDelete },
-      ]);
-    }
+    setAskDelete(true);
   };
 
   const specsOf = (o: (typeof lbOutfits)[number]): GarmentSpec[] =>
@@ -128,6 +121,17 @@ export default function LookbookDetail() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
       <Backdrop />
+      <ConfirmModal
+        visible={askDelete}
+        title="Lookbook'u sil"
+        message={`"${lb.name}" silinsin mi? İçindeki kombinler silinmez.`}
+        onConfirm={() => {
+          setAskDelete(false);
+          deleteLookbook(lb.id);
+          router.back();
+        }}
+        onCancel={() => setAskDelete(false)}
+      />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
           <Ionicons name="arrow-back" size={20} color={luxe.inkSoft} />
@@ -201,7 +205,11 @@ export default function LookbookDetail() {
           <SectionTitle
             title="Kombinler"
             style={{ marginTop: spacing.lg }}
-            right={<Chip label="+ Kombin ekle" color={luxe.primary} active onPress={() => setPickerOpen(true)} />}
+            /*
+              Çip DEĞİL: etkin çipin yazı rengi koyu, zemini de mürekkep
+              olunca yazı okunmuyordu. Bu bir EYLEM, düğme olmalı.
+            */
+            right={<Button small title="Kombin ekle" onPress={() => setPickerOpen(true)} />}
           />
 
           {lbOutfits.length === 0 ? (

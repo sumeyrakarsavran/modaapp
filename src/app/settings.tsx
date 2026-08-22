@@ -2,9 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,11 +16,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Label } from '@/components/UI';
 import { isUsernameTaken } from '@/data/community';
 import { isCloudEnabled } from '@/services/supabase';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { useStore } from '@/store/useStore';
 import { colors, radius, spacing, type } from '@/theme';
 
 export default function Settings() {
   const { api, setApi, profile, setProfile, account, pro, resetAll } = useStore();
+  const [askReset, setAskReset] = useState(false);
   const [anthropicKey, setAnthropicKey] = useState(api.anthropicKey ?? '');
   const [fashnKey, setFashnKey] = useState(api.fashnKey ?? '');
   const [removeBgKey, setRemoveBgKey] = useState(api.removeBgKey ?? '');
@@ -68,14 +68,7 @@ export default function Settings() {
       resetAll();
       router.replace('/onboarding');
     };
-    if (Platform.OS === 'web') {
-      if (window.confirm('Tüm veriler silinsin mi? Bu işlem geri alınamaz.')) doReset();
-    } else {
-      Alert.alert('Her şeyi sıfırla', 'Tüm gardırop, kombin ve ayarlar silinecek. Emin misin?', [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Sıfırla', style: 'destructive', onPress: doReset },
-      ]);
-    }
+    setAskReset(true);
   };
 
   const Row = ({
@@ -103,6 +96,18 @@ export default function Settings() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
+      <ConfirmModal
+        visible={askReset}
+        title="Her şeyi sıfırla"
+        message="Tüm gardırop, kombin, selfie ve ayarlar silinecek. Bu işlem geri alınamaz."
+        confirmLabel="Sıfırla"
+        onConfirm={() => {
+          setAskReset(false);
+          resetAll();
+          router.replace('/onboarding');
+        }}
+        onCancel={() => setAskReset(false)}
+      />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.close}>
           <Ionicons name="close" size={22} color={colors.inkSoft} />
