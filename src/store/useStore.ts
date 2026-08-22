@@ -79,6 +79,8 @@ interface BettaState {
   deleteLookbook: (id: string) => void;
   /** Lookbook'ları verilen sıraya diz (sürükle-bırak). */
   reorderLookbooks: (ids: string[]) => void;
+  /** Verilen parçaları KENDİ ARALARINDA sıraya diz (askılıkta sürükle-bırak). */
+  reorderItems: (ids: string[]) => void;
 
   // topluluk
   toggleFollow: (userId: string) => void;
@@ -243,11 +245,44 @@ export const useStore = create<BettaState>()(
         Sıralama, gelen id listesine göre. Listede olmayanlar (yarış durumu,
         eş zamanlı silme) sona ekleniyor — sessizce kaybolmasınlar.
       */
+      /*
+        Yalnızca VERİLEN parçalar kendi aralarında yeniden diziliyor: bu
+        parçaların dizideki YERLERİ sabit kalıyor, o yerlere yeni sırayla
+        yerleştiriliyorlar. Askılıkta yalnızca bir kategori (ve süzgeç açıkken
+        onun bir alt kümesi) görünüyor; tüm diziyi yeniden dizmek görünmeyen
+        parçaların sırasını da bozardı.
+
+        ⚠️ VERİ KAYBINA KARŞI KATI: gelen listede tekrar varsa ya da liste o
+        yuvalardaki parçalarla birebir aynı kümeyi göstermiyorsa HİÇBİR ŞEY
+        yapılmıyor. Önce böyle değildi ve bozuk bir listede aynı parça iki
+        yuvaya yazılıp diğerleri diziden düşüyordu (cihazda görüldü: 47 parça
+        44'e indi). Sonuç her hâlükârda bir PERMÜTASYON.
+      */
+      reorderItems: (ids) =>
+        set((s) => {
+          const wanted = Array.from(new Set(ids));
+          if (wanted.length !== ids.length) return {};
+          const slots: number[] = [];
+          s.items.forEach((it, i) => {
+            if (wanted.includes(it.id)) slots.push(i);
+          });
+          if (slots.length !== wanted.length) return {};
+          const byId = new Map(s.items.map((i) => [i.id, i]));
+          const next = [...s.items];
+          wanted.forEach((id, k) => {
+            const it = byId.get(id);
+            if (it) next[slots[k]] = it;
+          });
+          return { items: next };
+        }),
       reorderLookbooks: (ids) =>
         set((s) => {
+          // Tekrar varsa dokunma — aynı lookbook iki kez listelenirdi
+          const wanted = Array.from(new Set(ids));
+          if (wanted.length !== ids.length) return {};
           const byId = new Map(s.lookbooks.map((l) => [l.id, l]));
-          const next = ids.map((id) => byId.get(id)).filter(Boolean) as typeof s.lookbooks;
-          const rest = s.lookbooks.filter((l) => !ids.includes(l.id));
+          const next = wanted.map((id) => byId.get(id)).filter(Boolean) as typeof s.lookbooks;
+          const rest = s.lookbooks.filter((l) => !wanted.includes(l.id));
           return { lookbooks: [...next, ...rest] };
         }),
 

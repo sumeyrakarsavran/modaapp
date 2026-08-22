@@ -20,6 +20,7 @@ export function Reorderable<T>({
   cellH,
   gap = 0,
   onReorder,
+  onDragChange,
   style,
 }: {
   data: T[];
@@ -31,6 +32,12 @@ export function Reorderable<T>({
   gap?: number;
   /** Bırakınca yeni sıradaki anahtarlar. */
   onReorder: (keys: string[]) => void;
+  /**
+   * Sürükleme başlayınca/bitince haber verir. Yatay bir ScrollView içinde
+   * kullanılırken kaydırmayı KAPATMAK için gerekiyor — yoksa ScrollView
+   * hareketi kapıyor ve karo yerinden oynamıyor.
+   */
+  onDragChange?: (dragging: boolean) => void;
   style?: ViewStyle;
 }) {
   /** Ekrandaki sıra — sürükleme boyunca yerel, bırakınca üste bildiriliyor. */
@@ -72,7 +79,12 @@ export function Reorderable<T>({
       const s = slot(i);
       Animated.spring(pos(key, i), {
         toValue: s,
-        useNativeDriver: false,
+        /*
+          NATIVE sürücü: konum `transform` ile veriliyor, o da native tarafta
+          canlandırılabiliyor. JS ipliğinde çalışırken her kare JS'ten geçiyor
+          ve sürükleme takılıyordu.
+        */
+        useNativeDriver: true,
         friction: 12,
         tension: 90,
       }).start();
@@ -89,6 +101,9 @@ export function Reorderable<T>({
   cur.current = { order, onReorder, keyOf, columns, cellW, cellH, gap, count: data.length };
 
   const start = useRef({ x: 0, y: 0, index: 0 });
+  /** Sabit algılayıcılar içinden çağrılıyor — güncel geri çağrı ref'ten. */
+  const onDragChangeRef = useRef(onDragChange);
+  onDragChangeRef.current = onDragChange;
   /** Basılı tutma sayacı — bileşen başına bir tane. */
   const holdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -119,13 +134,15 @@ export function Reorderable<T>({
         const y = start.current.y + g.dy;
         pos(key, start.current.index).setValue({ x, y });
 
-        // Parmağın MERKEZİNE en yakın yuva hedef sıradır
-        const col = Math.round(x / (c.cellW + c.gap));
-        const row = Math.round(y / (c.cellH + c.gap));
-        const target = Math.max(
-          0,
-          Math.min(c.count - 1, row * c.columns + Math.max(0, Math.min(c.columns - 1, col))),
-        );
+        /*
+          Parmağın MERKEZİNE en yakın yuva hedef sıradır. Satır sayısı da
+          sınırlanıyor: tek satırlık (yatay) bir listede dikey kayma satırı
+          1'e çıkarıp karoyu en sona fırlatıyordu.
+        */
+        const rowCount = Math.ceil(c.count / c.columns);
+        const col = Math.max(0, Math.min(c.columns - 1, Math.round(x / (c.cellW + c.gap))));
+        const row = Math.max(0, Math.min(rowCount - 1, Math.round(y / (c.cellH + c.gap))));
+        const target = Math.max(0, Math.min(c.count - 1, row * c.columns + col));
         const from = c.order.findIndex((it) => c.keyOf(it) === key);
         if (target !== from && from >= 0) {
           const next = [...c.order];
@@ -150,12 +167,13 @@ export function Reorderable<T>({
     };
     Animated.spring(pos(key, i), {
       toValue: s,
-      useNativeDriver: false,
+      useNativeDriver: true,
       friction: 12,
       tension: 90,
     }).start();
     dragRef.current = null;
     setDragKey(null);
+    onDragChangeRef.current?.(false);
     c.onReorder(c.order.map((x) => c.keyOf(x)));
   };
 
@@ -188,6 +206,7 @@ export function Reorderable<T>({
                 const t = setTimeout(() => {
                   dragRef.current = key;
                   setDragKey(key);
+                  onDragChange?.(true);
                 }, 220);
                 holdRef.current = t;
               }}

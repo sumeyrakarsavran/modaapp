@@ -93,7 +93,15 @@ const prettyDate = (iso: string) =>
  * RN'in kendi `Animated`'ı kullanılıyor — Reanimated'ın babel eklentisi bu
  * projede kurulu değil, `withSpring` sessizce çalışmazdı.
  */
-function Hanger({ item, onPress }: { item: WardrobeItem; onPress: () => void }) {
+const Hanger = React.memo(function Hanger({
+  item,
+  onPress,
+  dragging,
+}: {
+  item: WardrobeItem;
+  onPress: () => void;
+  dragging?: boolean;
+}) {
   const swing = useRef(new Animated.Value(0)).current;
   const to = (v: number) =>
     Animated.spring(swing, {
@@ -109,6 +117,8 @@ function Hanger({ item, onPress }: { item: WardrobeItem; onPress: () => void }) 
         transform: [
           { translateY: swing.interpolate({ inputRange: [0, 1], outputRange: [0, 10] }) },
           { rotate: swing.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '2.5deg'] }) },
+          // Sürüklenen askı hafifçe büyüyor — hangisi elimde belli olsun
+          { scale: dragging ? 1.06 : 1 },
         ],
       }}
     >
@@ -153,8 +163,13 @@ function Hanger({ item, onPress }: { item: WardrobeItem; onPress: () => void }) 
       </Pressable>
     </Animated.View>
   );
-}
+});
 
+/*
+  `React.memo`: raf sıralanırken listedeki bütün askılar yeniden çiziliyordu —
+  her biri bir fotoğraf taşıdığı için sürükleme takılıyordu. Artık yalnızca
+  değişen askı çiziliyor.
+*/
 /** Bölüm başlığı: sol serif ad, sağ küçük harf aralıklı sayaç. */
 function SectionHead({ title, count, unit }: { title: string; count: number; unit: string }) {
   return (
@@ -167,16 +182,36 @@ function SectionHead({ title, count, unit }: { title: string; count: number; uni
   );
 }
 
-/** Bir kategorinin askılığı: başlık + parça sayısı + boru + yatay raf. */
+/** Askıdaki parçanın toplam yüksekliği — sürükle-bırak yuva hesabı için. */
+const HANGER_H = HOOK_H + CARD_IMG_H + 40;
+
+/**
+ * Bir kategorinin askılığı: başlık + parça sayısı + boru + yatay raf.
+ *
+ * Parçalar basılı tutulup sürüklenerek sıralanabiliyor — ama YALNIZCA kendi
+ * kategorisi içinde: her raf ayrı bir liste, sıralama da o rafın parçalarıyla
+ * sınırlı.
+ */
 function Rack({
   title,
   items,
   onOpen,
+  onReorder,
 }: {
   title: string;
   items: WardrobeItem[];
   onOpen: (id: string) => void;
+  onReorder: (ids: string[]) => void;
 }) {
+  /*
+    Sürükleme sürerken yatay kaydırma KAPANIYOR: açık kalırsa ScrollView
+    hareketi kapıyor ve karo parmağı takip etmiyor.
+  */
+  const [dragging, setDragging] = useState(false);
+  // Kartlar 8px üst üste biniyor (askılık hissi) — yuva aralığı da o kadar dar
+  const GAP = -8;
+  const width = items.length * (CARD_W + GAP) - GAP;
+
   return (
     <View style={{ marginBottom: 20 }}>
       <View style={styles.rackHead}>
@@ -186,6 +221,7 @@ function Rack({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        scrollEnabled={!dragging}
         contentContainerStyle={styles.rack}
       >
         {/* Metal boru — kancaların arkasından geçiyor */}
@@ -194,9 +230,20 @@ function Rack({
           style={styles.rail}
           pointerEvents="none"
         />
-        {items.map((it) => (
-          <Hanger key={it.id} item={it} onPress={() => onOpen(it.id)} />
-        ))}
+        <Reorderable
+          data={items}
+          keyOf={(i) => i.id}
+          columns={Math.max(1, items.length)}
+          cellW={CARD_W}
+          cellH={HANGER_H}
+          gap={GAP}
+          style={{ width }}
+          onDragChange={setDragging}
+          onReorder={onReorder}
+          renderItem={(it, drag) => (
+            <Hanger item={it} dragging={drag} onPress={() => onOpen(it.id)} />
+          )}
+        />
       </ScrollView>
     </View>
   );
@@ -297,7 +344,7 @@ function LuxeButton({
 export default function Wardrobe() {
   const {
     items, outfits, selfies, lookbooks,
-    addSelfie, deleteSelfie, addLookbook, sharePost, reorderLookbooks,
+    addSelfie, deleteSelfie, addLookbook, sharePost, reorderLookbooks, reorderItems,
   } = useStore();
   const { width } = useWindowDimensions();
   // Modallar alt sistem çubuğunun altında kalmasın
@@ -623,7 +670,13 @@ export default function Wardrobe() {
           ) : (
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 40 }}>
               {racks.map((r) => (
-                <Rack key={r.id} title={r.label} items={r.items} onOpen={openItem} />
+                <Rack
+                  key={r.id}
+                  title={r.label}
+                  items={r.items}
+                  onOpen={openItem}
+                  onReorder={reorderItems}
+                />
               ))}
             </ScrollView>
           )}
