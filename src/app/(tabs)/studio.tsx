@@ -20,7 +20,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Backdrop } from '@/components/Backdrop';
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { ItemThumb } from '@/components/ItemThumb';
-import { OutfitCollage } from '@/components/OutfitCollage';
 import { ShareModal } from '@/components/ShareModal';
 import { persistRemoteImage } from '@/services/photoStore';
 import { claimJob, releaseJob, TryOnPendingError, waitForJob } from '@/services/tryon';
@@ -30,7 +29,7 @@ import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from 
 import type { Category, TryOnRecord, WardrobeItem } from '@/types';
 import { OUTER_SUBCATEGORY } from '@/types';
 
-type Mode = 'dressme' | 'outfits' | 'ai';
+type Mode = 'dressme' | 'tryon';
 
 interface Slot {
   key: string;
@@ -128,13 +127,15 @@ export default function Studio() {
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>('dressme');
   /*
-    Derin bağlantı: profildeki "Kombin" halkası doğrudan Kombinlerim'i açsın.
-    Sekme monte kaldığı için parametre değişimi izleniyor (bkz. Gardırop).
+    Derin bağlantı. Sekme monte kaldığı için parametre değişimi izleniyor
+    (bkz. Gardırop).
   */
   const params = useLocalSearchParams<{ mode?: string; t?: string }>();
   useEffect(() => {
     const want = params.mode;
-    if (want === 'dressme' || want === 'outfits' || want === 'ai') setMode(want);
+    // 'ai' eski adı — sanal denemeye düşüyor
+    if (want === 'dressme' || want === 'tryon') setMode(want);
+    else if (want === 'ai') setMode('tryon');
   }, [params.mode, params.t]);
   const [indices, setIndices] = useState<Record<string, number>>({});
   const [locked, setLocked] = useState<Record<string, boolean>>({});
@@ -345,10 +346,19 @@ export default function Studio() {
   /** Dar ekranda parça adı yuvadan taşmasın diye eşik. */
   const showNames = rowH >= 84;
 
-  const tab = (id: Mode, label: string, count?: number) => {
+  /**
+   * Sekme. `canvas` ve `stylist` birer kip DEĞİL, ayrı ekrana bağlantı —
+   * hiç etkin görünmüyorlar, basılınca o ekran açılıyor.
+   */
+  const LINKS = { canvas: '/canvas', stylist: '/stylist' } as const;
+  const tab = (id: Mode | keyof typeof LINKS, label: string, count?: number) => {
     const on = mode === id;
     return (
-      <Pressable key={id} onPress={() => setMode(id)} style={styles.tab}>
+      <Pressable
+        key={id}
+        onPress={() => (id in LINKS ? router.push(LINKS[id as keyof typeof LINKS]) : setMode(id as Mode))}
+        style={styles.tab}
+      >
         <Text style={[styles.tabText, on && styles.tabTextActive]}>
           {label}
           {count != null ? <Text style={styles.tabCount}>{`  ${count}`}</Text> : null}
@@ -371,15 +381,7 @@ export default function Studio() {
       <Backdrop />
 
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={luxeType.display}>Stüdyo</Text>
-        </View>
-        <LuxeButton
-          icon="color-palette-outline"
-          title="Canvas"
-          variant="outline"
-          onPress={() => router.push('/canvas')}
-        />
+        <Text style={luxeType.display}>Stüdyo</Text>
       </View>
 
       {/* Bölüm sekmeleri — Gardırop ve Topluluk'takiyle aynı altı çizili dil */}
@@ -387,35 +389,16 @@ export default function Studio() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.tabsBar}
-        contentContainerStyle={{ gap: 20, paddingHorizontal: 20, alignItems: 'flex-end' }}
+        contentContainerStyle={{ gap: 16, paddingHorizontal: 20, alignItems: 'flex-end' }}
       >
         {tab('dressme', 'Giydir beni')}
-        {tab('outfits', 'Kombinlerim', outfits.length)}
-        {tab('ai', 'AI')}
+        {tab('canvas', 'Canvas')}
+        {tab('stylist', 'AI Stilist')}
+        {tab('tryon', 'Sanal deneme')}
       </ScrollView>
 
-      {mode === 'ai' ? (
+      {mode === 'tryon' ? (
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36, gap: 14 }}>
-          {/* AI Stilist */}
-          <Pressable style={styles.aiCard} onPress={() => router.push('/stylist')}>
-            <View style={styles.aiCardHead}>
-              <View style={styles.aiIcon}>
-                <Ionicons name="sparkles-outline" size={19} color={luxe.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={luxeType.subtitle}>AI Stilist</Text>
-                <Text style={luxeType.tiny}>
-                  {api.anthropicKey ? 'Claude bağlı' : 'Yerel mod — ücretsiz'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={luxe.outline} />
-            </View>
-            <Text style={[luxeType.caption, { marginTop: 10 }]}>
-              "Bugün ne giysem?", "Toplantıya ne uyar?" — gardırobunu bilen stilistinle sohbet et,
-              havaya ve renk uyumuna göre kombin önerileri al.
-            </Text>
-          </Pressable>
-
           {/* FASHN Sanal Deneme */}
           {pro ? (
             <Pressable style={[styles.aiCard, styles.aiCardPro]} onPress={() => router.push('/tryon')}>
@@ -520,7 +503,7 @@ export default function Studio() {
             <Text style={luxeType.tiny}>Büyütmek için dokun, silmek için basılı tut.</Text>
           ) : null}
         </ScrollView>
-      ) : mode === 'dressme' ? (
+      ) : (
         active.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="shirt-outline" size={30} color={luxe.outlineSoft} />
@@ -703,54 +686,6 @@ export default function Studio() {
             </View>
           </View>
         )
-      ) : outfits.length === 0 ? (
-        <View style={styles.empty}>
-          <Ionicons name="albums-outline" size={30} color={luxe.outlineSoft} />
-          <Text style={[luxeType.headlineItalic, { marginTop: 12 }]}>Henüz kombin yok</Text>
-          <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
-            "Giydir beni" ile karıştır ya da Canvas ile serbest kolaj yap.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={outfits}
-          keyExtractor={(o) => o.id}
-          numColumns={2}
-          contentContainerStyle={{ padding: 20, gap: 18, paddingBottom: 36 }}
-          columnWrapperStyle={{ gap: 18 }}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item: o }) => {
-            const its = o.itemIds
-              .map((x) => items.find((i) => i.id === x))
-              .filter(Boolean) as WardrobeItem[];
-            const arch = BETTA_ARCHETYPES.find((a) => a.id === o.archetypeId);
-            return (
-              <Pressable
-                style={{ flex: 1, maxWidth: '48%' }}
-                onPress={() => router.push({ pathname: '/outfit/[id]', params: { id: o.id } })}
-              >
-                <OutfitCollage
-                  items={its}
-                  size={(width - 58) / 2}
-                  layout={o.layout}
-                  frame={o.canvasFrame}
-                  cropToContent={o.cropToContent}
-                />
-                <View style={styles.outfitFoot}>
-                  {o.favorite ? <Ionicons name="heart" size={12} color={luxe.ink} /> : null}
-                  <Text style={styles.outfitName} numberOfLines={1}>
-                    {o.name}
-                  </Text>
-                </View>
-                {arch ? (
-                  <Text style={styles.outfitArch} numberOfLines={1}>
-                    {arch.styleName}
-                  </Text>
-                ) : null}
-              </Pressable>
-            );
-          }}
-        />
       )}
 
       {/* Sanal giydirmeyi büyüt: küçük ızgara karesinde detay görünmüyor */}
@@ -959,16 +894,6 @@ const styles = StyleSheet.create({
   },
 
   // ————— Kombinlerim —————
-  outfitFoot: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 7 },
-  outfitName: { fontFamily: font.bodyMedium, fontSize: 13, color: luxe.ink, flex: 1 },
-  outfitArch: {
-    fontFamily: font.label,
-    fontSize: 8.5,
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
-    color: luxe.outline,
-    marginTop: 2,
-  },
 
   // ————— AI —————
   /*

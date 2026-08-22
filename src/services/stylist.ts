@@ -109,7 +109,7 @@ export function localSuggest(
   }
   const least = chosen.reduce((m, i) => (i.wearDates.length < m.wearDates.length ? i : m));
   if (least.wearDates.length <= 1) {
-    parts.push(`"${least.name}" bir süredir dolapta bekliyor — bugün onun günü. 🐟`);
+    parts.push(`"${least.name}" bir süredir dolapta bekliyor — bugün onun günü.`);
   }
   return { itemIds: chosen.map((i) => i.id), reason: parts.join(' ') || 'Renk uyumuna göre seçtim.' };
 }
