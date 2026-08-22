@@ -1,8 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,8 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, Chip, SectionTitle } from '@/components/UI';
-import { colors, radius, spacing, type } from '@/theme';
+import { font, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 
 /** Toplulukta paylaşırken kendi metnini yazabildiğin modal. */
 export function ShareModal({
@@ -58,13 +59,15 @@ export function ShareModal({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView style={styles.wrap} behavior="padding">
-        <View
-          style={[styles.card, { paddingBottom: spacing.lg + (keyboardUp ? 0 : insets.bottom) }]}
-        >
-          <SectionTitle
-            title="🌊 Toplulukta paylaş"
-            right={<Chip label="Kapat" onPress={onClose} />}
-          />
+        <View style={[styles.card, { paddingBottom: 22 + (keyboardUp ? 0 : insets.bottom) }]}>
+          {/* Başlık: italik serif + kapat — diğer alt sayfalarla aynı dil */}
+          <View style={styles.head}>
+            <Text style={styles.title}>Toplulukta paylaş</Text>
+            <Pressable onPress={onClose} hitSlop={8}>
+              <Ionicons name="close" size={20} color={luxe.outline} />
+            </Pressable>
+          </View>
+
           {/*
             flexShrink: 1 ŞART. Kart `maxHeight: '85%'` ile sınırlı; klavye
             açılınca kullanılabilir alan daralıyor ve sınırsız ScrollView
@@ -72,15 +75,13 @@ export function ShareModal({
             (Stilistteki hızlı öneri çubuğunda da aynı hata vardı.)
           */}
           <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled">
-            {preview ? (
-              <View style={{ alignItems: 'center', marginBottom: spacing.md }}>{preview}</View>
-            ) : null}
-            <Text style={styles.label}>Paylaşım metni</Text>
+            {preview ? <View style={{ marginBottom: 16 }}>{preview}</View> : null}
+            <Text style={luxeType.label}>Paylaşım metni</Text>
             <TextInput
               value={text}
               onChangeText={setText}
-              placeholder="Bir şeyler yaz… (örn. bugünkü favori kombinim 🐟)"
-              placeholderTextColor={colors.inkFaint}
+              placeholder="Bir şeyler yaz…"
+              placeholderTextColor={luxe.outline}
               style={styles.input}
               multiline
               autoFocus
@@ -88,11 +89,13 @@ export function ShareModal({
             />
             <Text style={styles.counter}>{text.length}/280</Text>
           </ScrollView>
-          <Button
-            title="Paylaş"
+
+          <Pressable
+            style={({ pressed }) => [styles.shareBtn, pressed && { opacity: 0.85 }]}
             onPress={() => onShare(text.trim() || defaultCaption)}
-            style={{ marginTop: spacing.sm }}
-          />
+          >
+            <Text style={styles.shareText}>Paylaş</Text>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -100,34 +103,60 @@ export function ShareModal({
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  wrap: { flex: 1, backgroundColor: luxe.overlay, justifyContent: 'flex-end' },
   card: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    padding: spacing.lg,
+    backgroundColor: luxe.bg,
+    borderTopLeftRadius: luxeRadius.lg,
+    borderTopRightRadius: luxeRadius.lg,
+    padding: 22,
     // paddingBottom satır içinde veriliyor (güvenli alan + klavye durumu)
     maxHeight: '85%',
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.inkSoft,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  title: {
+    fontFamily: font.headlineItalic,
+    fontStyle: 'italic',
+    fontSize: 20,
+    color: luxe.primary,
   },
   input: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderRadius: luxeRadius.md,
+    paddingHorizontal: 14,
     paddingVertical: 11,
+    marginTop: 6,
+    fontFamily: font.body,
     fontSize: 15,
-    color: colors.ink,
-    backgroundColor: colors.card,
+    color: luxe.ink,
+    backgroundColor: luxe.surface,
     minHeight: 90,
     textAlignVertical: 'top',
   },
-  counter: { fontSize: 11, color: colors.inkFaint, textAlign: 'right', marginTop: 4 },
+  counter: {
+    fontFamily: font.body,
+    fontSize: 11,
+    color: luxe.outline,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  shareBtn: {
+    marginTop: 16,
+    backgroundColor: luxe.primary,
+    borderRadius: luxeRadius.pill,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  shareText: {
+    fontFamily: font.label,
+    fontSize: 11,
+    letterSpacing: 1.3,
+    textTransform: 'uppercase',
+    color: luxe.onPrimary,
+  },
 });
