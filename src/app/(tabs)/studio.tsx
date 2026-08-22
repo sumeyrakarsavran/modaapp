@@ -21,7 +21,7 @@ import { Backdrop } from '@/components/Backdrop';
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { ItemThumb } from '@/components/ItemThumb';
 import { ShareModal } from '@/components/ShareModal';
-import { TryOnHowTo } from '@/components/TryOnHowTo';
+import { TryOnShowcase } from '@/components/TryOnShowcase';
 import { persistRemoteImage } from '@/services/photoStore';
 import { claimJob, releaseJob, TryOnPendingError, waitForJob } from '@/services/tryon';
 import { TRYON_MODELS } from '@/data/tryonModels';
@@ -228,16 +228,17 @@ export default function Studio() {
   const howToDemo = useMemo(() => {
     const rec = tryons[0];
     const model = TRYON_MODELS.find((m) => m.id === rec?.modelId) ?? TRYON_MODELS[0];
-    const outfit = rec?.outfitId ? outfits.find((o) => o.id === rec.outfitId) : undefined;
-    const withPhoto = (i?: WardrobeItem) => !!i?.imageUri;
-    const fromOutfit = outfit?.itemIds
+    // Denemede kullanılan kombin; yoksa en yeni kombin.
+    const outfit = (rec?.outfitId ? outfits.find((o) => o.id === rec.outfitId) : undefined) ?? outfits[0];
+    const outfitItems = (outfit?.itemIds ?? [])
       .map((id) => items.find((i) => i.id === id))
-      .find((i) => withPhoto(i) && (i!.category === 'ust' || i!.category === 'elbise'));
-    const garment =
-      fromOutfit ??
-      items.find((i) => withPhoto(i) && (i.category === 'elbise' || i.category === 'ust')) ??
-      items.find((i) => !i.archived);
-    return { modelSource: model.source, garment, resultUri: rec?.imageUri };
+      .filter(Boolean) as WardrobeItem[];
+    return {
+      modelSource: model.source,
+      outfitItems,
+      outfitLayout: outfit?.layout,
+      resultUri: rec?.imageUri,
+    };
   }, [tryons, outfits, items]);
 
   const doShareTryOn = (caption: string) => {
@@ -422,62 +423,22 @@ export default function Studio() {
 
       {mode === 'tryon' ? (
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36, gap: 14 }}>
-          {/* FASHN Sanal Deneme */}
-          {pro ? (
-            <Pressable style={[styles.aiCard, styles.aiCardPro]} onPress={() => router.push('/tryon')}>
-              <View style={styles.aiCardHead}>
-                <View style={styles.aiIcon}>
-                  <Ionicons name="body-outline" size={19} color={luxe.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={luxeType.subtitle}>
-                    Sanal Deneme <Text style={styles.proTag}>PRO</Text>
-                  </Text>
-                  <Text style={luxeType.tiny}>
-                    {api.fashnKey ? 'FASHN AI bağlı' : 'FASHN API anahtarı gerekli (Ayarlar)'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={luxe.outline} />
-              </View>
-              <Text style={[luxeType.caption, { marginTop: 10 }]}>
-                Kıyafetlerini model fotoğrafının üzerinde gerçekçi şekilde gör.
-              </Text>
-            </Pressable>
-          ) : (
-            <View style={[styles.aiCard, styles.aiCardPro]}>
-              <View style={styles.aiCardHead}>
-                <View style={styles.aiIcon}>
-                  <Ionicons name="lock-closed-outline" size={19} color={luxe.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={luxeType.subtitle}>
-                    Sanal Deneme <Text style={styles.proTag}>PRO</Text>
-                  </Text>
-                  <Text style={luxeType.tiny}>FASHN AI ile — Pro üyelere özel</Text>
-                </View>
-              </View>
-              <Text style={[luxeType.caption, { marginTop: 10 }]}>
-                Gardırobundaki bir üstü, elbiseyi ya da pantolonu seç; FASHN AI onu model
-                fotoğrafının üzerine gerçekçi şekilde giydirsin. Almadan önce "üstümde nasıl
-                durur?" sorusunun cevabı.
-              </Text>
-              <LuxeButton
-                title="BETTA Pro'ya geç"
-                icon="arrow-forward"
-                onPress={() => router.push('/pro')}
-                style={{ marginTop: 14, alignSelf: 'flex-start' }}
-              />
-            </View>
-          )}
-
-          {/* Ne yaptığı TEK BAKIŞTA anlaşılsın: manken + kıyafet → giydirilmiş hâli */}
-          <View style={styles.howTo}>
-            <TryOnHowTo
-              modelSource={howToDemo.modelSource}
-              garment={howToDemo.garment}
-              resultUri={howToDemo.resultUri}
-            />
-          </View>
+          {/* Vitrin: ne yaptığını GÖSTEREREK anlatıyor, girişi de kendisi */}
+          <TryOnShowcase
+            modelSource={howToDemo.modelSource}
+            outfitItems={howToDemo.outfitItems}
+            outfitLayout={howToDemo.outfitLayout}
+            resultUri={howToDemo.resultUri}
+            status={
+              pro
+                ? api.fashnKey
+                  ? 'FASHN AI bağlı'
+                  : 'FASHN API anahtarı gerekli (Ayarlar)'
+                : 'Pro üyelere özel'
+            }
+            ctaLabel={pro ? 'Denemeye başla' : "BETTA Pro'ya geç"}
+            onPress={() => router.push(pro ? '/tryon' : '/pro')}
+          />
 
           {/* Sanal giydirme çıktıları — görseller kalıcı kopya olarak saklanır */}
           <View style={styles.sectionHead}>
@@ -918,37 +879,8 @@ const styles = StyleSheet.create({
     görüldü: metnin arkasında köşelere ulaşmayan açık blok). Derinliği
     kenarlık ve ton farkı taşıyor — Bugün'deki cam kartla aynı çözüm.
   */
-  aiCard: {
-    backgroundColor: glass.fillStrong,
-    borderRadius: luxeRadius.lg,
-    borderWidth: 1,
-    borderColor: glass.border,
-    padding: 18,
-  },
   /** Pro kartı: altın yerine iridesan pastel çerçeve — palet tek dilde kalsın. */
   /** Anlatım bloğu: kart değil, ince çizgiyle ayrılmış bölüm. */
-  howTo: {
-    borderTopWidth: 1,
-    borderTopColor: luxe.outlineSoft,
-    paddingTop: 16,
-    marginTop: 2,
-  },
-  aiCardPro: { borderColor: luxe.primarySoft, borderWidth: 1.5 },
-  aiCardHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  aiIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: luxe.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  proTag: {
-    fontFamily: font.label,
-    fontSize: 9,
-    letterSpacing: 1.2,
-    color: luxe.outline,
-  },
   sectionHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 8 },
   sectionCount: {
     fontFamily: font.label,
