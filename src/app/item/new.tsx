@@ -227,7 +227,11 @@ export default function NewItem() {
 
   const pickImage = async (fromCamera: boolean) => {
     // Kırpma açık: kullanıcı kadrajı kendisi seçer (kare).
-    const photo = await pickPhoto({ fromCamera, aspect: [1, 1], quality: 0.7, purpose: 'garment' });
+    /*
+      Kadraj 3:4 — gardıroptaki kartın görsel alanı da 3:4. Kare çekimde
+      elbise/palto gibi uzun parçalar kartın içinde küçücük kalıyordu.
+    */
+    const photo = await pickPhoto({ fromCamera, aspect: [3, 4], quality: 0.7, purpose: 'garment' });
     if (photo) await handlePickedPhoto(photo);
   };
 
