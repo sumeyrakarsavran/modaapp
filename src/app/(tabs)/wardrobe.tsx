@@ -197,6 +197,8 @@ const RACK_MAX = 10;
 /** Kartlar 8px üst üste biniyor (askılık hissi) — yuva adımı da o kadar dar. */
 const RACK_GAP = -8;
 const RACK_STEP = CARD_W + RACK_GAP;
+/** Sürüklerken rafın kendiliğinden kaymaya başladığı kenar payı (px). */
+const EDGE = 64;
 /**
  * Raf kipinde parçanın yüksekliği — kanca yok, meta çizginin altında.
  * Görsel alanı askıdakinden YÜKSEK: arkasında beyaz kutu olmadığı için parça
@@ -258,7 +260,11 @@ function Rack({
   for (let i = 0; i < order.length; i += per) rows.push(order.slice(i, i + per));
 
   const scrollX = useRef<number[]>([]);
+  /** Otomatik kaydırma için rafların kendisi. */
+  const scrollRefs = useRef<(ScrollView | null)[]>([]);
+  const autoDir = useRef(0);
   const pan = useRef(new Animated.ValueXY()).current;
+  const { width } = useWindowDimensions();
 
   /*
     Karolar rafın İÇİNDE mutlak konumlu ve her biri kendi Animated değerine
@@ -294,6 +300,66 @@ function Rack({
     };
   };
 
+  /** Kartın MERKEZİ hangi yuvanın üstündeyse sırayı ona göre günceller. */
+  const applyTarget = () => {
+    const c = cur.current;
+    const key = dragRef.current;
+    if (!key) return;
+    const cx = lastPan.current.x + CARD_W / 2;
+    const cy = lastPan.current.y + cellH / 2;
+    const rowCount = Math.ceil(c.order.length / c.per);
+    const row = Math.max(0, Math.min(rowCount - 1, Math.floor(cy / rowH)));
+    const inRow = Math.min(c.per, c.order.length - row * c.per);
+    const col = Math.max(
+      0,
+      Math.min(
+        inRow - 1,
+        Math.round((cx - RACK_PAD_L - CARD_W / 2 + (scrollX.current[row] ?? 0)) / RACK_STEP),
+      ),
+    );
+    const target = Math.max(0, Math.min(c.order.length - 1, row * c.per + col));
+    const from = c.order.findIndex((it) => it.id === key);
+    if (from >= 0 && target !== from) {
+      const next = [...c.order];
+      const [moved] = next.splice(from, 1);
+      next.splice(target, 0, moved);
+      setOrder(next);
+    }
+  };
+
+  /*
+    KENARDA OTOMATİK KAYDIRMA. Sürükleme sırasında rafın kendi kaydırması
+    kapalı (yoksa parmak hem kartı hem rafı çeker), bu yüzden ekranda görünen
+    3-4 yuvanın ötesine parça taşınamıyordu. Parmak rafın kenarına gelince raf
+    kendiliğinden kayıyor: kart parmağın altında kalırken yuvalar altından
+    geçiyor, böylece rafın sonuna kadar gidilebiliyor.
+  */
+  const autoScroll = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stopAuto = () => {
+    if (autoScroll.current) {
+      clearInterval(autoScroll.current);
+      autoScroll.current = null;
+    }
+  };
+  const stepScroll = (dir: number) => {
+    const c = cur.current;
+    const row = Math.max(
+      0,
+      Math.min(
+        Math.ceil(c.order.length / c.per) - 1,
+        Math.floor((lastPan.current.y + cellH / 2) / rowH),
+      ),
+    );
+    const inRow = Math.min(c.per, c.order.length - row * c.per);
+    const contentW = RACK_PAD_L * 2 + inRow * RACK_STEP - RACK_GAP;
+    const max = Math.max(0, contentW - width);
+    const next = Math.max(0, Math.min(max, (scrollX.current[row] ?? 0) + dir * 18));
+    if (next === (scrollX.current[row] ?? 0)) return;
+    scrollX.current[row] = next;
+    scrollRefs.current[row]?.scrollTo({ x: next, animated: false });
+    applyTarget();
+  };
+
   const responder = useMemo(
     () =>
       PanResponder.create({
@@ -301,35 +367,20 @@ function Rack({
         onMoveShouldSetPanResponder: () => !!dragRef.current,
         onPanResponderTerminationRequest: () => false,
         onPanResponderMove: (_e, g) => {
-          const c = cur.current;
-          const key = dragRef.current;
-          if (!key) return;
+          if (!dragRef.current) return;
           const x = startPos.current.x + g.dx;
           const y = startPos.current.y + g.dy;
           pan.setValue({ x, y });
           lastPan.current = { x, y };
+          applyTarget();
 
-          // Kartın MERKEZİ hangi yuvanın üstündeyse hedef orası
-          const cx = x + CARD_W / 2;
-          const cy = y + cellH / 2;
-          const rowCount = Math.ceil(c.order.length / c.per);
-          const row = Math.max(0, Math.min(rowCount - 1, Math.floor(cy / rowH)));
-          const inRow = Math.min(c.per, c.order.length - row * c.per);
-          const col = Math.max(
-            0,
-            Math.min(
-              inRow - 1,
-              Math.round((cx - RACK_PAD_L - CARD_W / 2 + (scrollX.current[row] ?? 0)) / RACK_STEP),
-            ),
-          );
-          const target = Math.max(0, Math.min(c.order.length - 1, row * c.per + col));
-          const from = c.order.findIndex((it) => it.id === key);
-          if (from >= 0 && target !== from) {
-            const next = [...c.order];
-            const [moved] = next.splice(from, 1);
-            next.splice(target, 0, moved);
-            setOrder(next);
-          }
+          // Parmak kenara yaklaştıysa rafı kendiliğinden kaydır
+          const dir = g.moveX < EDGE ? -1 : g.moveX > width - EDGE ? 1 : 0;
+          if (dir === 0) stopAuto();
+          else if (!autoScroll.current) {
+            autoDir.current = dir;
+            autoScroll.current = setInterval(() => stepScroll(autoDir.current), 16);
+          } else autoDir.current = dir;
         },
         onPanResponderRelease: () => finish(),
         onPanResponderTerminate: () => finish(),
@@ -342,6 +393,7 @@ function Rack({
     const c = cur.current;
     const key = dragRef.current;
     dragRef.current = null;
+    stopAuto();
     /*
       Sürüklenen karonun kendi Animated konumu, sürükleme boyunca hiç
       güncellenmiyor (aşağıdaki etki onu atlıyor) — yani ESKİ yerinde
@@ -416,6 +468,9 @@ function Rack({
         {rows.map((row, r) => (
           <ScrollView
             key={r}
+            ref={(v) => {
+              scrollRefs.current[r] = v;
+            }}
             horizontal
             showsHorizontalScrollIndicator={false}
             scrollEnabled={!dragId}
