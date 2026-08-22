@@ -1161,21 +1161,37 @@ export default function Wardrobe() {
                   icon="camera-outline"
                   style={{ width: '100%', height: 380, borderRadius: luxeRadius.lg }}
                 />
+                {/* Kapat: fotoğrafın sağ üst köşesinde, ikon olarak */}
+                <Pressable
+                  onPress={() => setOpenSelfie(null)}
+                  hitSlop={10}
+                  style={({ pressed }) => [styles.selfieClose, pressed && { opacity: 0.8 }]}
+                >
+                  <Ionicons name="close" size={19} color={luxe.primary} />
+                </Pressable>
                 <Text style={[luxeType.caption, { marginTop: 10 }]}>
                   {prettyDate(openSelfie.date)}
                 </Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                {/*
+                  İkisi de satırı PAYLAŞIYOR: dar kutuda siluet fıçıya dönüp
+                  kenarları düzleşiyor, ayrıca "Kapat" alt satıra sarkıyordu.
+                */}
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
                   <LuxeButton
                     icon="share-outline"
                     title="Toplulukta paylaş"
                     onPress={() => setShareSelfieOpen(openSelfie)}
+                    /* Yazı tek satıra sığsın: bu düğme satırın çoğunu alıyor
+                       ve yatay dolgusu biraz dar. */
+                    style={{ flex: 2.6, paddingHorizontal: 10 + BTN_PAD }}
                   />
                   <LuxeButton
                     variant="danger"
+                    icon="trash-outline"
                     title="Sil"
                     onPress={() => confirmDeleteSelfie(openSelfie)}
+                    style={{ flex: 1, paddingHorizontal: 10 + BTN_PAD }}
                   />
-                  <LuxeButton variant="outline" title="Kapat" onPress={() => setOpenSelfie(null)} />
                 </View>
               </>
             ) : null}
@@ -1507,6 +1523,20 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   selfieModal: { backgroundColor: luxe.bg, borderRadius: luxeRadius.xl, padding: 20 },
+  /** Fotoğrafın sağ üst köşesindeki kapat — cam yuvarlak, ince çizgi ikon. */
+  selfieClose: {
+    position: 'absolute',
+    right: 30,
+    top: 30,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: glass.fillStrong,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   lbModal: {
     backgroundColor: luxe.bg,
     borderTopLeftRadius: luxeRadius.xl,
