@@ -16,7 +16,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Backdrop } from '@/components/Backdrop';
 import { Avatar, FluidSpecCollage } from '@/components/Community';
-import { GarmentArt } from '@/components/GarmentArt';
 import { LookbookViewer, type LookbookSet } from '@/components/LookbookViewer';
 import { PERSONA_SHOWCASE, PERSONAS } from '@/data/community';
 import { useStore } from '@/store/useStore';
@@ -146,24 +145,21 @@ export default function UserProfile() {
       style={[styles.cell, { width: cell, height: cell }]}
       onPress={() => router.push({ pathname: '/post/[id]', params: { id: p.id, user: user.id } })}
     >
-      {p.coverGarment ? (
-        /* Lookbook karosu TEK PARÇA: paylaşırken seçilen kapak. */
-        <View style={styles.coverWrap}>
-          {p.coverGarment.imageUri ? (
-            <Image
-              source={{ uri: p.coverGarment.imageUri }}
-              style={{ width: '84%', height: '84%' }}
-              contentFit="contain"
-            />
-          ) : (
-            <GarmentArt
-              category={p.coverGarment.category}
-              subcategory={p.coverGarment.subcategory}
-              colorId={p.coverGarment.colorId}
-              size={cell * 0.7}
-            />
-          )}
-        </View>
+      {p.kind === 'lookbook' && p.outfitSets?.length ? (
+        /* Lookbook karosu: paylaşırken seçilen kapak kombini. */
+        (() => {
+          const cover = p.outfitSets[p.coverIndex ?? 0] ?? p.outfitSets[0];
+          return (
+            <View style={{ width: cell }}>
+              <FluidSpecCollage
+                garments={cover?.garments ?? []}
+                frame={cover?.canvasFrame}
+                cropToContent={cover?.cropToContent}
+                bare
+              />
+            </View>
+          );
+        })()
       ) : p.imageUri ? (
         <Image
           source={{ uri: p.imageUri }}

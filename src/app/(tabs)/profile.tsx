@@ -22,7 +22,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Backdrop } from '@/components/Backdrop';
 import { BettaAvatar } from '@/components/BettaAvatar';
 import { FluidSpecCollage } from '@/components/Community';
-import { GarmentArt } from '@/components/GarmentArt';
 import { LookbookViewer, type LookbookSet } from '@/components/LookbookViewer';
 import { resizeForProcessing } from '@/services/imageResize';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
@@ -400,32 +399,25 @@ export default function Profile() {
                   })
                 }
               >
-                {p.coverGarment ? (
+                {p.kind === 'lookbook' && p.outfitSets?.length ? (
                   /*
-                    Lookbook karosu TEK PARÇA gösteriyor — paylaşırken seçilen
-                    kapak. Dört kombinlik kolaj karoda okunmuyordu.
+                    Lookbook karosu, paylaşırken seçilen KAPAK KOMBİNİNİ
+                    gösteriyor. Dört kombinlik kolaj küçük karoda okunmuyordu.
                   */
-                  <View style={styles.coverWrap}>
-                    {p.coverGarment.imageUri ? (
-                      <Image
-                        source={{ uri: p.coverGarment.imageUri }}
-                        style={{ width: '84%', height: '84%' }}
-                        contentFit="contain"
-                      />
-                    ) : (
-                      <GarmentArt
-                        category={p.coverGarment.category}
-                        subcategory={p.coverGarment.subcategory}
-                        colorId={p.coverGarment.colorId}
-                        size={cell * 0.7}
-                      />
-                    )}
-                  </View>
+                  (() => {
+                    const cover = p.outfitSets[p.coverIndex ?? 0] ?? p.outfitSets[0];
+                    return (
+                      <View style={{ width: cell }}>
+                        <FluidSpecCollage
+                          garments={cover?.garments ?? []}
+                          frame={cover?.canvasFrame}
+                          cropToContent={cover?.cropToContent}
+                          bare
+                        />
+                      </View>
+                    );
+                  })()
                 ) : p.imageUri ? (
-                  /*
-                    `contain` — kırpma YOK. `cover` selfie ve sanal denemeleri
-                    kareye zorlayıp kafa/ayak kesiyordu.
-                  */
                   <Image
                     source={{ uri: p.imageUri }}
                     style={{ width: cell, height: cell }}

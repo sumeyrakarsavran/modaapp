@@ -38,7 +38,7 @@ export default function LookbookDetail() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  /** Kapak olarak seçilen parçanın sırası — paylaşım kutusundan belirleniyor. */
+  /** Kapak olarak seçilen KOMBİNİN sırası — paylaşım kutusundan belirleniyor. */
   const [coverIdx, setCoverIdx] = useState(0);
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(lb?.name ?? '');
@@ -103,24 +103,6 @@ export default function LookbookDetail() {
     }))
     .filter((s) => s.garments.length > 0);
 
-  /**
-   * Lookbook'un TÜM parçaları — kapak bunlardan biri.
-   * Aynı parça birden fazla kombinde olabilir; kapak seçiminde tekrar
-   * görünmesin diye eleniyor.
-   */
-  const coverChoices = (() => {
-    const seen = new Set<string>();
-    const out: GarmentSpec[] = [];
-    for (const set of outfitSets) {
-      for (const g of set.garments) {
-        const key = g.imageUri ?? `${g.category}-${g.subcategory ?? ''}-${g.colorId}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(g);
-      }
-    }
-    return out;
-  })();
 
   const doShare = (caption: string) => {
     sharePost({
@@ -130,8 +112,8 @@ export default function LookbookDetail() {
       garments: outfitSets[0]?.garments ?? [],
       outfitSets,
       lookbookId: lb.id,
-      // Kapak yalnızca profil ızgarasında kullanılıyor (bkz. CommunityPost.coverGarment)
-      coverGarment: coverChoices[coverIdx],
+      // Kapak yalnızca profil ızgarasında kullanılıyor (bkz. CommunityPost.coverIndex)
+      coverIndex: coverIdx,
       archetypeId: profile.bettaArchetypeId,
     });
     setShareOpen(false);
@@ -286,46 +268,47 @@ export default function LookbookDetail() {
         defaultCaption={`"${lb.name}" lookbook'um: ${lb.outfitIds.length} kombin`}
         preview={
           /*
-            Paylaşım kutusunda KAPAK seçiliyor: profil ızgarasında lookbook
-            karosu bu tek parçayı gösteriyor. Önce ilk dört kombin önizlemesi
-            vardı; kapak seçimi paylaşım anında olmalı denince yerini bu aldı.
+            Paylaşım kutusunda KAPAK KOMBİNİ seçiliyor: profil ızgarasındaki
+            lookbook karosu bu kombini gösteriyor. Önce tek tek parçalar
+            seçtiriliyordu; lookbook bir kombin koleksiyonu olduğu için kapak
+            da bir kombin olmalı.
           */
-          coverChoices.length ? (
+          lbOutfits.length ? (
             <View style={{ gap: 8 }}>
-              <Text style={luxeType.label}>Kapak parçası</Text>
+              <Text style={luxeType.label}>Kapak kombini</Text>
+              {/*
+                `flexGrow: 0` ŞART: yatay liste, paylaşım kutusunun DİKEY
+                ScrollView'ının içinde. Sınırsız bırakılınca büyüyüp altındaki
+                açıklama alanını dışarı itiyordu (telefonda görüldü).
+              */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                style={{ flexGrow: 0 }}
                 contentContainerStyle={{ gap: 8 }}
               >
-                {coverChoices.map((g, i) => (
+                {lbOutfits.map((o, i) => (
                   <Pressable
-                    key={i}
+                    key={o.id}
                     onPress={() => setCoverIdx(i)}
                     style={[styles.coverPick, i === coverIdx && styles.coverPickOn]}
                   >
-                    {g.imageUri ? (
-                      <Image
-                        source={{ uri: g.imageUri }}
-                        style={{ width: '90%', height: '90%' }}
-                        contentFit="contain"
-                      />
-                    ) : (
-                      <GarmentArt
-                        category={g.category}
-                        subcategory={g.subcategory}
-                        colorId={g.colorId}
-                        size={54}
-                      />
-                    )}
+                    <OutfitCollage
+                      items={itemsOf(o.itemIds)}
+                      size={84}
+                      layout={o.layout}
+                      frame={o.canvasFrame}
+                      cropToContent={o.cropToContent}
+                      bare
+                    />
                   </Pressable>
                 ))}
               </ScrollView>
             </View>
           ) : undefined
         }
-        onClose={() => setShareOpen(false)}
         onShare={doShare}
+        onClose={() => setShareOpen(false)}
       />
     </SafeAreaView>
   );
@@ -334,8 +317,8 @@ export default function LookbookDetail() {
 const styles = StyleSheet.create({
   /** Kapak seçici karesi — seçili olan mürekkep çerçeveyle işaretleniyor. */
   coverPick: {
-    width: 72,
-    height: 72,
+    width: 92,
+    height: 92,
     borderRadius: luxeRadius.md,
     borderWidth: 1,
     borderColor: luxe.outlineSoft,
