@@ -13,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Image as RNImage } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
@@ -117,21 +118,6 @@ export default function TryOn() {
   const [mode, setMode] = useState<TryOnMode>('fast');
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [proInfo, setProInfo] = useState(false);
-  /*
-    Manken kutusu görselin KENDİ oranını alıyor. Sabit kutuda `contain`
-    fotoğrafın çevresinde beyaz şerit bırakıyordu; kutu ölçülen alana
-    oranıyla sığdırılınca beyaz fazlalık kalmıyor.
-  */
-  const [stageBox, setStageBox] = useState<{ w: number; h: number } | null>(null);
-  const [modelAspect, setModelAspect] = useState(3 / 4);
-  const aspectOf = (e: { source?: { width: number; height: number } | null }) =>
-    e.source && e.source.height > 0 ? e.source.width / e.source.height : undefined;
-  const fit =
-    stageBox && stageBox.w > 0 && stageBox.h > 0
-      ? stageBox.w / stageBox.h > modelAspect
-        ? { width: stageBox.h * modelAspect, height: stageBox.h }
-        : { width: stageBox.w, height: stageBox.w / modelAspect }
-      : undefined;
   /** Ekran dışında çizilen kombin kolajı — FASHN'a ürün görseli olarak gider. */
   const collageRef = useRef<View>(null);
 
@@ -145,6 +131,33 @@ export default function TryOn() {
   const modelSource = !modelUri && preset ? preset.source : undefined;
   /** Görseli henüz üretilmemiş mankenle giydirme yapılamaz. */
   const modelReady = !!modelUri || !!modelSource;
+
+  /*
+    Manken kutusu görselin KENDİ oranını alıyor. Sabit kutuda `contain`
+    fotoğrafın çevresinde beyaz şerit bırakıyordu; kutu ölçülen alana
+    oranıyla sığdırılınca beyaz fazlalık kalmıyor.
+  */
+  const [stageBox, setStageBox] = useState<{ w: number; h: number } | null>(null);
+  const [loadedAspect, setLoadedAspect] = useState<number>();
+  const aspectOf = (e: { source?: { width: number; height: number } | null }) =>
+    e.source && e.source.height > 0 ? e.source.width / e.source.height : undefined;
+  /*
+    Hazır mankenin oranı paketten SENKRON okunuyor. `onLoad`'ı beklerken
+    varsayılan oran kullanılınca ekran açılır açılmaz kutu bir kez yeniden
+    boyutlanıyor ve fotoğraf "uzuyormuş" gibi görünüyordu.
+  */
+  const presetAspect = useMemo(() => {
+    if (!modelSource) return undefined;
+    const src = RNImage.resolveAssetSource(modelSource);
+    return src?.width && src?.height ? src.width / src.height : undefined;
+  }, [modelSource]);
+  const modelAspect = presetAspect ?? loadedAspect ?? 1023 / 1537;
+  const fit =
+    stageBox && stageBox.w > 0 && stageBox.h > 0
+      ? stageBox.w / stageBox.h > modelAspect
+        ? { width: stageBox.h * modelAspect, height: stageBox.h }
+        : { width: stageBox.w, height: stageBox.w / modelAspect }
+      : undefined;
 
   /** Kendi model fotoğrafı — kalıcı kopya saklanır. */
   const saveOwnModel = async (photo: PickedPhoto) => {
@@ -371,7 +384,7 @@ export default function TryOn() {
           Başlık DAHA KÜÇÜK: ekranın kahramanı manken, başlık değil.
           Sağlayıcı adı (hangi servisin çalıştığı) arayüzde yazmıyor.
         */}
-        <Text style={[luxeType.headline, { flex: 1 }]}>Stüdyo</Text>
+        <Text style={[luxeType.headline, styles.title]}>Stüdyo</Text>
         <Pressable onPress={() => router.push('/models')} style={styles.iconBtn} hitSlop={8}>
           <Ionicons name="people-outline" size={19} color={luxe.primary} />
         </Pressable>
@@ -391,7 +404,7 @@ export default function TryOn() {
           const on = !ownModelUri && selectedModel?.kind === 'preset' && selectedModel.id === m.id;
           return (
             <Pressable key={m.id} onPress={() => pickModel('preset', m.id)} style={[styles.face, on && styles.faceOn]}>
-              <Image source={m.source} style={styles.faceImg} contentFit="cover" />
+              <Image source={m.source} style={[styles.faceImg, faceOffset(m.faceTop)]} contentFit="cover" />
             </Pressable>
           );
         })}
@@ -400,7 +413,7 @@ export default function TryOn() {
           return (
             <Pressable key={m.id} onPress={() => pickModel('custom', m.id)} style={[styles.face, on && styles.faceOn]}>
               {m.imageUri ? (
-                <Image source={{ uri: m.imageUri }} style={styles.faceImg} contentFit="cover" />
+                <Image source={{ uri: m.imageUri }} style={[styles.faceImg, faceOffset()]} contentFit="cover" />
               ) : (
                 <View style={[styles.faceImg, styles.facePlaceholder]}>
                   <Ionicons name="person-outline" size={17} color={luxe.outline} />
@@ -411,7 +424,7 @@ export default function TryOn() {
         })}
         {ownModelUri ? (
           <View style={[styles.face, styles.faceOn]}>
-            <Image source={{ uri: ownModelUri }} style={styles.faceImg} contentFit="cover" />
+            <Image source={{ uri: ownModelUri }} style={[styles.faceImg, faceOffset()]} contentFit="cover" />
           </View>
         ) : null}
         <Pressable onPress={() => router.push('/model-new')} style={styles.faceAdd}>
@@ -434,21 +447,21 @@ export default function TryOn() {
               source={{ uri: resultUrl }}
               style={styles.modelImg}
               contentFit="cover"
-              onLoad={(e) => setModelAspect(aspectOf(e) ?? 3 / 4)}
+              onLoad={(e) => setLoadedAspect(aspectOf(e))}
             />
           ) : modelUri ? (
             <Image
               source={{ uri: modelUri }}
               style={styles.modelImg}
               contentFit="cover"
-              onLoad={(e) => setModelAspect(aspectOf(e) ?? 3 / 4)}
+              onLoad={(e) => setLoadedAspect(aspectOf(e))}
             />
           ) : modelSource ? (
             <Image
               source={modelSource}
               style={styles.modelImg}
               contentFit="cover"
-              onLoad={(e) => setModelAspect(aspectOf(e) ?? 3 / 4)}
+              onLoad={(e) => setLoadedAspect(aspectOf(e))}
             />
           ) : (
             /* Görseli henüz üretilmemiş kendi mankeni */
@@ -602,6 +615,13 @@ export default function TryOn() {
   );
 }
 
+/**
+ * Yüz kırpması: görselin `faceTop` oranındaki noktası dairenin ORTASINA
+ * gelecek şekilde yukarı kaydırılıyor. Tek bir sabit değer iki mankende de
+ * doğru çıkmıyordu — kafalar farklı yükseklikte başlıyor.
+ */
+const faceOffset = (faceTop = 0.12) => ({ top: FACE / 2 - faceTop * FACE_IMG_H });
+
 /** Uygulamanın küçük siluetli düğmesi. */
 function PillBtn({
   title,
@@ -622,6 +642,8 @@ function PillBtn({
 }
 
 const FACE = 42;
+/** Yüz görselinin daire içindeki ölçeği — baş daireyi doldursun. */
+const FACE_IMG_H = FACE * 5;
 const RAIL = 56;
 
 const styles = StyleSheet.create({
@@ -633,6 +655,7 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 8,
   },
+  title: { flex: 1, fontSize: 26, lineHeight: 34 },
   iconBtn: {
     width: 36,
     height: 36,
@@ -664,9 +687,9 @@ const styles = StyleSheet.create({
   faceImg: {
     position: 'absolute',
     width: FACE * 3.3,
-    height: FACE * 5,
+    height: FACE_IMG_H,
     left: -(FACE * 3.3) / 2 + FACE / 2,
-    top: -FACE * 0.12,
+    /* `top` satır içinde: modele göre değişiyor (bkz. `faceOffset`). */
   },
   facePlaceholder: {
     position: 'absolute',
