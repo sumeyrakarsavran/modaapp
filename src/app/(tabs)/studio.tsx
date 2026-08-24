@@ -442,8 +442,8 @@ export default function Studio() {
             status={
               pro
                 ? api.fashnKey
-                  ? 'FASHN AI bağlı'
-                  : 'FASHN API anahtarı gerekli (Ayarlar)'
+                  ? 'Hazır'
+                  : 'API anahtarı gerekli (Ayarlar)'
                 : 'Pro üyelere özel'
             }
             ctaLabel={pro ? 'Denemeye başla' : "BETTA Pro'ya geç"}

@@ -40,7 +40,7 @@ export function TryOnShowcase({
   outfitLayout?: Outfit['layout'];
   /** Kullanıcının son sanal denemesi — yoksa kare boş kalır */
   resultUri?: string;
-  /** Durum satırı: "FASHN AI bağlı" / "anahtar gerekli" gibi */
+  /** Durum satırı: "Hazır" / "anahtar gerekli" gibi */
   status: string;
   ctaLabel: string;
   onPress: () => void;
@@ -141,7 +141,7 @@ export function TryOnShowcase({
       </View>
 
       <Text style={[luxeType.caption, { marginTop: 10, fontSize: 12.5 }]}>
-        Bir manken ve gardırobundan bir kombin seç; FASHN AI üzerine giydirsin.
+        Bir manken ve gardırobundan bir kombin seç; yapay zeka üzerine giydirsin.
       </Text>
 
       <View style={styles.foot}>

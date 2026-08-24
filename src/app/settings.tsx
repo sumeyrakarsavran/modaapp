@@ -204,7 +204,7 @@ export default function Settings() {
             <Row
               icon="body-outline"
               label="Sanal deneme"
-              hint={pro ? (api.fashnKey ? 'FASHN AI bağlı' : 'API anahtarı gerekli') : 'Pro üyelere özel'}
+              hint={pro ? (api.fashnKey ? 'Hazır' : 'API anahtarı gerekli') : 'Pro üyelere özel'}
               onPress={() =>
                 router.push({
                   pathname: '/(tabs)/studio',

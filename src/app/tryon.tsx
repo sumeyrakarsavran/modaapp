@@ -117,6 +117,21 @@ export default function TryOn() {
   const [mode, setMode] = useState<TryOnMode>('fast');
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [proInfo, setProInfo] = useState(false);
+  /*
+    Manken kutusu görselin KENDİ oranını alıyor. Sabit kutuda `contain`
+    fotoğrafın çevresinde beyaz şerit bırakıyordu; kutu ölçülen alana
+    oranıyla sığdırılınca beyaz fazlalık kalmıyor.
+  */
+  const [stageBox, setStageBox] = useState<{ w: number; h: number } | null>(null);
+  const [modelAspect, setModelAspect] = useState(3 / 4);
+  const aspectOf = (e: { source?: { width: number; height: number } | null }) =>
+    e.source && e.source.height > 0 ? e.source.width / e.source.height : undefined;
+  const fit =
+    stageBox && stageBox.w > 0 && stageBox.h > 0
+      ? stageBox.w / stageBox.h > modelAspect
+        ? { width: stageBox.h * modelAspect, height: stageBox.h }
+        : { width: stageBox.w, height: stageBox.w / modelAspect }
+      : undefined;
   /** Ekran dışında çizilen kombin kolajı — FASHN'a ürün görseli olarak gider. */
   const collageRef = useRef<View>(null);
 
@@ -352,10 +367,11 @@ export default function TryOn() {
       </Modal>
 
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={luxeType.display}>Stüdyo</Text>
-          <Text style={luxeType.label}>FASHN AI ile</Text>
-        </View>
+        {/*
+          Başlık DAHA KÜÇÜK: ekranın kahramanı manken, başlık değil.
+          Sağlayıcı adı (hangi servisin çalıştığı) arayüzde yazmıyor.
+        */}
+        <Text style={[luxeType.headline, { flex: 1 }]}>Stüdyo</Text>
         <Pressable onPress={() => router.push('/models')} style={styles.iconBtn} hitSlop={8}>
           <Ionicons name="people-outline" size={19} color={luxe.primary} />
         </Pressable>
@@ -405,13 +421,35 @@ export default function TryOn() {
 
       {/* ————— Sahne: manken kocaman, sağda parça şeridi ————— */}
       <View style={styles.stage}>
-        <View style={styles.modelBox}>
+        <View
+          style={styles.stageArea}
+          onLayout={(e) => {
+            const { width, height } = e.nativeEvent.layout;
+            setStageBox((b) => (b && b.w === width && b.h === height ? b : { w: width, h: height }));
+          }}
+        >
+          <View style={[styles.modelBox, fit]}>
           {resultUrl ? (
-            <Image source={{ uri: resultUrl }} style={styles.modelImg} contentFit="contain" />
+            <Image
+              source={{ uri: resultUrl }}
+              style={styles.modelImg}
+              contentFit="cover"
+              onLoad={(e) => setModelAspect(aspectOf(e) ?? 3 / 4)}
+            />
           ) : modelUri ? (
-            <Image source={{ uri: modelUri }} style={styles.modelImg} contentFit="contain" />
+            <Image
+              source={{ uri: modelUri }}
+              style={styles.modelImg}
+              contentFit="cover"
+              onLoad={(e) => setModelAspect(aspectOf(e) ?? 3 / 4)}
+            />
           ) : modelSource ? (
-            <Image source={modelSource} style={styles.modelImg} contentFit="contain" />
+            <Image
+              source={modelSource}
+              style={styles.modelImg}
+              contentFit="cover"
+              onLoad={(e) => setModelAspect(aspectOf(e) ?? 3 / 4)}
+            />
           ) : (
             /* Görseli henüz üretilmemiş kendi mankeni */
             <View style={styles.modelEmpty}>
@@ -433,6 +471,7 @@ export default function TryOn() {
               <Text style={styles.badgeText}>{status || 'Yapay zeka çalışıyor'}</Text>
             </View>
           ) : null}
+          </View>
         </View>
 
         {/*
@@ -498,16 +537,21 @@ export default function TryOn() {
           </ScrollView>
         )}
 
-        {error ? (
-          <Text style={[luxeType.tiny, { color: luxe.danger, paddingHorizontal: 20, marginTop: 6 }]}>
-            {error}
-          </Text>
-        ) : null}
-        {!error && outfit && skipped > 0 ? (
-          <Text style={[luxeType.tiny, { paddingHorizontal: 20, marginTop: 6 }]}>
-            {skipped} parçanın fotoğrafı yok, kolaja girmeyecek.
-          </Text>
-        ) : null}
+        {/*
+          Not satırı HER ZAMAN duruyor (boşken bile): metin belirince düzen
+          kayıp mankenin boyunu değiştiriyordu.
+        */}
+        <View style={styles.noteLine}>
+          {error ? (
+            <Text style={[luxeType.tiny, { color: luxe.danger }]} numberOfLines={2}>
+              {error}
+            </Text>
+          ) : outfit && skipped > 0 ? (
+            <Text style={luxeType.tiny} numberOfLines={2}>
+              {skipped} parçanın fotoğrafı yok, kolaja girmeyecek.
+            </Text>
+          ) : null}
+        </View>
 
         <View style={styles.ctaRow}>
           <Pressable onPress={() => setOptionsOpen(true)} style={styles.iconBtn} hitSlop={8}>
@@ -518,7 +562,7 @@ export default function TryOn() {
               !pro
                 ? "BETTA Pro'ya geç"
                 : !api.fashnKey
-                  ? 'FASHN anahtarı gerekli'
+                  ? 'API anahtarı gerekli'
                   : busy
                     ? status || 'Deneniyor…'
                     : `Giydir · ${credits} kredi`
@@ -646,8 +690,8 @@ const styles = StyleSheet.create({
   },
   /* ————— Sahne ————— */
   stage: { flex: 1, flexDirection: 'row', paddingHorizontal: 16, gap: 10 },
+  stageArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   modelBox: {
-    flex: 1,
     borderRadius: luxeRadius.xl,
     /* Zemin OPAK: yarı saydam yüzey + elevation gölgeyi içeri sızdırıyor. */
     backgroundColor: '#FFFDFD',
@@ -708,6 +752,8 @@ const styles = StyleSheet.create({
   railImg: { width: '86%', height: '86%' },
   /* ————— Alt: kombinler + üret ————— */
   bottom: { paddingTop: 12 },
+  /** Sabit yükseklik: iki satırlık not alanı, boşken de yerini koruyor. */
+  noteLine: { height: 32, justifyContent: 'center', paddingHorizontal: 20, marginTop: 4 },
   outfitRow: { gap: 8, paddingHorizontal: 20 },
   outfit: {
     padding: 4,

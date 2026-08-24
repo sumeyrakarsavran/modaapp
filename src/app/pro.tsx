@@ -13,7 +13,7 @@ import { colors, radius, spacing, type } from '@/theme';
 const FEATURES: { emoji: string; title: string; desc: string }[] = [
   {
     emoji: '🪞',
-    title: 'FASHN AI Sanal Deneme',
+    title: 'Sanal deneme',
     desc: 'Gardırobundaki kıyafetleri model fotoğrafının üzerinde gerçekçi şekilde gör — almadan önce üstünde dene hissi.',
   },
   {
