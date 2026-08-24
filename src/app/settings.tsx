@@ -13,12 +13,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Card, Label } from '@/components/UI';
+import { Backdrop } from '@/components/Backdrop';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { Button } from '@/components/UI';
 import { isUsernameTaken } from '@/data/community';
 import { isCloudEnabled } from '@/services/supabase';
-import { ConfirmModal } from '@/components/ConfirmModal';
 import { useStore } from '@/store/useStore';
-import { colors, radius, spacing, type } from '@/theme';
+import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 
 export default function Settings() {
   const { api, setApi, profile, setProfile, account, pro, resetAll } = useStore();
@@ -63,39 +64,44 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 1800);
   };
 
-  const confirmReset = () => {
-    const doReset = () => {
-      resetAll();
-      router.replace('/onboarding');
-    };
-    setAskReset(true);
-  };
+  /** Bölüm başlığı — küçük, geniş harf aralıklı etiket. */
+  const Head = ({ title }: { title: string }) => (
+    <Text style={[luxeType.label, styles.head]}>{title}</Text>
+  );
 
+  /** Bir ekrana götüren satır: ikon · ad · durum · ok. */
   const Row = ({
     icon,
     label,
     hint,
     onPress,
-    color = colors.ink,
+    color = luxe.ink,
+    last,
   }: {
     icon: keyof typeof Ionicons.glyphMap;
     label: string;
     hint?: string;
     onPress: () => void;
     color?: string;
+    last?: boolean;
   }) => (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
-      <Ionicons name={icon} size={20} color={color} />
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, !last && styles.rowLine, pressed && { opacity: 0.6 }]}
+    >
+      <Ionicons name={icon} size={19} color={color} />
       <View style={{ flex: 1 }}>
-        <Text style={[type.body, { fontWeight: '600', color }]}>{label}</Text>
-        {hint ? <Text style={type.tiny}>{hint}</Text> : null}
+        <Text style={[styles.rowLabel, { color }]}>{label}</Text>
+        {hint ? <Text style={luxeType.tiny}>{hint}</Text> : null}
       </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.inkFaint} />
+      <Ionicons name="chevron-forward" size={16} color={luxe.outline} />
     </Pressable>
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+      {/* Diğer ekranlarla AYNI zemin */}
+      <Backdrop />
       <ConfirmModal
         visible={askReset}
         title="Her şeyi sıfırla"
@@ -108,179 +114,195 @@ export default function Settings() {
         }}
         onCancel={() => setAskReset(false)}
       />
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.close}>
-          <Ionicons name="close" size={22} color={colors.inkSoft} />
-        </Pressable>
-        <Text style={type.subtitle}>Ayarlar</Text>
-        <View style={{ width: 36 }} />
-      </View>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
-          {/* Profil bilgileri */}
-          <Label>Adın</Label>
-          <TextInput value={name} onChangeText={setName} style={styles.input} />
 
-          <Label>Kullanıcı adı</Label>
-          <View style={styles.usernameRow}>
-            <Text style={styles.at}>@</Text>
+      <View style={styles.header}>
+        <Text style={[luxeType.display, { flex: 1 }]}>Ayarlar</Text>
+        <Pressable onPress={() => router.back()} style={styles.close} hitSlop={8}>
+          <Ionicons name="close" size={20} color={luxe.primary} />
+        </Pressable>
+      </View>
+
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/*
+            KART YOK: bölümler ince çizgiyle ayrılıyor (yeni parça ekranıyla
+            aynı karar). Ayarlar zaten uzun; kartlar hem büyütüyor hem
+            ağırlaştırıyordu.
+          */}
+          <View style={styles.section}>
+            <Head title="Profil" />
+            <Text style={styles.label}>Adın</Text>
+            <TextInput value={name} onChangeText={setName} style={styles.input} />
+
+            <Text style={styles.label}>Kullanıcı adı</Text>
+            <View style={styles.usernameRow}>
+              <Text style={styles.at}>@</Text>
+              <TextInput
+                value={username}
+                onChangeText={setUsername}
+                placeholder="kullaniciadi"
+                placeholderTextColor={luxe.outline}
+                style={[styles.input, { flex: 1 }]}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            <Text style={[luxeType.tiny, { marginTop: 6 }, usernameError && { color: luxe.danger }]}>
+              {usernameError ??
+                'Arkadaşların seni toplulukta bu adla bulur; her kullanıcı adı benzersizdir.'}
+            </Text>
+
+            <Text style={styles.label}>Bio</Text>
             <TextInput
-              value={username}
-              onChangeText={setUsername}
-              placeholder="kullaniciadi"
-              placeholderTextColor={colors.inkFaint}
-              style={[styles.input, { flex: 1 }]}
-              autoCapitalize="none"
-              autoCorrect={false}
+              value={bio}
+              onChangeText={setBio}
+              placeholder="Kendini birkaç cümleyle anlat…"
+              placeholderTextColor={luxe.outline}
+              style={[styles.input, { minHeight: 76, textAlignVertical: 'top' }]}
+              multiline
+              maxLength={160}
             />
           </View>
-          {usernameError ? (
-            <Text style={[type.tiny, { color: colors.danger, marginTop: 4 }]}>{usernameError}</Text>
-          ) : (
-            <Text style={[type.tiny, { marginTop: 4 }]}>
-              Arkadaşların seni toplulukta bu adla bulur. Herkesin kullanıcı adı benzersizdir.
-            </Text>
-          )}
 
-          <Label>Bio</Label>
-          <TextInput
-            value={bio}
-            onChangeText={setBio}
-            placeholder="Kendini birkaç cümleyle anlat… 🐟"
-            placeholderTextColor={colors.inkFaint}
-            style={[styles.input, { minHeight: 72, textAlignVertical: 'top' }]}
-            multiline
-            maxLength={160}
-          />
-
-          {/* Gizlilik */}
-          <Card style={{ marginTop: spacing.xl }}>
-            <Text style={type.subtitle}>🌐 Gizlilik</Text>
+          <View style={styles.section}>
+            <Head title="Gizlilik" />
             <View style={styles.switchRow}>
               <View style={{ flex: 1 }}>
-                <Text style={[type.body, { fontWeight: '600' }]}>Herkese açık profil</Text>
-                <Text style={type.tiny}>
-                  Açıkken diğer kullanıcılar profilinden parçalarını, kombinlerini, selfie ve
-                  lookbook'larını görebilir. Kapalıyken yalnızca toplulukta bilerek paylaştıkların
-                  görünür.
+                <Text style={styles.rowLabel}>Herkese açık profil</Text>
+                <Text style={[luxeType.tiny, { marginTop: 2 }]}>
+                  Açıkken diğerleri profilinden parçalarını, kombinlerini, selfie ve
+                  lookbook&apos;larını görebilir. Kapalıyken yalnızca bilerek paylaştıkların.
                 </Text>
               </View>
               <Switch
                 value={!!profile.isPublic}
                 onValueChange={(v) => setProfile({ isPublic: v })}
-                trackColor={{ true: colors.aqua, false: colors.border }}
-                thumbColor="#fff"
+                trackColor={{ true: luxe.primary, false: luxe.outlineSoft }}
+                thumbColor={luxe.onPrimary}
               />
             </View>
-          </Card>
+          </View>
 
-          {/* Araçlar */}
-          <Text style={styles.sectionHead}>Araçlar</Text>
-          <Card style={{ padding: spacing.sm }}>
-            <Row icon="sparkles-outline" label="AI Stilist" hint={api.anthropicKey ? 'Claude bağlı' : 'Yerel öneri modunda'} onPress={() => router.push('/stylist')} />
+          <View style={styles.section}>
+            <Head title="Araçlar" />
+            <Row
+              icon="sparkles-outline"
+              label="AI Stilist"
+              hint={api.anthropicKey ? 'Claude bağlı' : 'Yerel öneri modunda'}
+              onPress={() => router.push('/stylist')}
+            />
             <Row
               icon="diamond-outline"
               label="BETTA Pro"
-              hint={pro ? 'Aktif 🏆 — sanal deneme açık' : 'Sanal deneme ve fazlası'}
-              color={pro ? '#B8860B' : colors.ink}
+              hint={pro ? 'Aktif — sanal deneme açık' : 'Sanal deneme ve fazlası'}
               onPress={() => router.push('/pro')}
             />
             <Row
-              icon="shirt-outline"
-              label="Sanal Deneme (FASHN)"
-              hint={pro ? (api.fashnKey ? 'Bağlı' : 'API anahtarı gerekli') : 'Pro üyelere özel 🔒'}
-              onPress={() => router.push('/tryon')}
+              icon="body-outline"
+              label="Sanal deneme"
+              hint={pro ? (api.fashnKey ? 'FASHN AI bağlı' : 'API anahtarı gerekli') : 'Pro üyelere özel'}
+              onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/studio',
+                  params: { mode: 'tryon', t: String(Date.now()) },
+                })
+              }
             />
             <Row
+              last
               icon="cloud-outline"
-              label="Hesap & Bulut"
-              hint={
-                cloud ? 'Supabase bağlı' : account ? `${account.email} · cihaz hesabı` : 'Hesap yok'
-              }
+              label="Hesap & bulut"
+              hint={cloud ? 'Supabase bağlı' : account ? `${account.email} · cihaz hesabı` : 'Hesap yok'}
               onPress={() => router.push('/auth')}
             />
-          </Card>
+          </View>
 
-          {/* API anahtarları */}
-          <Card style={{ marginTop: spacing.lg }}>
-            <Text style={type.subtitle}>🔑 API anahtarları</Text>
-            <Text style={[type.tiny, { marginTop: 4 }]}>
-              Hepsi opsiyonel — anahtar girmezsen uygulama yerel modda çalışmaya devam eder.
-              Anahtarlar yalnızca bu cihazda saklanır.
+          <View style={styles.section}>
+            <Head title="API anahtarları" />
+            <Text style={luxeType.tiny}>
+              Hepsi opsiyonel — anahtar girmezsen uygulama yerel modda çalışır. Anahtarlar yalnızca
+              bu cihazda saklanır.
             </Text>
 
-            <Label>Claude API (AI Stilist)</Label>
+            <Text style={styles.label}>Claude (AI Stilist)</Text>
             <TextInput
               value={anthropicKey}
               onChangeText={setAnthropicKey}
               placeholder="sk-ant-…"
-              placeholderTextColor={colors.inkFaint}
+              placeholderTextColor={luxe.outline}
               style={styles.input}
               autoCapitalize="none"
               secureTextEntry
             />
 
-            <Label>FASHN AI (Sanal Deneme)</Label>
+            <Text style={styles.label}>FASHN AI (sanal deneme)</Text>
             <TextInput
               value={fashnKey}
               onChangeText={setFashnKey}
               placeholder="fa-…"
-              placeholderTextColor={colors.inkFaint}
+              placeholderTextColor={luxe.outline}
               style={styles.input}
               autoCapitalize="none"
               secureTextEntry
             />
 
-            <Label>remove.bg (opsiyonel yedek)</Label>
-            <Text style={[type.tiny, { marginBottom: 6 }]}>
-              Arka plan silme zaten cihazında ücretsiz çalışır (iOS 17+ Vision / Android MLKit /
-              tarayıcıda WASM). Bu anahtar yalnızca cihaz desteklemiyorsa yedek olarak kullanılır.
+            <Text style={styles.label}>remove.bg (yedek)</Text>
+            <Text style={[luxeType.tiny, { marginBottom: 6 }]}>
+              Arka plan silme cihazında zaten ücretsiz çalışıyor; bu anahtar yalnızca cihaz
+              desteklemiyorsa devreye girer.
             </Text>
             <TextInput
               value={removeBgKey}
               onChangeText={setRemoveBgKey}
               placeholder="opsiyonel"
-              placeholderTextColor={colors.inkFaint}
+              placeholderTextColor={luxe.outline}
               style={styles.input}
               autoCapitalize="none"
               secureTextEntry
             />
-          </Card>
+          </View>
 
-          <Card style={{ marginTop: spacing.lg }}>
-            <Text style={type.subtitle}>☁️ Supabase (bulut & hesap)</Text>
-            <Text style={[type.tiny, { marginTop: 4 }]}>
-              supabase.com'da ücretsiz proje aç → Settings → API'den URL ve anon key'i kopyala.
-              Sonra projendeki SQL Editor'da supabase/schema.sql dosyasını çalıştır.
+          <View style={styles.section}>
+            <Head title="Supabase (bulut & hesap)" />
+            <Text style={luxeType.tiny}>
+              supabase.com&apos;da ücretsiz proje aç → Settings → API&apos;den URL ve anon key&apos;i
+              kopyala, sonra SQL Editor&apos;da supabase/schema.sql dosyasını çalıştır.
             </Text>
-            <Label>Project URL</Label>
+            <Text style={styles.label}>Project URL</Text>
             <TextInput
               value={supabaseUrl}
               onChangeText={setSupabaseUrl}
               placeholder="https://xxxx.supabase.co"
-              placeholderTextColor={colors.inkFaint}
+              placeholderTextColor={luxe.outline}
               style={styles.input}
               autoCapitalize="none"
             />
-            <Label>Anon key</Label>
+            <Text style={styles.label}>Anon key</Text>
             <TextInput
               value={supabaseAnonKey}
               onChangeText={setSupabaseAnonKey}
               placeholder="eyJ…"
-              placeholderTextColor={colors.inkFaint}
+              placeholderTextColor={luxe.outline}
               style={styles.input}
               autoCapitalize="none"
               secureTextEntry
             />
-          </Card>
+          </View>
 
-          <Button title={saved ? '✔ Kaydedildi' : 'Kaydet'} onPress={save} style={{ marginTop: spacing.xl }} />
+          <Button title={saved ? 'Kaydedildi' : 'Kaydet'} onPress={save} />
 
-          {/* Tehlikeli sular */}
-          <Text style={styles.sectionHead}>Tehlikeli sular 🦈</Text>
-          <Card style={{ padding: spacing.sm }}>
-            <Row icon="trash-outline" label="Her şeyi sıfırla" color={colors.danger} onPress={confirmReset} />
-          </Card>
+          {/* Geri alınamaz bölge — kırmızı ve en altta */}
+          <Pressable
+            onPress={() => setAskReset(true)}
+            style={({ pressed }) => [styles.reset, pressed && { opacity: 0.6 }]}
+          >
+            <Ionicons name="trash-outline" size={17} color={luxe.danger} />
+            <Text style={[styles.rowLabel, { color: luxe.danger }]}>Her şeyi sıfırla</Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -291,50 +313,59 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
   close: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: glass.fill,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+  },
+  container: { paddingHorizontal: 20, paddingBottom: 60, paddingTop: 2 },
+  section: {
+    paddingBottom: 18,
+    marginBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: luxe.outlineSoft,
+  },
+  head: { marginBottom: 10, color: luxe.primary },
+  label: {
+    fontFamily: font.label,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: luxe.outline,
+    marginTop: 16,
+    marginBottom: 6,
   },
   input: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 11,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderRadius: luxeRadius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontFamily: font.body,
     fontSize: 15,
-    color: colors.ink,
-    backgroundColor: colors.card,
+    color: luxe.ink,
+    backgroundColor: luxe.surface,
   },
-  usernameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  at: { fontSize: 17, fontWeight: '800', color: colors.inkSoft },
-  switchRow: {
+  usernameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  at: { fontFamily: font.headline, fontSize: 18, color: luxe.outline },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
+  rowLine: { borderBottomWidth: 1, borderBottomColor: luxe.outlineSoft },
+  rowLabel: { fontFamily: font.bodyMedium, fontSize: 15, color: luxe.ink },
+  reset: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
-  sectionHead: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.ink,
-    marginTop: spacing.xl,
-    marginBottom: spacing.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: 13,
-    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 26,
   },
 });
