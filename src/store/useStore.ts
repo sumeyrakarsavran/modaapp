@@ -4,6 +4,8 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { SEED_POSTS } from '@/data/community';
 import type {
+  CustomModel,
+  SelectedModel,
   ApiSettings,
   CommunityPost,
   LocalAccount,
@@ -28,6 +30,10 @@ interface BettaState {
   tryons: TryOnRecord[];
   /** Sonucu beklenen FASHN işi (uygulama kapansa bile kaybolmasın) */
   pendingTryOn: PendingTryOn | null;
+  /** Kullanıcının ankete göre oluşturduğu mankenler */
+  models: CustomModel[];
+  /** Deneme stüdyosunda seçili manken */
+  selectedModel: SelectedModel | null;
   posts: CommunityPost[];
   followedIds: string[];
   profile: Profile;
@@ -66,6 +72,12 @@ interface BettaState {
   // selfies
   addSelfie: (selfie: Omit<Selfie, 'id' | 'createdAt'>) => void;
   deleteSelfie: (id: string) => void;
+
+  // mankenler
+  addModel: (m: Omit<CustomModel, 'id' | 'createdAt'>) => CustomModel;
+  updateModel: (id: string, patch: Partial<CustomModel>) => void;
+  deleteModel: (id: string) => void;
+  setSelectedModel: (m: SelectedModel | null) => void;
 
   // sanal deneme
   addTryOn: (t: Omit<TryOnRecord, 'id' | 'createdAt'>) => void;
@@ -119,6 +131,8 @@ export const useStore = create<BettaState>()(
       lookbooks: [],
       tryons: [],
       pendingTryOn: null,
+      models: [],
+      selectedModel: null,
       posts: SEED_POSTS,
       followedIds: ['mira', 'luna'],
       profile: emptyProfile,
@@ -220,6 +234,24 @@ export const useStore = create<BettaState>()(
       // Aynı FASHN işi iki yerden tamamlanabiliyor (deneme ekranı beklerken
       // Stüdyo sekmesi de arka planda bekliyor). Kimlik zaten kayıtlıysa
       // yenisini EKLEME, yoksa galeride çift görünüyor.
+      addModel: (m) => {
+        const full: CustomModel = { ...m, id: uid(), createdAt: new Date().toISOString() };
+        set((s) => ({ models: [full, ...s.models] }));
+        return full;
+      },
+      updateModel: (id, patch) =>
+        set((s) => ({ models: s.models.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
+      deleteModel: (id) =>
+        set((s) => ({
+          models: s.models.filter((m) => m.id !== id),
+          // Silinen manken seçiliyse seçim de düşer
+          selectedModel:
+            s.selectedModel?.kind === 'custom' && s.selectedModel.id === id
+              ? null
+              : s.selectedModel,
+        })),
+      setSelectedModel: (selectedModel) => set({ selectedModel }),
+
       addTryOn: (t) =>
         set((s) =>
           t.jobId && s.tryons.some((x) => x.jobId === t.jobId)

@@ -447,7 +447,8 @@ export default function Studio() {
                 : 'Pro üyelere özel'
             }
             ctaLabel={pro ? 'Denemeye başla' : "BETTA Pro'ya geç"}
-            onPress={() => router.push(pro ? '/tryon' : '/pro')}
+            /* Önce MANKEN seçimi: "kim giyecek" sorusu stüdyodan önce gelir. */
+            onPress={() => router.push(pro ? '/models' : '/pro')}
           />
 
           {/* Sanal giydirme çıktıları — görseller kalıcı kopya olarak saklanır */}

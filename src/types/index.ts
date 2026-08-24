@@ -243,6 +243,35 @@ export interface Lookbook {
  * Sanal deneme çıktısı. FASHN'ın döndürdüğü URL geçicidir, bu yüzden görsel
  * indirilip belge dizinine kopyalanır ve `imageUri` o kalıcı kopyayı gösterir.
  */
+/**
+ * Kullanıcının kendi mankeni.
+ *
+ * Görseli HENÜZ ÜRETİLMİYOR: anket cevapları saklanıyor, üretim (FASHN /
+ * görsel üreten bir servis) sonradan bağlanacak. O yüzden `imageUri`
+ * opsiyonel — yoksa arayüz siluet + tarifi gösteriyor.
+ */
+export interface CustomModel {
+  id: string;
+  name: string;
+  /** Üretilmiş manken fotoğrafı (sonradan gelecek). */
+  imageUri?: string;
+  hair: string;
+  hairLength?: string;
+  skin: string;
+  /** Beden (örn. "38") */
+  size: string;
+  /** Boy, cm */
+  height: string;
+  bodyType?: string;
+  createdAt: string;
+}
+
+/** Deneme stüdyosunda seçili manken: hazır (`preset`) ya da kullanıcının. */
+export interface SelectedModel {
+  kind: 'preset' | 'custom';
+  id: string;
+}
+
 export interface TryOnRecord {
   id: string;
   imageUri: string;

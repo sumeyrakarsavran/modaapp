@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -12,10 +13,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
+import { GarmentArt } from '@/components/GarmentArt';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { Button } from '@/components/UI';
 import { TRYON_MODELS } from '@/data/tryonModels';
@@ -34,7 +36,7 @@ import {
   type TryOnResolution,
 } from '@/services/tryon';
 import { useStore } from '@/store/useStore';
-import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
+import { font, glass, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
 import type { WardrobeItem } from '@/types';
 
 /** URI'yi FASHN'ın kabul ettiği biçime çevir (URL veya base64 data URI). */
@@ -81,11 +83,28 @@ const COLLAGE_PX = 1024;
  */
 const MODEL_PX: Record<TryOnResolution, number> = { '1k': 1024, '2k': 1536, '4k': 2048 };
 
+/**
+ * DENEME STÜDYOSU.
+ *
+ * Akış: önce manken seçilir (`/models`), sonra burada kombin seçilip
+ * giydirilir. Düzen mankeni merkeze alıyor — asıl merak edilen "üstümde nasıl
+ * durur" sorusu; kombinler altta şerit, ayarlar kutuda.
+ */
 export default function TryOn() {
   const params = useLocalSearchParams<{ outfitId?: string }>();
-  const { items, outfits, api, pro, addTryOn, pendingTryOn, setPendingTryOn } = useStore();
+  const {
+    items,
+    outfits,
+    api,
+    pro,
+    addTryOn,
+    setPendingTryOn,
+    models,
+    selectedModel,
+    setSelectedModel,
+  } = useStore();
+  const insets = useSafeAreaInsets();
 
-  const [modelId, setModelId] = useState<string>(TRYON_MODELS[0]?.id ?? '');
   /** Kendi fotoğrafını kullanmak isteyenler için (küçük seçenek). */
   const [ownModelUri, setOwnModelUri] = useState<string | undefined>();
   const [outfitId, setOutfitId] = useState<string | undefined>(params.outfitId);
@@ -96,8 +115,21 @@ export default function TryOn() {
   const [error, setError] = useState<string | null>(null);
   const [resolution] = useState<TryOnResolution>('1k');
   const [mode, setMode] = useState<TryOnMode>('fast');
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [proInfo, setProInfo] = useState(false);
   /** Ekran dışında çizilen kombin kolajı — FASHN'a ürün görseli olarak gider. */
   const collageRef = useRef<View>(null);
+
+  /* ————— Seçili manken ————— */
+  const preset =
+    selectedModel?.kind === 'preset' ? TRYON_MODELS.find((m) => m.id === selectedModel.id) : undefined;
+  const custom =
+    selectedModel?.kind === 'custom' ? models.find((m) => m.id === selectedModel.id) : undefined;
+  /** Ekranda gösterilecek manken görseli; kendi fotoğrafı her şeyin önünde. */
+  const modelUri = ownModelUri ?? custom?.imageUri;
+  const modelSource = !modelUri && preset ? preset.source : undefined;
+  /** Görseli henüz üretilmemiş mankenle giydirme yapılamaz. */
+  const modelReady = !!modelUri || !!modelSource;
 
   /** Kendi model fotoğrafı — kalıcı kopya saklanır. */
   const saveOwnModel = async (photo: PickedPhoto) => {
@@ -108,6 +140,7 @@ export default function TryOn() {
   };
 
   const pickOwnModel = async (fromCamera = false) => {
+    setOptionsOpen(false);
     const photo = await pickPhoto({ fromCamera, aspect: [3, 4], quality: 0.9, purpose: 'model' });
     if (photo) await saveOwnModel(photo);
   };
@@ -123,6 +156,11 @@ export default function TryOn() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
+  // Manken seçilmeden stüdyoya girilmişse önce seçim ekranı
+  useEffect(() => {
+    if (!selectedModel && !ownModelUri) router.replace('/models');
+  }, [selectedModel, ownModelUri]);
+
   const outfit = outfits.find((o) => o.id === outfitId);
   const outfitItems = useMemo(
     () =>
@@ -135,20 +173,24 @@ export default function TryOn() {
   const wearable = useMemo(() => outfitItems.filter((i) => i.imageUri), [outfitItems]);
   const skipped = outfitItems.length - wearable.length;
   const credits = TRYON_CREDITS[mode][resolution];
+  /** Sağ şeritteki parçalar — şimdilik gardıroptan; ileride 2D giydirme için. */
+  const railItems = useMemo(
+    () => items.filter((i) => !i.archived && i.imageUri).slice(0, 8),
+    [items],
+  );
 
   const run = async () => {
-    const model = TRYON_MODELS.find((m) => m.id === modelId);
     let startedJobId: string | undefined;
-    if (!api.fashnKey || !wearable.length) return;
+    if (!api.fashnKey || !wearable.length || !modelReady) return;
     setBusy(true);
     setError(null);
     setResultUrl(undefined);
     try {
       setStatus('Manken hazırlanıyor…');
-      const modelImage = ownModelUri
-        ? await toDataUri(ownModelUri)
-        : model
-          ? await modelSourceToDataUri(model.source, MODEL_PX[resolution])
+      const modelImage = modelUri
+        ? await toDataUri(modelUri)
+        : modelSource
+          ? await modelSourceToDataUri(modelSource, MODEL_PX[resolution])
           : null;
       if (!modelImage) throw new Error('Manken seçilmedi.');
 
@@ -178,7 +220,7 @@ export default function TryOn() {
       startedJobId = jobId;
       setPendingTryOn({
         jobId,
-        modelId: ownModelUri ? undefined : modelId,
+        modelId: preset && !modelUri ? preset.id : undefined,
         outfitId: outfit?.id,
         outfitName: outfit?.name,
         prompt: prompt.trim() || undefined,
@@ -194,7 +236,7 @@ export default function TryOn() {
       addTryOn({
         imageUri: saved,
         jobId,
-        modelId: ownModelUri ? undefined : modelId,
+        modelId: preset && !modelUri ? preset.id : undefined,
         outfitId: outfit?.id,
         outfitName: outfit?.name,
         prompt: prompt.trim() || undefined,
@@ -214,232 +256,282 @@ export default function TryOn() {
     }
   };
 
-  /** Adım başlığı — küçük, geniş harf aralıklı. */
-  const Step = ({ n, title }: { n: number; title: string }) => (
-    <Text style={[luxeType.label, styles.step]}>
-      {n} · {title}
-    </Text>
-  );
+  const pickModel = (kind: 'preset' | 'custom', id: string) => {
+    setOwnModelUri(undefined);
+    setSelectedModel({ kind, id });
+    setResultUrl(undefined);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
-      {/* Diğer ekranlarla AYNI zemin */}
       <Backdrop />
+
+      {/* Pro bilgi kutusu — sağ şeritteki parçalar buna götürüyor */}
+      <Modal
+        visible={proInfo}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setProInfo(false)}
+      >
+        <Pressable style={styles.center} onPress={() => setProInfo(false)}>
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            <Text style={styles.sheetTitle}>Parçayı tek tek giydirme</Text>
+            <Text style={[luxeType.body, { marginTop: 8 }]}>
+              Pro ile kendi parçalarını mankene 2D olarak tam oturacak şekilde giydirebileceksin:
+              sağdaki şeritten bir parçayı sürükleyip mankenin üstüne bırakınca görsel üretilecek.
+            </Text>
+            <Text style={[luxeType.tiny, { marginTop: 10 }]}>
+              Bu özellik hazırlanıyor. Şimdilik kombin seçip tüm kombini birden giydirebilirsin.
+            </Text>
+            <Button title="Anladım" onPress={() => setProInfo(false)} style={{ marginTop: 16 }} />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Üretim ayarları: yönerge + kalite (ekran sade kalsın diye kutuda) */}
+      <Modal
+        visible={optionsOpen}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setOptionsOpen(false)}
+      >
+        <KeyboardAvoidingView style={styles.bottomWrap} behavior="padding">
+          <Pressable style={styles.fill} onPress={() => setOptionsOpen(false)} />
+          <View style={[styles.optionSheet, { paddingBottom: 20 + insets.bottom }]}>
+            <View style={styles.sheetHead}>
+              <Text style={styles.sheetTitle}>Üretim ayarları</Text>
+              <Pressable onPress={() => setOptionsOpen(false)} hitSlop={10} style={styles.iconBtn}>
+                <Ionicons name="close" size={18} color={luxe.primary} />
+              </Pressable>
+            </View>
+
+            <Text style={[luxeType.label, { marginTop: 14 }]}>Ek yönerge</Text>
+            <TextInput
+              value={prompt}
+              onChangeText={setPrompt}
+              placeholder="Örn. altın saatli, saçlar topuz, hafif gülümseme…"
+              placeholderTextColor={luxe.outline}
+              style={styles.prompt}
+              multiline
+            />
+            <Text style={[luxeType.tiny, { marginTop: 6 }]}>
+              Editoryal yönerge (poz, ışık, stüdyo, kalite) her üretime otomatik ekleniyor.
+            </Text>
+
+            <Text style={[luxeType.label, { marginTop: 16 }]}>Kalite</Text>
+            <View style={styles.modeRow}>
+              {(['fast', 'balanced', 'quality'] as TryOnMode[]).map((m) => {
+                const on = mode === m;
+                const label = m === 'fast' ? 'Hızlı' : m === 'balanced' ? 'Dengeli' : 'Kaliteli';
+                return (
+                  <Pressable
+                    key={m}
+                    onPress={() => setMode(m)}
+                    style={[styles.modeChip, on && styles.modeChipOn]}
+                  >
+                    <Text style={[styles.modeText, on && { color: luxe.onPrimary }]}>{label}</Text>
+                    <Text style={[styles.modeCredit, on && { color: luxe.onDarkSoft }]}>
+                      {TRYON_CREDITS[m][resolution]} kredi
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Kendi fotoğrafı ikincil: hazır mankenler daha tutarlı sonuç veriyor */}
+            <View style={styles.ownRow}>
+              <PillBtn icon="camera-outline" title="Kendi fotoğrafım" onPress={() => pickOwnModel(true)} />
+              <PillBtn icon="images-outline" title="Galeriden" onPress={() => pickOwnModel(false)} />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <View style={styles.header}>
-        <Text style={[luxeType.display, { flex: 1 }]}>Sanal deneme</Text>
-        <Pressable onPress={() => router.back()} style={styles.close} hitSlop={8}>
+        <View style={{ flex: 1 }}>
+          <Text style={luxeType.display}>Stüdyo</Text>
+          <Text style={luxeType.label}>FASHN AI ile</Text>
+        </View>
+        <Pressable onPress={() => router.push('/models')} style={styles.iconBtn} hitSlop={8}>
+          <Ionicons name="people-outline" size={19} color={luxe.primary} />
+        </Pressable>
+        <Pressable onPress={() => router.back()} style={[styles.iconBtn, { marginLeft: 8 }]} hitSlop={8}>
           <Ionicons name="close" size={20} color={luxe.primary} />
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {!pro ? (
-            <View style={styles.gate}>
-              <Ionicons name="lock-closed-outline" size={26} color={luxe.outlineSoft} />
-              <Text style={[luxeType.headlineItalic, { marginTop: 12, textAlign: 'center' }]}>
-                Sanal deneme Pro&apos;ya özel
-              </Text>
-              <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
-                Hazır bir manken seç, kombinini giydir, editoryal kareyi al.
-              </Text>
-              <Button
-                title="BETTA Pro'ya geç"
-                onPress={() => router.push('/pro')}
-                style={{ marginTop: 20 }}
-              />
-            </View>
-          ) : !api.fashnKey ? (
-            <View style={styles.gate}>
-              <Ionicons name="key-outline" size={26} color={luxe.outlineSoft} />
-              <Text style={[luxeType.headlineItalic, { marginTop: 12, textAlign: 'center' }]}>
-                FASHN anahtarı gerekli
-              </Text>
-              <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
-                Sanal deneme FASHN AI ile çalışıyor. Anahtarı Ayarlar&apos;a ekleyince kombinlerini
-                manken üzerinde deneyebilirsin.
-              </Text>
-              <Button
-                title="Ayarlar'a git"
-                onPress={() => router.push('/settings')}
-                style={{ marginTop: 20 }}
-              />
-            </View>
+      {/* Manken şeridi: küçük ve yalnızca YÜZLER — yer kaplamasın */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.faceRow}
+        style={{ flexGrow: 0 }}
+      >
+        {TRYON_MODELS.map((m) => {
+          const on = !ownModelUri && selectedModel?.kind === 'preset' && selectedModel.id === m.id;
+          return (
+            <Pressable key={m.id} onPress={() => pickModel('preset', m.id)} style={[styles.face, on && styles.faceOn]}>
+              <Image source={m.source} style={styles.faceImg} contentFit="cover" />
+            </Pressable>
+          );
+        })}
+        {models.map((m) => {
+          const on = !ownModelUri && selectedModel?.kind === 'custom' && selectedModel.id === m.id;
+          return (
+            <Pressable key={m.id} onPress={() => pickModel('custom', m.id)} style={[styles.face, on && styles.faceOn]}>
+              {m.imageUri ? (
+                <Image source={{ uri: m.imageUri }} style={styles.faceImg} contentFit="cover" />
+              ) : (
+                <View style={[styles.faceImg, styles.facePlaceholder]}>
+                  <Ionicons name="person-outline" size={17} color={luxe.outline} />
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
+        {ownModelUri ? (
+          <View style={[styles.face, styles.faceOn]}>
+            <Image source={{ uri: ownModelUri }} style={styles.faceImg} contentFit="cover" />
+          </View>
+        ) : null}
+        <Pressable onPress={() => router.push('/model-new')} style={styles.faceAdd}>
+          <Ionicons name="add" size={19} color={luxe.primary} />
+        </Pressable>
+      </ScrollView>
+
+      {/* ————— Sahne: manken kocaman, sağda parça şeridi ————— */}
+      <View style={styles.stage}>
+        <View style={styles.modelBox}>
+          {resultUrl ? (
+            <Image source={{ uri: resultUrl }} style={styles.modelImg} contentFit="contain" />
+          ) : modelUri ? (
+            <Image source={{ uri: modelUri }} style={styles.modelImg} contentFit="contain" />
+          ) : modelSource ? (
+            <Image source={modelSource} style={styles.modelImg} contentFit="contain" />
           ) : (
-            <>
-              <View style={styles.section}>
-                <Step n={1} title="Manken" />
-                <View style={styles.modelRow}>
-                  {TRYON_MODELS.map((m) => {
-                    const active = !ownModelUri && modelId === m.id;
-                    return (
-                      <Pressable
-                        key={m.id}
-                        onPress={() => {
-                          setModelId(m.id);
-                          setOwnModelUri(undefined);
-                          setResultUrl(undefined);
-                        }}
-                        style={[styles.pick, active && styles.pickActive]}
-                      >
-                        <Image source={m.source} style={styles.modelImg} contentFit="cover" />
-                        <Text style={[styles.pickLabel, active && styles.pickLabelActive]}>
-                          {m.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                  {ownModelUri ? (
-                    <Pressable
-                      onPress={() => setResultUrl(undefined)}
-                      style={[styles.pick, styles.pickActive]}
-                    >
-                      <Image
-                        source={{ uri: ownModelUri }}
-                        style={styles.modelImg}
-                        contentFit="cover"
-                      />
-                      <Text style={[styles.pickLabel, styles.pickLabelActive]}>Kendi fotoğrafım</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-                {/*
-                  Kendi fotoğrafı İKİNCİL: hazır mankenler tutarlı duruş ve
-                  zemin sayesinde belirgin şekilde daha iyi sonuç veriyor.
-                */}
-                <View style={styles.ownRow}>
-                  <PillBtn
-                    icon="camera-outline"
-                    title="Kendi fotoğrafım"
-                    onPress={() => pickOwnModel(true)}
-                  />
-                  <PillBtn
-                    icon="images-outline"
-                    title="Galeriden"
-                    onPress={() => pickOwnModel(false)}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.section}>
-                <Step n={2} title="Kombin" />
-                {outfits.length === 0 ? (
-                  <Text style={luxeType.body}>
-                    Henüz kombin yok. Stüdyo&apos;dan bir kombin oluşturunca burada seçebilirsin.
-                  </Text>
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      {outfits.map((o) => {
-                        const its = o.itemIds
-                          .map((id) => items.find((i) => i.id === id))
-                          .filter(Boolean) as WardrobeItem[];
-                        const active = outfitId === o.id;
-                        return (
-                          <Pressable
-                            key={o.id}
-                            onPress={() => {
-                              setOutfitId(o.id);
-                              setResultUrl(undefined);
-                            }}
-                            style={[styles.pick, active && styles.pickActive]}
-                          >
-                            <OutfitCollage
-                              items={its}
-                              size={96}
-                              layout={o.layout}
-                              frame={o.canvasFrame}
-                              cropToContent={o.cropToContent}
-                            />
-                            <Text
-                              style={[styles.pickLabel, active && styles.pickLabelActive]}
-                              numberOfLines={1}
-                            >
-                              {o.name}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </ScrollView>
-                )}
-                {outfit && skipped > 0 ? (
-                  <Text style={[luxeType.tiny, { marginTop: 8 }]}>
-                    {skipped} parçanın fotoğrafı yok, kolaja girmeyecek.
-                  </Text>
-                ) : null}
-              </View>
-
-              <View style={styles.section}>
-                <Step n={3} title="Ek yönerge (isteğe bağlı)" />
-                <TextInput
-                  value={prompt}
-                  onChangeText={setPrompt}
-                  placeholder="Örn. altın saatli, saçlar topuz, hafif gülümseme…"
-                  placeholderTextColor={luxe.outline}
-                  style={styles.prompt}
-                  multiline
-                />
-                <Text style={[luxeType.tiny, { marginTop: 6 }]}>
-                  Editoryal yönerge (poz, ışık, stüdyo, kalite) her üretime otomatik ekleniyor.
-                </Text>
-              </View>
-
-              <View style={styles.section}>
-                <Step n={4} title="Kalite" />
-                <View style={styles.modeRow}>
-                  {(['fast', 'balanced', 'quality'] as TryOnMode[]).map((m) => {
-                    const active = mode === m;
-                    const label = m === 'fast' ? 'Hızlı' : m === 'balanced' ? 'Dengeli' : 'Kaliteli';
-                    return (
-                      <Pressable
-                        key={m}
-                        onPress={() => setMode(m)}
-                        style={[styles.modeChip, active && styles.modeChipActive]}
-                      >
-                        <Text style={[styles.modeText, active && { color: luxe.onPrimary }]}>
-                          {label}
-                        </Text>
-                        <Text style={[styles.modeCredit, active && { color: luxe.onDarkSoft }]}>
-                          {TRYON_CREDITS[m][resolution]} kredi
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-
-              <Button
-                title={busy ? status || 'Deneniyor…' : `Giydir · ${credits} kredi`}
-                onPress={run}
-                disabled={!wearable.length || busy}
-                loading={busy}
-              />
-              {error ? (
-                <Text style={[luxeType.caption, { color: luxe.danger, marginTop: 10 }]}>{error}</Text>
-              ) : null}
-
-              {resultUrl ? (
-                <View style={{ marginTop: 26 }}>
-                  <Text style={luxeType.label}>Sonuç</Text>
-                  <Image
-                    source={{ uri: resultUrl }}
-                    style={[styles.resultImg, { marginTop: 10 }]}
-                    contentFit="contain"
-                  />
-                  <Text style={[luxeType.tiny, { marginTop: 10, textAlign: 'center' }]}>
-                    Stüdyo → Sanal deneme → &quot;Sanal giydirmelerim&quot;de saklanıyor.
-                  </Text>
-                </View>
-              ) : null}
-            </>
+            /* Görseli henüz üretilmemiş kendi mankeni */
+            <View style={styles.modelEmpty}>
+              <Ionicons name="body-outline" size={44} color={luxe.outlineSoft} />
+              <Text style={[luxeType.body, { textAlign: 'center', marginTop: 10 }]}>
+                {custom
+                  ? `${custom.hair} saç · ${custom.skin} ten · ${custom.size} beden · ${custom.height} cm`
+                  : 'Manken seçilmedi'}
+              </Text>
+              <Text style={[luxeType.tiny, { textAlign: 'center', marginTop: 6 }]}>
+                Bu mankenin görseli henüz üretilmedi.
+              </Text>
+            </View>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+          {busy ? (
+            <View style={styles.badge}>
+              <View style={styles.dot} />
+              <Text style={styles.badgeText}>{status || 'Yapay zeka çalışıyor'}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/*
+          Sağ şerit: ileride parçalar buradan sürüklenip mankene giydirilecek
+          (Pro). Şimdilik gardıroptan parçalar görünüyor; dokununca özelliğin
+          ne olacağını anlatan kutu açılıyor.
+        */}
+        <View style={styles.rail}>
+          <Pressable onPress={() => setProInfo(true)} style={styles.railHead} hitSlop={6}>
+            <Ionicons name="diamond-outline" size={15} color={luxe.primary} />
+          </Pressable>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            {railItems.map((it) => (
+              <Pressable key={it.id} onPress={() => setProInfo(true)} style={styles.railItem}>
+                {it.imageUri ? (
+                  <Image source={{ uri: it.imageUri }} style={styles.railImg} contentFit="contain" />
+                ) : (
+                  <GarmentArt category={it.category} colorId={it.colorId} size={26} />
+                )}
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+
+      {/* ————— Kombinler + üret ————— */}
+      <View style={[styles.bottom, { paddingBottom: 10 + insets.bottom }]}>
+        {outfits.length === 0 ? (
+          <Text style={[luxeType.tiny, { paddingHorizontal: 20 }]}>
+            Henüz kombin yok. Stüdyo&apos;dan bir kombin oluşturunca burada seçebilirsin.
+          </Text>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.outfitRow}
+            style={{ flexGrow: 0 }}
+          >
+            {outfits.map((o) => {
+              const its = o.itemIds
+                .map((id) => items.find((i) => i.id === id))
+                .filter(Boolean) as WardrobeItem[];
+              const on = outfitId === o.id;
+              return (
+                <Pressable
+                  key={o.id}
+                  onPress={() => {
+                    setOutfitId(o.id);
+                    setResultUrl(undefined);
+                  }}
+                  style={[styles.outfit, on && styles.outfitOn]}
+                >
+                  <OutfitCollage
+                    items={its}
+                    size={68}
+                    layout={o.layout}
+                    frame={o.canvasFrame}
+                    cropToContent={o.cropToContent}
+                  />
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {error ? (
+          <Text style={[luxeType.tiny, { color: luxe.danger, paddingHorizontal: 20, marginTop: 6 }]}>
+            {error}
+          </Text>
+        ) : null}
+        {!error && outfit && skipped > 0 ? (
+          <Text style={[luxeType.tiny, { paddingHorizontal: 20, marginTop: 6 }]}>
+            {skipped} parçanın fotoğrafı yok, kolaja girmeyecek.
+          </Text>
+        ) : null}
+
+        <View style={styles.ctaRow}>
+          <Pressable onPress={() => setOptionsOpen(true)} style={styles.iconBtn} hitSlop={8}>
+            <Ionicons name="options-outline" size={19} color={luxe.primary} />
+          </Pressable>
+          <Button
+            title={
+              !pro
+                ? "BETTA Pro'ya geç"
+                : !api.fashnKey
+                  ? 'FASHN anahtarı gerekli'
+                  : busy
+                    ? status || 'Deneniyor…'
+                    : `Giydir · ${credits} kredi`
+            }
+            onPress={
+              !pro ? () => router.push('/pro') : !api.fashnKey ? () => router.push('/settings') : run
+            }
+            disabled={pro && !!api.fashnKey && (!wearable.length || !modelReady || busy)}
+            loading={busy}
+            style={{ flex: 1 }}
+          />
+        </View>
+      </View>
 
       {/*
         FASHN'a gidecek ürün görseli: kombin kolajı, ekran DIŞINDA tam
@@ -466,7 +558,7 @@ export default function TryOn() {
   );
 }
 
-/** Uygulamanın küçük siluetli düğmesi — yeni parça ekranındakiyle aynı. */
+/** Uygulamanın küçük siluetli düğmesi. */
 function PillBtn({
   title,
   icon,
@@ -485,15 +577,19 @@ function PillBtn({
   );
 }
 
+const FACE = 42;
+const RAIL = 56;
+
 const styles = StyleSheet.create({
+  fill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 10,
+    paddingTop: 6,
+    paddingBottom: 8,
   },
-  close: {
+  iconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -503,34 +599,181 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: luxe.outlineSoft,
   },
-  container: { paddingHorizontal: 20, paddingBottom: 60, paddingTop: 2 },
+  /* ————— Manken şeridi (yalnızca yüzler) ————— */
+  faceRow: { gap: 8, paddingHorizontal: 20, paddingBottom: 10, alignItems: 'center' },
+  face: {
+    width: FACE,
+    height: FACE,
+    borderRadius: FACE / 2,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: luxe.outlineSoft,
+    backgroundColor: luxe.surface,
+  },
+  faceOn: { borderColor: luxe.primary, borderWidth: 2 },
   /*
-    KART YOK: adımlar ince çizgiyle ayrılıyor — Ayarlar ve yeni parça
-    ekranlarıyla aynı karar. Ekran zaten uzun bir akış.
+    YALNIZCA YÜZ. `contentFit="cover"` + `contentPosition` yetmiyor (daire
+    içinde tüm boy görünüyordu): görsel dairenin birkaç katı büyüklükte
+    çizilip baş hizası daireye ORTALANIYOR. Tam boy manken fotoğraflarında
+    baş, karenin üst ~%10'unda ve yatayda ortada.
   */
-  section: {
-    paddingBottom: 18,
-    marginBottom: 18,
+  faceImg: {
+    position: 'absolute',
+    width: FACE * 3.3,
+    height: FACE * 5,
+    left: -(FACE * 3.3) / 2 + FACE / 2,
+    top: -FACE * 0.12,
+  },
+  facePlaceholder: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: luxe.surfaceLow,
+  },
+  faceAdd: {
+    width: FACE,
+    height: FACE,
+    borderRadius: FACE / 2,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  /* ————— Sahne ————— */
+  stage: { flex: 1, flexDirection: 'row', paddingHorizontal: 16, gap: 10 },
+  modelBox: {
+    flex: 1,
+    borderRadius: luxeRadius.xl,
+    /* Zemin OPAK: yarı saydam yüzey + elevation gölgeyi içeri sızdırıyor. */
+    backgroundColor: '#FFFDFD',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...luxeShadow.card,
+  },
+  modelImg: { width: '100%', height: '100%' },
+  modelEmpty: { alignItems: 'center', paddingHorizontal: 24 },
+  badge: {
+    position: 'absolute',
+    top: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: luxeRadius.pill,
+    backgroundColor: 'rgba(31,31,36,0.72)',
+  },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: luxe.onDark },
+  badgeText: {
+    fontFamily: font.label,
+    fontSize: 9.5,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: luxe.onDark,
+  },
+  /* ————— Sağ parça şeridi (Pro tanıtımı) ————— */
+  rail: {
+    width: RAIL,
+    borderRadius: luxeRadius.lg,
+    backgroundColor: glass.fillStrong,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    paddingVertical: 8,
+    paddingHorizontal: 5,
+    gap: 8,
+  },
+  railHead: {
+    alignItems: 'center',
+    paddingBottom: 6,
     borderBottomWidth: 1,
     borderBottomColor: luxe.outlineSoft,
   },
-  step: { marginBottom: 12, color: luxe.primary },
-  gate: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 10 },
-  modelRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  /** Seçilebilir kare (manken / kombin) — seçiliyse mürekkep çerçeve. */
-  pick: {
+  railItem: {
+    width: RAIL - 14,
+    height: RAIL - 14,
+    borderRadius: luxeRadius.sm,
+    backgroundColor: luxe.surface,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
     alignItems: 'center',
-    gap: 6,
-    padding: 6,
-    borderRadius: luxeRadius.lg,
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  railImg: { width: '86%', height: '86%' },
+  /* ————— Alt: kombinler + üret ————— */
+  bottom: { paddingTop: 12 },
+  outfitRow: { gap: 8, paddingHorizontal: 20 },
+  outfit: {
+    padding: 4,
+    borderRadius: luxeRadius.md,
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
-  pickActive: { borderColor: luxe.primary, backgroundColor: glass.fillStrong },
-  pickLabel: { fontFamily: font.body, fontSize: 11, color: luxe.outline, maxWidth: 104 },
-  pickLabelActive: { fontFamily: font.bodyMedium, color: luxe.primary },
-  modelImg: { width: 104, height: 156, borderRadius: luxeRadius.md },
-  ownRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  outfitOn: { borderColor: luxe.primary, backgroundColor: glass.fillStrong },
+  ctaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 20,
+    marginTop: 12,
+  },
+  /* ————— Kutular ————— */
+  center: { flex: 1, backgroundColor: luxe.overlay, justifyContent: 'center', padding: 24 },
+  bottomWrap: { flex: 1, backgroundColor: luxe.overlay, justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#FFFDFD',
+    borderRadius: luxeRadius.lg,
+    padding: 22,
+    ...luxeShadow.card,
+  },
+  optionSheet: {
+    backgroundColor: '#FFFDFD',
+    borderTopLeftRadius: luxeRadius.lg,
+    borderTopRightRadius: luxeRadius.lg,
+    paddingHorizontal: 22,
+    paddingTop: 18,
+  },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sheetTitle: {
+    fontFamily: font.headlineItalic,
+    fontStyle: 'italic',
+    fontSize: 20,
+    color: luxe.primary,
+  },
+  prompt: {
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderRadius: luxeRadius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 8,
+    fontFamily: font.body,
+    fontSize: 15,
+    color: luxe.ink,
+    backgroundColor: luxe.surface,
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  modeRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  modeChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: luxeRadius.pill,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    backgroundColor: glass.fill,
+  },
+  modeChipOn: { backgroundColor: luxe.primary, borderColor: luxe.primary },
+  modeText: { fontFamily: font.bodyMedium, fontSize: 13, color: luxe.ink },
+  modeCredit: { fontFamily: font.body, fontSize: 10.5, color: luxe.outline, marginTop: 1 },
+  ownRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -546,33 +789,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: luxe.primary,
   },
-  prompt: {
-    borderWidth: 1,
-    borderColor: luxe.outlineSoft,
-    borderRadius: luxeRadius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontFamily: font.body,
-    fontSize: 15,
-    color: luxe.ink,
-    backgroundColor: luxe.surface,
-    minHeight: 84,
-    textAlignVertical: 'top',
-  },
-  resultImg: { width: '100%', aspectRatio: 3 / 4, borderRadius: luxeRadius.lg },
-  modeRow: { flexDirection: 'row', gap: 8 },
-  modeChip: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 11,
-    borderRadius: luxeRadius.pill,
-    borderWidth: 1,
-    borderColor: luxe.outlineSoft,
-    backgroundColor: glass.fill,
-  },
-  modeChipActive: { backgroundColor: luxe.primary, borderColor: luxe.primary },
-  modeText: { fontFamily: font.bodyMedium, fontSize: 13, color: luxe.ink },
-  modeCredit: { fontFamily: font.body, fontSize: 10.5, color: luxe.outline, marginTop: 1 },
   /** Ekran dışı: yakalanacak kolaj burada tam boyutta çizilir. */
   offscreen: { position: 'absolute', left: -COLLAGE_PX * 2, top: 0 },
   collage: { width: COLLAGE_PX, height: COLLAGE_PX, backgroundColor: '#FFFFFF' },

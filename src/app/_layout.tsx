@@ -107,6 +107,9 @@ export default function RootLayout() {
         <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="quiz" options={{ presentation: 'modal' }} />
         <Stack.Screen name="stylist" options={{ presentation: 'modal' }} />
+        {/* Sanal deneme akışı: önce manken seçimi, sonra stüdyo */}
+        <Stack.Screen name="models" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="model-new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="tryon" options={{ presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
         <Stack.Screen name="auth" options={{ presentation: 'modal' }} />
