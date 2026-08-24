@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Backdrop } from '@/components/Backdrop';
+import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { OutfitCollage } from '@/components/OutfitCollage';
-import { Button, Card, SectionTitle } from '@/components/UI';
+import { Button } from '@/components/UI';
 import { TRYON_MODELS } from '@/data/tryonModels';
 import { resizeForProcessing } from '@/services/imageResize';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
@@ -32,7 +34,7 @@ import {
   type TryOnResolution,
 } from '@/services/tryon';
 import { useStore } from '@/store/useStore';
-import { colors, radius, spacing, type } from '@/theme';
+import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 import type { WardrobeItem } from '@/types';
 
 /** URI'yi FASHN'ın kabul ettiği biçime çevir (URL veya base64 data URI). */
@@ -212,194 +214,227 @@ export default function TryOn() {
     }
   };
 
+  /** Adım başlığı — küçük, geniş harf aralıklı. */
+  const Step = ({ n, title }: { n: number; title: string }) => (
+    <Text style={[luxeType.label, styles.step]}>
+      {n} · {title}
+    </Text>
+  );
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
+      {/* Diğer ekranlarla AYNI zemin */}
+      <Backdrop />
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.close}>
-          <Ionicons name="close" size={22} color={colors.inkSoft} />
+        <Text style={[luxeType.display, { flex: 1 }]}>Sanal deneme</Text>
+        <Pressable onPress={() => router.back()} style={styles.close} hitSlop={8}>
+          <Ionicons name="close" size={20} color={luxe.primary} />
         </Pressable>
-        <Text style={type.subtitle}>🪞 Sanal Deneme</Text>
-        <View style={{ width: 36 }} />
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 50 }}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {!pro ? (
-            <Card style={{ borderWidth: 1.5, borderColor: colors.goldSoft }}>
-              <Text style={{ fontSize: 40, textAlign: 'center' }}>🪞🔒</Text>
-              <Text style={[type.subtitle, { textAlign: 'center', marginTop: spacing.sm }]}>
-                Sanal Deneme, BETTA Pro'ya özel
+            <View style={styles.gate}>
+              <Ionicons name="lock-closed-outline" size={26} color={luxe.outlineSoft} />
+              <Text style={[luxeType.headlineItalic, { marginTop: 12, textAlign: 'center' }]}>
+                Sanal deneme Pro&apos;ya özel
               </Text>
-              <Text style={[type.caption, { textAlign: 'center', marginTop: spacing.sm }]}>
-                Hazır mankenlerden birini seç, kombinini giydir, lüks editoryal kare al.
+              <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
+                Hazır bir manken seç, kombinini giydir, editoryal kareyi al.
               </Text>
               <Button
-                title="🏆 BETTA Pro'ya geç"
+                title="BETTA Pro'ya geç"
                 onPress={() => router.push('/pro')}
-                style={{ marginTop: spacing.lg, backgroundColor: '#F4B942' }}
+                style={{ marginTop: 20 }}
               />
-            </Card>
+            </View>
           ) : !api.fashnKey ? (
-            <Card>
-              <Text style={type.subtitle}>FASHN API anahtarı gerekli</Text>
-              <Text style={[type.caption, { marginTop: spacing.sm }]}>
-                Sanal deneme FASHN AI ile çalışır. Ayarlar'dan API anahtarını ekleyince burada
-                kombinlerini manken üzerinde deneyebileceksin.
+            <View style={styles.gate}>
+              <Ionicons name="key-outline" size={26} color={luxe.outlineSoft} />
+              <Text style={[luxeType.headlineItalic, { marginTop: 12, textAlign: 'center' }]}>
+                FASHN anahtarı gerekli
+              </Text>
+              <Text style={[luxeType.body, { textAlign: 'center', marginTop: 8 }]}>
+                Sanal deneme FASHN AI ile çalışıyor. Anahtarı Ayarlar&apos;a ekleyince kombinlerini
+                manken üzerinde deneyebilirsin.
               </Text>
               <Button
-                small
                 title="Ayarlar'a git"
                 onPress={() => router.push('/settings')}
-                style={{ marginTop: spacing.md, alignSelf: 'flex-start' }}
+                style={{ marginTop: 20 }}
               />
-            </Card>
+            </View>
           ) : (
             <>
-              <SectionTitle title="1 · Manken" />
-              <View style={styles.modelRow}>
-                {TRYON_MODELS.map((m) => {
-                  const active = !ownModelUri && modelId === m.id;
-                  return (
+              <View style={styles.section}>
+                <Step n={1} title="Manken" />
+                <View style={styles.modelRow}>
+                  {TRYON_MODELS.map((m) => {
+                    const active = !ownModelUri && modelId === m.id;
+                    return (
+                      <Pressable
+                        key={m.id}
+                        onPress={() => {
+                          setModelId(m.id);
+                          setOwnModelUri(undefined);
+                          setResultUrl(undefined);
+                        }}
+                        style={[styles.pick, active && styles.pickActive]}
+                      >
+                        <Image source={m.source} style={styles.modelImg} contentFit="cover" />
+                        <Text style={[styles.pickLabel, active && styles.pickLabelActive]}>
+                          {m.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                  {ownModelUri ? (
                     <Pressable
-                      key={m.id}
-                      onPress={() => {
-                        setModelId(m.id);
-                        setOwnModelUri(undefined);
-                        setResultUrl(undefined);
-                      }}
-                      style={[styles.modelCard, active && styles.modelCardActive]}
+                      onPress={() => setResultUrl(undefined)}
+                      style={[styles.pick, styles.pickActive]}
                     >
-                      <Image source={m.source} style={styles.modelImg} contentFit="cover" />
-                      <Text style={[type.tiny, active && { color: colors.aquaDark, fontWeight: '700' }]}>
-                        {m.label}
-                      </Text>
+                      <Image
+                        source={{ uri: ownModelUri }}
+                        style={styles.modelImg}
+                        contentFit="cover"
+                      />
+                      <Text style={[styles.pickLabel, styles.pickLabelActive]}>Kendi fotoğrafım</Text>
                     </Pressable>
-                  );
-                })}
-                {ownModelUri ? (
-                  <Pressable
-                    onPress={() => setResultUrl(undefined)}
-                    style={[styles.modelCard, styles.modelCardActive]}
-                  >
-                    <Image source={{ uri: ownModelUri }} style={styles.modelImg} contentFit="cover" />
-                    <Text style={[type.tiny, { color: colors.aquaDark, fontWeight: '700' }]}>Kendi fotoğrafım</Text>
-                  </Pressable>
+                  ) : null}
+                </View>
+                {/*
+                  Kendi fotoğrafı İKİNCİL: hazır mankenler tutarlı duruş ve
+                  zemin sayesinde belirgin şekilde daha iyi sonuç veriyor.
+                */}
+                <View style={styles.ownRow}>
+                  <PillBtn
+                    icon="camera-outline"
+                    title="Kendi fotoğrafım"
+                    onPress={() => pickOwnModel(true)}
+                  />
+                  <PillBtn
+                    icon="images-outline"
+                    title="Galeriden"
+                    onPress={() => pickOwnModel(false)}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.section}>
+                <Step n={2} title="Kombin" />
+                {outfits.length === 0 ? (
+                  <Text style={luxeType.body}>
+                    Henüz kombin yok. Stüdyo&apos;dan bir kombin oluşturunca burada seçebilirsin.
+                  </Text>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {outfits.map((o) => {
+                        const its = o.itemIds
+                          .map((id) => items.find((i) => i.id === id))
+                          .filter(Boolean) as WardrobeItem[];
+                        const active = outfitId === o.id;
+                        return (
+                          <Pressable
+                            key={o.id}
+                            onPress={() => {
+                              setOutfitId(o.id);
+                              setResultUrl(undefined);
+                            }}
+                            style={[styles.pick, active && styles.pickActive]}
+                          >
+                            <OutfitCollage
+                              items={its}
+                              size={96}
+                              layout={o.layout}
+                              frame={o.canvasFrame}
+                              cropToContent={o.cropToContent}
+                            />
+                            <Text
+                              style={[styles.pickLabel, active && styles.pickLabelActive]}
+                              numberOfLines={1}
+                            >
+                              {o.name}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                )}
+                {outfit && skipped > 0 ? (
+                  <Text style={[luxeType.tiny, { marginTop: 8 }]}>
+                    {skipped} parçanın fotoğrafı yok, kolaja girmeyecek.
+                  </Text>
                 ) : null}
               </View>
-              {/* Kendi fotoğrafı ikincil seçenek — hazır mankenler daha iyi sonuç veriyor */}
-              <View style={styles.ownRow}>
-                <Pressable onPress={() => pickOwnModel(true)}>
-                  <Text style={styles.ownLink}>📷 Kendi fotoğrafımı çek</Text>
-                </Pressable>
-                <Pressable onPress={() => pickOwnModel(false)}>
-                  <Text style={styles.ownLink}>🖼️ Galeriden seç</Text>
-                </Pressable>
+
+              <View style={styles.section}>
+                <Step n={3} title="Ek yönerge (isteğe bağlı)" />
+                <TextInput
+                  value={prompt}
+                  onChangeText={setPrompt}
+                  placeholder="Örn. altın saatli, saçlar topuz, hafif gülümseme…"
+                  placeholderTextColor={luxe.outline}
+                  style={styles.prompt}
+                  multiline
+                />
+                <Text style={[luxeType.tiny, { marginTop: 6 }]}>
+                  Editoryal yönerge (poz, ışık, stüdyo, kalite) her üretime otomatik ekleniyor.
+                </Text>
               </View>
 
-              <SectionTitle title="2 · Kombin" style={{ marginTop: spacing.xl }} />
-              {outfits.length === 0 ? (
-                <Card>
-                  <Text style={type.caption}>
-                    Henüz kombin yok. Stüdyo'dan bir kombin oluşturunca burada seçebilirsin.
-                  </Text>
-                </Card>
-              ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                    {outfits.map((o) => {
-                      const its = o.itemIds
-                        .map((id) => items.find((i) => i.id === id))
-                        .filter(Boolean) as WardrobeItem[];
-                      const active = outfitId === o.id;
-                      return (
-                        <Pressable
-                          key={o.id}
-                          onPress={() => {
-                            setOutfitId(o.id);
-                            setResultUrl(undefined);
-                          }}
-                          style={[styles.outfitCard, active && styles.modelCardActive]}
-                        >
-                          <OutfitCollage
-                            items={its}
-                            size={96}
-                            layout={o.layout}
-                            frame={o.canvasFrame}
-                            cropToContent={o.cropToContent}
-                          />
-                          <Text style={[type.tiny, { maxWidth: 96 }]} numberOfLines={1}>
-                            {o.name}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </ScrollView>
-              )}
-              {outfit && skipped > 0 ? (
-                <Text style={[type.tiny, { marginTop: spacing.sm }]}>
-                  {skipped} parçanın fotoğrafı yok, kolaja girmeyecek.
-                </Text>
-              ) : null}
-
-              <SectionTitle title="3 · Ek yönerge (isteğe bağlı)" style={{ marginTop: spacing.xl }} />
-              <TextInput
-                value={prompt}
-                onChangeText={setPrompt}
-                placeholder="Örn. altın saatli, saçlar topuz, hafif gülümseme…"
-                placeholderTextColor={colors.inkFaint}
-                style={styles.prompt}
-                multiline
-              />
-              <Text style={[type.tiny, { marginTop: 6 }]}>
-                Lüks editoryal yönerge (poz, ışık, stüdyo, kalite) her üretime otomatik ekleniyor.
-              </Text>
-
-              <SectionTitle title="4 · Kalite" style={{ marginTop: spacing.xl }} />
-              <View style={styles.modeRow}>
-                {(['fast', 'balanced', 'quality'] as TryOnMode[]).map((m) => {
-                  const active = mode === m;
-                  const label = m === 'fast' ? 'Hızlı' : m === 'balanced' ? 'Dengeli' : 'Kaliteli';
-                  return (
-                    <Pressable
-                      key={m}
-                      onPress={() => setMode(m)}
-                      style={[styles.modeChip, active && styles.modeChipActive]}
-                    >
-                      <Text style={[styles.modeText, active && { color: '#fff' }]}>{label}</Text>
-                      <Text style={[styles.modeCredit, active && { color: '#fff' }]}>
-                        {TRYON_CREDITS[m][resolution]} kredi
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+              <View style={styles.section}>
+                <Step n={4} title="Kalite" />
+                <View style={styles.modeRow}>
+                  {(['fast', 'balanced', 'quality'] as TryOnMode[]).map((m) => {
+                    const active = mode === m;
+                    const label = m === 'fast' ? 'Hızlı' : m === 'balanced' ? 'Dengeli' : 'Kaliteli';
+                    return (
+                      <Pressable
+                        key={m}
+                        onPress={() => setMode(m)}
+                        style={[styles.modeChip, active && styles.modeChipActive]}
+                      >
+                        <Text style={[styles.modeText, active && { color: luxe.onPrimary }]}>
+                          {label}
+                        </Text>
+                        <Text style={[styles.modeCredit, active && { color: luxe.onDarkSoft }]}>
+                          {TRYON_CREDITS[m][resolution]} kredi
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
 
               <Button
-                title={
-                  busy
-                    ? `Deneniyor…${status ? ` (${status})` : ''}`
-                    : `✨ Giydir · ${credits} kredi`
-                }
+                title={busy ? status || 'Deneniyor…' : `Giydir · ${credits} kredi`}
                 onPress={run}
                 disabled={!wearable.length || busy}
                 loading={busy}
-                style={{ marginTop: spacing.xl }}
               />
               {error ? (
-                <Text style={[type.caption, { color: colors.danger, marginTop: spacing.sm }]}>{error}</Text>
+                <Text style={[luxeType.caption, { color: luxe.danger, marginTop: 10 }]}>{error}</Text>
               ) : null}
 
               {resultUrl ? (
-                <>
-                  <SectionTitle title="Sonuç 🎉" style={{ marginTop: spacing.xl }} />
-                  <Card style={{ alignItems: 'center' }}>
-                    <Image source={{ uri: resultUrl }} style={styles.resultImg} contentFit="contain" />
-                    <Text style={[type.tiny, { marginTop: spacing.sm }]}>
-                      Stüdyo → AI → Sanal giydirmelerim bölümünde saklanıyor.
-                    </Text>
-                  </Card>
-                </>
+                <View style={{ marginTop: 26 }}>
+                  <Text style={luxeType.label}>Sonuç</Text>
+                  <Image
+                    source={{ uri: resultUrl }}
+                    style={[styles.resultImg, { marginTop: 10 }]}
+                    contentFit="contain"
+                  />
+                  <Text style={[luxeType.tiny, { marginTop: 10, textAlign: 'center' }]}>
+                    Stüdyo → Sanal deneme → &quot;Sanal giydirmelerim&quot;de saklanıyor.
+                  </Text>
+                </View>
               ) : null}
             </>
           )}
@@ -431,71 +466,113 @@ export default function TryOn() {
   );
 }
 
+/** Uygulamanın küçük siluetli düğmesi — yeni parça ekranındakiyle aynı. */
+function PillBtn({
+  title,
+  icon,
+  onPress,
+}: {
+  title: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.pill, pressed && { opacity: 0.8 }]}>
+      <FinBlob variant="button" pad={BTN_PAD} color={glass.fill} stroke={luxe.outlineSoft} />
+      <Ionicons name={icon} size={14} color={luxe.primary} />
+      <Text style={styles.pillText}>{title}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
   close: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: glass.fill,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
   },
-  modelRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
-  modelCard: {
+  container: { paddingHorizontal: 20, paddingBottom: 60, paddingTop: 2 },
+  /*
+    KART YOK: adımlar ince çizgiyle ayrılıyor — Ayarlar ve yeni parça
+    ekranlarıyla aynı karar. Ekran zaten uzun bir akış.
+  */
+  section: {
+    paddingBottom: 18,
+    marginBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: luxe.outlineSoft,
+  },
+  step: { marginBottom: 12, color: luxe.primary },
+  gate: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 10 },
+  modelRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  /** Seçilebilir kare (manken / kombin) — seçiliyse mürekkep çerçeve. */
+  pick: {
     alignItems: 'center',
-    gap: 4,
-    padding: 4,
-    borderRadius: radius.lg,
-    borderWidth: 2,
+    gap: 6,
+    padding: 6,
+    borderRadius: luxeRadius.lg,
+    borderWidth: 1.5,
     borderColor: 'transparent',
   },
-  modelCardActive: { borderColor: colors.aqua, backgroundColor: colors.card },
-  modelImg: { width: 104, height: 156, borderRadius: radius.md },
-  ownRow: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.sm },
-  ownLink: { fontSize: 12, color: colors.aquaDark, fontWeight: '600' },
-  outfitCard: {
+  pickActive: { borderColor: luxe.primary, backgroundColor: glass.fillStrong },
+  pickLabel: { fontFamily: font.body, fontSize: 11, color: luxe.outline, maxWidth: 104 },
+  pickLabelActive: { fontFamily: font.bodyMedium, color: luxe.primary },
+  modelImg: { width: 104, height: 156, borderRadius: luxeRadius.md },
+  ownRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  pill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    padding: 4,
-    borderRadius: radius.lg,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9 + BTN_PAD,
+    paddingHorizontal: 13 + BTN_PAD,
+  },
+  pillText: {
+    fontFamily: font.label,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: luxe.primary,
   },
   prompt: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 11,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderRadius: luxeRadius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontFamily: font.body,
     fontSize: 15,
-    color: colors.ink,
-    backgroundColor: colors.card,
-    minHeight: 80,
+    color: luxe.ink,
+    backgroundColor: luxe.surface,
+    minHeight: 84,
     textAlignVertical: 'top',
   },
-  resultImg: { width: 280, height: 380, borderRadius: radius.lg },
-  modeRow: { flexDirection: 'row', gap: spacing.sm },
+  resultImg: { width: '100%', aspectRatio: 3 / 4, borderRadius: luxeRadius.lg },
+  modeRow: { flexDirection: 'row', gap: 8 },
   modeChip: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
+    paddingVertical: 11,
+    borderRadius: luxeRadius.pill,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    backgroundColor: glass.fill,
   },
-  modeChipActive: { backgroundColor: colors.aquaDark, borderColor: colors.aquaDark },
-  modeText: { fontSize: 13, fontWeight: '700', color: colors.ink },
-  modeCredit: { fontSize: 11, color: colors.inkFaint },
+  modeChipActive: { backgroundColor: luxe.primary, borderColor: luxe.primary },
+  modeText: { fontFamily: font.bodyMedium, fontSize: 13, color: luxe.ink },
+  modeCredit: { fontFamily: font.body, fontSize: 10.5, color: luxe.outline, marginTop: 1 },
   /** Ekran dışı: yakalanacak kolaj burada tam boyutta çizilir. */
   offscreen: { position: 'absolute', left: -COLLAGE_PX * 2, top: 0 },
   collage: { width: COLLAGE_PX, height: COLLAGE_PX, backgroundColor: '#FFFFFF' },
