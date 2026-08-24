@@ -812,7 +812,7 @@ export default function Wardrobe() {
             <LuxeButton icon="images-outline" variant="outline" onPress={() => takeSelfie(false)} />
           </View>
         ) : (
-          <LuxeButton icon="add" title="Lookbook" onPress={() => setLbModal(true)} />
+          <LuxeButton icon="add" onPress={() => setLbModal(true)} />
         )}
       </View>
 
