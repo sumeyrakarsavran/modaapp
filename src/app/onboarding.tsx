@@ -1,21 +1,15 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BettaFish, Wave } from '@/components/BettaFish';
+import { Backdrop } from '@/components/Backdrop';
+import { BettaFish } from '@/components/BettaFish';
+import { FinBlob } from '@/components/FinBlob';
 import { Button } from '@/components/UI';
 import { isUsernameTaken } from '@/data/community';
 import { useStore } from '@/store/useStore';
-import { colors, radius, spacing } from '@/theme';
+import { font, iridescent, luxe, luxeRadius, luxeType } from '@/theme/luxe';
 
 export default function Onboarding() {
   const setProfile = useStore((s) => s.setProfile);
@@ -45,50 +39,50 @@ export default function Onboarding() {
   };
 
   return (
-    <LinearGradient colors={[colors.deep, colors.deepSoft, '#0E6E86']} style={{ flex: 1 }}>
-      <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          behavior="padding"
-          style={{ flex: 1 }}
-        >
-          <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-            <View style={styles.fishRow}>
-              <BettaFish size={150} color={colors.aqua} />
-            </View>
-            <Text style={styles.logo}>BETTA</Text>
-            <Text style={styles.tagline}>Gardırobun, akvaryumun kadar canlı.</Text>
-            <Wave width={220} color="rgba(255,255,255,0.35)" />
+    /*
+      İlk ekran da uygulamanın FİLDİŞİ sayfası. Eski petrol gradyanı
+      uygulamanın hiçbir yerinde yok; ilk izlenim ile içerisi çelişiyordu.
+    */
+    <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }}>
+      <Backdrop />
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          {/* Marka anı: iridesan leke + balık silueti, altında kelime markası */}
+          <View style={styles.mark}>
+            <FinBlob color={luxe.primaryContainer} gradient={iridescent.soft} shadow />
+            <BettaFish size={126} color={luxe.primary} />
+          </View>
+          <Text style={styles.logo}>BETTA</Text>
+          <Text style={styles.tagline}>Gardırobun, akvaryumun kadar canlı.</Text>
 
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Sana ne diyelim?</Text>
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Adın"
-                placeholderTextColor={colors.inkFaint}
-                style={styles.input}
-                autoCapitalize="words"
-              />
-              <Button
-                title="🐟 Demo gardırobuyla başla"
-                onPress={() => start(true)}
-                style={{ marginTop: spacing.lg }}
-              />
-              <Button
-                title="Boş gardırop ile başla"
-                variant="secondary"
-                onPress={() => start(false)}
-                style={{ marginTop: spacing.sm }}
-              />
-              <Text style={styles.hint}>
-                Her şey önce cihazında saklanır. İstersen sonra Ayarlar'dan Supabase hesabına
-                bağlayıp buluta taşıyabilirsin.
-              </Text>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </LinearGradient>
+          <View style={styles.form}>
+            <Text style={luxeType.label}>Sana ne diyelim?</Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Adın"
+              placeholderTextColor={luxe.outline}
+              style={styles.input}
+              autoCapitalize="words"
+            />
+            <Button
+              title="Demo gardırobuyla başla"
+              onPress={() => start(true)}
+              style={{ marginTop: 18 }}
+            />
+            <Button
+              title="Boş gardırop ile başla"
+              variant="ghost"
+              onPress={() => start(false)}
+              style={{ marginTop: 8 }}
+            />
+            <Text style={styles.hint}>
+              Her şey önce cihazında saklanır; istersen sonra Ayarlar&apos;dan buluta taşırsın.
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -97,45 +91,52 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xl,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
   },
-  fishRow: { marginBottom: -10 },
+  /** Balığın arkasındaki organik leke — blob gölge payını kutu İÇİNDE alıyor. */
+  mark: {
+    width: 210,
+    height: 210,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   logo: {
-    fontSize: 52,
-    fontWeight: '900',
-    color: '#fff',
-    letterSpacing: 10,
+    fontFamily: font.display,
+    fontSize: 42,
+    letterSpacing: 12,
+    color: luxe.primary,
+    marginTop: 4,
+    // Harf aralığı sağdan boşluk bırakıyor; başlık optik olarak ortalansın
+    marginLeft: 12,
   },
   tagline: {
-    color: 'rgba(255,255,255,0.85)',
+    fontFamily: font.headlineItalic,
+    fontStyle: 'italic',
     fontSize: 15,
-    marginTop: 6,
-    marginBottom: spacing.md,
+    color: luxe.inkSoft,
+    marginTop: 8,
+    textAlign: 'center',
   },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    width: '100%',
-    maxWidth: 420,
-    marginTop: spacing.xl,
-  },
-  cardTitle: { fontSize: 18, fontWeight: '700', color: colors.ink, marginBottom: spacing.md },
+  form: { width: '100%', maxWidth: 420, marginTop: 34 },
   input: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+    borderRadius: luxeRadius.md,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    marginTop: 8,
+    fontFamily: font.body,
     fontSize: 16,
-    color: colors.ink,
-    backgroundColor: colors.background,
+    color: luxe.ink,
+    backgroundColor: luxe.surface,
   },
   hint: {
+    fontFamily: font.body,
     fontSize: 12,
-    color: colors.inkFaint,
-    marginTop: spacing.lg,
+    lineHeight: 18,
+    color: luxe.outline,
+    marginTop: 18,
     textAlign: 'center',
-    lineHeight: 17,
   },
 });
