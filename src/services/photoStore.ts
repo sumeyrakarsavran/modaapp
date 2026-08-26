@@ -13,13 +13,14 @@ import { uid } from '@/types';
  * FASHN'ın döndürdüğü URL geçicidir; kaydetmezsek sanal deneme sonuçları
  * bir süre sonra kırık görsele döner.
  */
-export async function persistRemoteImage(url: string): Promise<string> {
+export async function persistRemoteImage(url: string, kind: 'image' | 'video' = 'image'): Promise<string> {
   if (Platform.OS === 'web') return url;
   const FileSystem = await import('expo-file-system/legacy');
-  const dir = `${FileSystem.documentDirectory}tryons/`;
+  // Video da aynı yoldan iniyor: çıktı adresi GEÇİCİ, kalıcı kopya şart.
+  const dir = `${FileSystem.documentDirectory}${kind === 'video' ? 'videos' : 'tryons'}/`;
   await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
-  const ext = /\.png(\?|$)/i.test(url) ? 'png' : 'jpg';
-  const dest = `${dir}tryon-${uid()}.${ext}`;
+  const ext = kind === 'video' ? 'mp4' : /\.png(\?|$)/i.test(url) ? 'png' : 'jpg';
+  const dest = `${dir}${kind === 'video' ? 'video' : 'tryon'}-${uid()}.${ext}`;
 
   try {
     const res = await FileSystem.downloadAsync(url, dest);

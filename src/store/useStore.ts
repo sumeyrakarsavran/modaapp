@@ -5,7 +5,9 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { SEED_POSTS } from '@/data/community';
 import type {
   CustomModel,
+  PendingVideo,
   SelectedModel,
+  VideoRecord,
   ApiSettings,
   CommunityPost,
   LocalAccount,
@@ -30,6 +32,10 @@ interface BettaState {
   tryons: TryOnRecord[];
   /** Sonucu beklenen FASHN işi (uygulama kapansa bile kaybolmasın) */
   pendingTryOn: PendingTryOn | null;
+  /** Giydirmelerden üretilen kısa videolar */
+  videos: VideoRecord[];
+  /** Sonucu beklenen video işi (uygulama kapansa bile kaybolmasın) */
+  pendingVideo: PendingVideo | null;
   /** Kullanıcının ankete göre oluşturduğu mankenler */
   models: CustomModel[];
   /** Deneme stüdyosunda seçili manken */
@@ -72,6 +78,11 @@ interface BettaState {
   // selfies
   addSelfie: (selfie: Omit<Selfie, 'id' | 'createdAt'>) => void;
   deleteSelfie: (id: string) => void;
+
+  // videolar
+  addVideo: (v: Omit<VideoRecord, 'id' | 'createdAt'>) => void;
+  deleteVideo: (id: string) => void;
+  setPendingVideo: (p: PendingVideo | null) => void;
 
   // mankenler
   addModel: (m: Omit<CustomModel, 'id' | 'createdAt'>) => CustomModel;
@@ -133,6 +144,8 @@ export const useStore = create<BettaState>()(
       pendingTryOn: null,
       models: [],
       selectedModel: null,
+      videos: [],
+      pendingVideo: null,
       posts: SEED_POSTS,
       followedIds: ['mira', 'luna'],
       profile: emptyProfile,
@@ -234,6 +247,16 @@ export const useStore = create<BettaState>()(
       // Aynı FASHN işi iki yerden tamamlanabiliyor (deneme ekranı beklerken
       // Stüdyo sekmesi de arka planda bekliyor). Kimlik zaten kayıtlıysa
       // yenisini EKLEME, yoksa galeride çift görünüyor.
+      addVideo: (v) =>
+        set((s) =>
+          // Aynı iş iki yerden tamamlanabiliyor; kimlik zaten kayıtlıysa ekleme
+          v.jobId && s.videos.some((x) => x.jobId === v.jobId)
+            ? s
+            : { videos: [{ ...v, id: uid(), createdAt: new Date().toISOString() }, ...s.videos] },
+        ),
+      deleteVideo: (id) => set((s) => ({ videos: s.videos.filter((x) => x.id !== id) })),
+      setPendingVideo: (pendingVideo) => set({ pendingVideo }),
+
       addModel: (m) => {
         const full: CustomModel = { ...m, id: uid(), createdAt: new Date().toISOString() };
         set((s) => ({ models: [full, ...s.models] }));

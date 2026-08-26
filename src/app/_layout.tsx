@@ -111,6 +111,7 @@ export default function RootLayout() {
         <Stack.Screen name="models" options={{ presentation: 'modal' }} />
         <Stack.Screen name="model-new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="tryon" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="video" options={{ presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
         <Stack.Screen name="auth" options={{ presentation: 'modal' }} />
         <Stack.Screen name="pro" options={{ presentation: 'modal' }} />

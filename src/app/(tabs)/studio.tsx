@@ -119,7 +119,7 @@ function LuxeButton({
 export default function Studio() {
   const {
     items, outfits, addOutfit, pro, api, tryons, updateTryOn, deleteTryOn, sharePost,
-    addTryOn, pendingTryOn, setPendingTryOn,
+    addTryOn, pendingTryOn, setPendingTryOn, videos, deleteVideo, pendingVideo,
   } = useStore();
   const { width } = useWindowDimensions();
   // Görüntüleyici modalı tüm ekranı kaplıyor (statusBarTranslucent +
@@ -144,6 +144,18 @@ export default function Studio() {
   /** Büyütülerek görüntülenen sanal giydirme */
   const [openTryon, setOpenTryon] = useState<TryOnRecord | null>(null);
   const [saving, setSaving] = useState(false);
+  const [askDeleteVideo, setAskDeleteVideo] = useState<string | null>(null);
+  /** Videoyu cihaza indir — giydirme indirmesiyle aynı yol (SAF). */
+  const downloadVideo = async (id: string) => {
+    const v = videos.find((x) => x.id === id);
+    if (!v || saving) return;
+    setSaving(true);
+    const res = await saveImageToDevice(v.videoUri, `betta-video-${v.id}.mp4`, 'video/mp4');
+    setSaving(false);
+    if (res === 'saved') setNotice({ title: 'İndirildi', message: 'Seçtiğin klasöre kaydedildi.' });
+    else if (res === 'error')
+      setNotice({ title: 'İndirilemedi', message: 'Klasör izni alınamadı, tekrar dene.' });
+  };
   /**
    * Giydirmeyi cihaza indir. Klasörü kullanıcı seçiyor (SAF) — medya kütüphanesi
    * paketi kurulu olmadığı için native yeniden derleme gerekmiyor.
@@ -418,6 +430,16 @@ export default function Studio() {
       {/* Bugün · Gardırop · Topluluk ile AYNI zemin */}
       <Backdrop />
       <ConfirmModal
+        visible={!!askDeleteVideo}
+        title="Videoyu sil"
+        message="Bu video kaydı silinsin mi? Bu işlem geri alınamaz."
+        onConfirm={() => {
+          if (askDeleteVideo) deleteVideo(askDeleteVideo);
+          setAskDeleteVideo(null);
+        }}
+        onCancel={() => setAskDeleteVideo(null)}
+      />
+      <ConfirmModal
         visible={!!askDeleteTryOn}
         title="Sanal giydirmeyi sil"
         message="Bu giydirme kaydı silinsin mi? Bu işlem geri alınamaz."
@@ -473,6 +495,26 @@ export default function Studio() {
             onPress={() => router.push(pro ? '/models' : '/pro')}
           />
 
+          {/*
+            Video tanıtımı: giydirilmiş kareyi kısa videoya çeviriyor.
+            Kart vitrinin hemen altında — akış "giydir, sonra oynat".
+          */}
+          <Pressable
+            onPress={() => router.push('/video')}
+            style={({ pressed }) => [styles.videoPromo, pressed && { opacity: 0.9 }]}
+          >
+            <View style={styles.videoIcon}>
+              <Ionicons name="film-outline" size={19} color={luxe.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={luxeType.subtitle}>Videoya çevir</Text>
+              <Text style={luxeType.tiny}>
+                Giydirdiğin kare hareket etsin — 5 ya da 10 saniyelik kısa video.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={luxe.outline} />
+          </Pressable>
+
           {/* Sanal giydirme çıktıları — görseller kalıcı kopya olarak saklanır */}
           <View style={styles.sectionHead}>
             <Text style={luxeType.subtitle}>Sanal giydirmelerim</Text>
@@ -511,6 +553,57 @@ export default function Studio() {
           )}
           {tryons.length ? (
             <Text style={luxeType.tiny}>Büyütmek için dokun, silmek için basılı tut.</Text>
+          ) : null}
+
+          {/* ————— Sanal videolarım ————— */}
+          <View style={styles.sectionHead}>
+            <Text style={luxeType.subtitle}>Sanal videolarım</Text>
+            {videos.length ? <Text style={styles.sectionCount}>{videos.length}</Text> : null}
+          </View>
+          {pendingVideo ? (
+            <Text style={[luxeType.caption, { marginTop: -6 }]}>
+              Bir video hazırlanıyor… Hazır olunca burada belirecek.
+            </Text>
+          ) : null}
+          {videos.length === 0 && !pendingVideo ? (
+            <Text style={[luxeType.caption, { marginTop: -6 }]}>
+              Henüz video yok. Bir giydirmeyi videoya çevirince burada birikir.
+            </Text>
+          ) : (
+            <View style={styles.tryonGrid}>
+              {videos.map((v) => (
+                <Pressable
+                  key={v.id}
+                  onPress={() => downloadVideo(v.id)}
+                  onLongPress={() => setAskDeleteVideo(v.id)}
+                  style={[styles.tryonCard, { width: tryonCell }]}
+                >
+                  <View style={{ width: '100%', height: tryonCell * 1.5 }}>
+                    {v.posterUri ? (
+                      <Image
+                        source={{ uri: v.posterUri }}
+                        style={{ width: '100%', height: '100%', borderRadius: luxeRadius.md }}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={[styles.videoBlank, { borderRadius: luxeRadius.md }]}>
+                        <Ionicons name="film-outline" size={22} color={luxe.outlineSoft} />
+                      </View>
+                    )}
+                    {/* Oynat rozeti: kare, videonun kapağı */}
+                    <View style={styles.playBadge}>
+                      <Ionicons name="play" size={13} color={luxe.onDark} />
+                    </View>
+                  </View>
+                  <Text style={luxeType.tiny} numberOfLines={1}>
+                    {v.duration} sn · {v.resolution}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {videos.length ? (
+            <Text style={luxeType.tiny}>İndirmek için dokun, silmek için basılı tut.</Text>
           ) : null}
         </ScrollView>
       ) : (
@@ -953,6 +1046,45 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     letterSpacing: 1.2,
     color: luxe.outline,
+  },
+  /** Video tanıtım kartı — vitrinle liste arasında bir satır. */
+  videoPromo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+    borderRadius: luxeRadius.lg,
+    backgroundColor: '#FFFDFD',
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+  },
+  videoIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: glass.fillStrong,
+    borderWidth: 1,
+    borderColor: luxe.outlineSoft,
+  },
+  videoBlank: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: luxe.surfaceLow,
+  },
+  playBadge: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(31,31,36,0.72)',
   },
   tryonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tryonCard: { gap: 4 },

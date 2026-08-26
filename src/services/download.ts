@@ -15,7 +15,11 @@ let rememberedDir: string | null = null;
 
 export type SaveResult = 'saved' | 'cancelled' | 'unsupported' | 'error';
 
-export async function saveImageToDevice(uri: string, fileName: string): Promise<SaveResult> {
+export async function saveImageToDevice(
+  uri: string,
+  fileName: string,
+  mime = 'image/png',
+): Promise<SaveResult> {
   if (Platform.OS !== 'android') return 'unsupported';
   try {
     const FileSystem = await import('expo-file-system/legacy');
@@ -30,13 +34,13 @@ export async function saveImageToDevice(uri: string, fileName: string): Promise<
     // Uzak adres kaldıysa önce yerel bir kopya indiriliyor
     let localUri = uri;
     if (uri.startsWith('http')) {
-      const tmp = `${FileSystem.cacheDirectory}dl-${Date.now()}.png`;
+      const tmp = `${FileSystem.cacheDirectory}dl-${Date.now()}`;
       const res = await FileSystem.downloadAsync(uri, tmp);
       localUri = res.uri;
     }
 
     const b64 = await FileSystem.readAsStringAsync(localUri, { encoding: 'base64' as any });
-    const dest = await SAF.createFileAsync(rememberedDir, fileName, 'image/png');
+    const dest = await SAF.createFileAsync(rememberedDir, fileName, mime);
     await FileSystem.writeAsStringAsync(dest, b64, { encoding: 'base64' as any });
     return 'saved';
   } catch {

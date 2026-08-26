@@ -266,6 +266,34 @@ export interface CustomModel {
   createdAt: string;
 }
 
+/**
+ * Sanal giydirmeden üretilen kısa video (FASHN `image-to-video`).
+ * Dosya belge dizinine indiriliyor: çıktı URL'i geçici.
+ */
+export interface VideoRecord {
+  id: string;
+  videoUri: string;
+  /** Hangi giydirmeden üretildi — kapak karesi için. */
+  tryOnId?: string;
+  posterUri?: string;
+  jobId?: string;
+  prompt?: string;
+  /** Saniye (5 / 10) ve çözünürlük — kredi bunlara bağlı. */
+  duration: number;
+  resolution: string;
+  createdAt: string;
+}
+
+/** Başlatılmış ama sonucu alınmamış video işi. */
+export interface PendingVideo {
+  jobId: string;
+  tryOnId?: string;
+  posterUri?: string;
+  duration: number;
+  resolution: string;
+  startedAt: string;
+}
+
 /** Deneme stüdyosunda seçili manken: hazır (`preset`) ya da kullanıcının. */
 export interface SelectedModel {
   kind: 'preset' | 'custom';
