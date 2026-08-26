@@ -34,7 +34,7 @@ const BASE = 'https://api.fashn.ai/v1';
  *
  * Uzun sürüm git geçmişinde duruyor (bkz. "master prompt" commit'i).
  */
-export const EDITORIAL_PROMPT = `Copy the exact garments from the collage onto the model. Reproduce every garment's exact color, fabric, texture, print and LENGTH — never recolor, restyle or swap the material; a floor-length dress stays floor-length. The garments are flat-lay photos: rebuild them as worn 3D clothing with natural drape, keeping the same cut and proportions. Never tuck tops in — leave the hem outside. Keep the model, pose, hands, camera, lighting and background unchanged. Use one item per category; if a category is missing keep the white base garment.`;
+export const EDITORIAL_PROMPT = `Copy the exact garments from the collage onto the model. Reproduce every garment's exact color, fabric, texture, print and LENGTH — never recolor, restyle or swap the material; a floor-length dress stays floor-length. The garments are flat-lay photos: rebuild them as worn 3D clothing with natural drape, keeping the same cut and proportions. Never tuck tops in — leave the hem outside. Keep the model, pose, hands, camera, lighting and background unchanged. Use one item per category; if a category is missing keep the white base garment. Render at maximum sharpness: crisp fabric weave, stitching, print edges and garment outlines, photographic detail, no blur, no smoothing, no plastic or CGI look.`;
 
 /** Kullanıcının yazdığı metni sabit editoryal yönergeyle birleştirir. */
 export function buildPrompt(userPrompt?: string): string {

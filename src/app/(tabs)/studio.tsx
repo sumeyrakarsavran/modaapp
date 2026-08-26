@@ -20,6 +20,7 @@ import { Backdrop } from '@/components/Backdrop';
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
 import { ItemThumb } from '@/components/ItemThumb';
 import { ShareModal } from '@/components/ShareModal';
+import { saveImageToDevice } from '@/services/download';
 import { TryOnShowcase } from '@/components/TryOnShowcase';
 import { persistRemoteImage } from '@/services/photoStore';
 import { claimJob, releaseJob, TryOnPendingError, waitForJob } from '@/services/tryon';
@@ -142,6 +143,23 @@ export default function Studio() {
   const [locked, setLocked] = useState<Record<string, boolean>>({});
   /** Büyütülerek görüntülenen sanal giydirme */
   const [openTryon, setOpenTryon] = useState<TryOnRecord | null>(null);
+  const [saving, setSaving] = useState(false);
+  /**
+   * Giydirmeyi cihaza indir. Klasörü kullanıcı seçiyor (SAF) — medya kütüphanesi
+   * paketi kurulu olmadığı için native yeniden derleme gerekmiyor.
+   */
+  const download = async () => {
+    if (!openTryon || saving) return;
+    setSaving(true);
+    const res = await saveImageToDevice(openTryon.imageUri, `betta-${openTryon.id}.png`);
+    setSaving(false);
+    if (res === 'saved') setNotice({ title: 'İndirildi', message: 'Seçtiğin klasöre kaydedildi.' });
+    else if (res === 'error')
+      setNotice({ title: 'İndirilemedi', message: 'Klasör izni alınamadı, tekrar dene.' });
+    else if (res === 'unsupported')
+      setNotice({ title: 'Bu cihazda yok', message: 'İndirme şimdilik yalnızca Android’de.' });
+  };
+
   /** Görüntüleyicide kaçıncı giydirme açık — sayfa kaydırma bunu izliyor. */
   const openIndex = openTryon ? tryons.findIndex((t) => t.id === openTryon.id) : -1;
   /** Sayfa genişliği: ekran eksi görüntüleyicinin yatay dolgusu (20+20). */
@@ -745,7 +763,14 @@ export default function Studio() {
             <Pressable style={styles.viewerBtn} onPress={() => setShareTryon(openTryon)}>
               <FinBlob shadow pad={BTN_PAD} variant="button" color={luxe.onDark} />
               <Ionicons name="share-social-outline" size={14} color={luxe.primary} />
-              <Text style={[styles.viewerBtnText, { color: luxe.primary }]}>Toplulukta paylaş</Text>
+              <Text style={[styles.viewerBtnText, { color: luxe.primary }]}>Paylaş</Text>
+            </Pressable>
+            <Pressable style={styles.viewerBtn} onPress={download} disabled={saving}>
+              <FinBlob pad={BTN_PAD} variant="button" color="transparent" stroke="rgba(255,255,255,0.45)" />
+              <Ionicons name="download-outline" size={14} color={luxe.onDark} />
+              <Text style={[styles.viewerBtnText, { color: luxe.onDark }]}>
+                {saving ? 'İndiriliyor…' : 'İndir'}
+              </Text>
             </Pressable>
             <Pressable
               style={styles.viewerBtn}
@@ -968,12 +993,14 @@ const styles = StyleSheet.create({
   },
   viewerActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   viewerBtn: {
+    /* Üç eylem tek satırda: paylaş · indir · sil */
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 11 + BTN_PAD,
-    paddingHorizontal: 18 + BTN_PAD,
+    paddingHorizontal: 8 + BTN_PAD,
   },
   viewerBtnText: {
     fontFamily: font.label,

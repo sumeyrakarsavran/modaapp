@@ -114,7 +114,12 @@ export default function TryOn() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [resolution] = useState<TryOnResolution>('1k');
+  /*
+    Çözünürlük ARAYÜZDE seçilebiliyor. Sabit 1k bırakılmıştı: çıktı 1024px
+    geliyordu ve FASHN'ın kendi arayüzünde alınan sonuçlara göre belirgin
+    şekilde daha az detaylıydı. Kredi de çözünürlükle artıyor.
+  */
+  const [resolution, setResolution] = useState<TryOnResolution>('2k');
   const [mode, setMode] = useState<TryOnMode>('fast');
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [proInfo, setProInfo] = useState(false);
@@ -349,6 +354,27 @@ export default function TryOn() {
             <Text style={[luxeType.tiny, { marginTop: 6 }]}>
               Editoryal yönerge (poz, ışık, stüdyo, kalite) her üretime otomatik ekleniyor.
             </Text>
+
+            <Text style={[luxeType.label, { marginTop: 16 }]}>Çözünürlük</Text>
+            <View style={styles.modeRow}>
+              {(['1k', '2k', '4k'] as TryOnResolution[]).map((r) => {
+                const on = resolution === r;
+                return (
+                  <Pressable
+                    key={r}
+                    onPress={() => setResolution(r)}
+                    style={[styles.modeChip, on && styles.modeChipOn]}
+                  >
+                    <Text style={[styles.modeText, on && { color: luxe.onPrimary }]}>
+                      {r.toUpperCase()}
+                    </Text>
+                    <Text style={[styles.modeCredit, on && { color: luxe.onDarkSoft }]}>
+                      {TRYON_CREDITS[mode][r]} kredi
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
             <Text style={[luxeType.label, { marginTop: 16 }]}>Kalite</Text>
             <View style={styles.modeRow}>
