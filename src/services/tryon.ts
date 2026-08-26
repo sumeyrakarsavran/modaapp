@@ -28,6 +28,12 @@ const BASE = 'https://api.fashn.ai/v1';
  * kombin kurmasını ve eksik kategoride mankenin beyaz iç katmanını
  * korumasını da burada söylüyoruz.
  *
+ * Sonradan eklenen iki kural:
+ * - Kolajdaki parçalar YERDE/DÜZ çekilmiş olabiliyor; düz siluet olduğu gibi
+ *   aktarılmasın, giyildiğindeki üç boyutlu hâli yeniden kurulsun.
+ * - ÜST GİYİM varsayılan olarak pantolonun/eteğin İÇİNE SOKULMASIN; yalnızca
+ *   referansta öyle görünüyorsa içine girsin.
+ *
  * Doküman prompt için karakter sınırı YAYINLAMIYOR (kontrol edildi), bu yüzden
  * metin kısaltılmadan gönderiliyor.
  */
@@ -49,11 +55,10 @@ Preserve the model exactly as provided:
 * lighting and shadows
 * background and floor
 
-DO NOT change the pose, move the arms or legs, change the body, face, hair, camera, lighting or background.
+Never change the model's pose, body, face, hair, camera, lighting or background.
 The clothing must adapt to the existing model and existing pose — never modify the model to fit the clothing.
 OUTFIT COLLAGE ANALYSIS
-First analyze the entire outfit collage and identify every visible wearable item.
-Detect:
+First analyze the entire outfit collage and identify every visible wearable item:
 
 * tops
 * bottoms
@@ -71,35 +76,51 @@ Detect:
 * hats
 * other accessories
 
-The clothing images may be flat-lay or photographed on the floor. Understand the actual 3D garment construction, cut and silhouette before applying it to the model.
+The clothing may be photographed lying flat on the floor, so the garments will appear flat and two-dimensional in the reference.
+Do not transfer the flat-lay shape directly onto the model.
+Understand the garment's actual construction, cut, silhouette and structure, then reconstruct its natural three-dimensional appearance when worn by a person.
+The garment must naturally wrap around the existing body with realistic volume, folds, draping and fabric behavior.
+GARMENT ACCURACY
 Preserve the reference garment's:
 
 * exact color
 * pattern and print
 * fabric texture
-* silhouette and fit
+* silhouette and intended fit
 * length
 * neckline and sleeves
 * seams and stitching
 * buttons and zippers
-* embroidery, lace and decorative details
+* embroidery and lace
 * transparency and layers
+* decorative details
 * branding when visible
 
 Do not simplify, redesign, recolor or invent garment details.
+TOPS — IMPORTANT TUCKING RULE
+Unless the reference image clearly shows that the top is designed or intentionally styled to be tucked into the bottom, KEEP THE TOP OUTSIDE THE PANTS/SKIRT.
+Do not tuck shirts, T-shirts, blouses, sweaters or other tops into pants or skirts by default.
+The natural default is:
+TOP OVER THE BOTTOM, OUTSIDE THE WAISTBAND.
+Only tuck the top inside the pants/skirt when:
+
+* the reference clearly shows a tucked-in styling, or
+* the garment is specifically designed to be worn tucked in.
+
+When left outside, preserve the natural length and hemline of the original garment.
+Never partially tuck, awkwardly bunch, or incorrectly stuff the top into the waistband.
 OUTFIT SELECTION
-Do not assume the collage contains only two garments.
-Build the most coherent outfit from the detected items.
-Minimum outfit:
+Build the most coherent outfit from all detected items.
+Minimum:
 TOP + BOTTOM + SHOES
 or
 DRESS/JUMPSUIT + SHOES
 If multiple items from the same category exist, select only one that best matches the outfit.
-Do not wear multiple alternative tops, bottoms or shoes simultaneously.
+Do not combine alternative outfits.
 If accessories are present, add them naturally when compatible with the existing pose.
 MISSING CLOTHING
 Never leave the model unclothed.
-If the collage is missing a category, keep the model's existing white base garment for that category.
+If a category is missing from the collage, keep the model's existing white base garment for that category.
 Examples:
 
 * TOP + SHOES → keep existing white bottom
@@ -109,41 +130,38 @@ Examples:
 Do not invent missing garments.
 If a dress or jumpsuit is present, use it as the primary outfit.
 REALISTIC TRY-ON
-Make the garments look physically worn by the model.
-Use realistic:
+Make every garment look genuinely worn by the model.
+The clothing must follow realistic:
 
-* fabric weight
 * gravity
+* fabric weight
 * folds
 * tension
 * draping
 * wrinkles
 * body contact
-* garment volume
+* three-dimensional volume
 
-Do not make the clothing look pasted onto the body.
-Do not stretch, melt, distort or flatten the garment.
-Preserve the intended silhouette: oversized stays oversized, fitted stays fitted, loose stays loose, structured stays structured.
+Do not make clothing look pasted onto the body.
+Do not stretch, melt, flatten or distort the garment.
+Preserve the intended silhouette:
+oversized stays oversized, fitted stays fitted, loose stays loose, structured stays structured.
 IMAGE PRESERVATION
 The final result must look like the original model photograph with the selected garments realistically worn.
 Do not create a new fashion photograph.
-Do not change the composition.
-Do not change the background.
-Do not change the model.
-Do not change the pose.
-Do not change the camera.
-Only replace/apply the relevant clothing and accessory regions.
-Priority order:
+Do not change the composition, model, pose, camera, lighting or background.
+Only modify the relevant clothing and accessory regions.
+Priority:
 
-1. Correctly identify garments
-2. Select the correct outfit
-3. Preserve garment details
-4. Fit garments realistically
-5. Preserve the exact model, pose and image
-6. Preserve the original background and lighting
+1. Correct garment detection
+2. Correct outfit selection
+3. Accurate garment details
+4. Natural 3D garment reconstruction from flat-lay references
+5. Realistic fit and fabric behavior
+6. Exact preservation of model, pose and image
 
 AVOID:
-identity drift, new model, face change, hair change, body reshaping, pose change, arm/leg movement, hand deformation, camera change, background change, lighting change, invented clothing, incorrect garment selection, distorted patterns, lost garment details, wrong colors, unnatural fabric, melted clothing, flat texture, extra fingers, missing fingers, deformed anatomy, nudity, cropped hands or feet, CGI, cartoon, anime, artificial fashion pose.`;
+identity drift, new model, face change, hair change, body reshaping, pose change, arm/leg movement, hand deformation, camera change, background change, lighting change, invented clothing, incorrect garment selection, tucked-in tops unless explicitly intended, awkward tucking, partially tucked shirts, distorted patterns, lost garment details, wrong colors, unnatural fabric, melted clothing, flat texture, extra fingers, missing fingers, deformed anatomy, nudity, cropped hands or feet, CGI, cartoon, anime, artificial fashion pose.`;
 
 /** Kullanıcının yazdığı metni sabit editoryal yönergeyle birleştirir. */
 export function buildPrompt(userPrompt?: string): string {
