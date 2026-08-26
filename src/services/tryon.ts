@@ -21,149 +21,129 @@ export interface TryOnResult {
 const BASE = 'https://api.fashn.ai/v1';
 
 /**
- * Her üretimde prompta eklenen sabit editoryal yönerge.
+ * Her üretimde prompta eklenen sabit yönerge.
+ *
+ * Metin MANKENİ KİLİTLİYOR: poz, kadraj, ışık, zemin ve kimlik aynı kalacak,
+ * yalnızca kıyafet değişecek. Kolajdaki parçaları tek tek tanıyıp tutarlı bir
+ * kombin kurmasını ve eksik kategoride mankenin beyaz iç katmanını
+ * korumasını da burada söylüyoruz.
+ *
  * Doküman prompt için karakter sınırı YAYINLAMIYOR (kontrol edildi), bu yüzden
  * metin kısaltılmadan gönderiliyor.
  */
-export const EDITORIAL_PROMPT = `Create an ultra-premium luxury fashion editorial photograph using the provided human model and the provided clothing item.
+export const EDITORIAL_PROMPT = `Perform a high-fidelity virtual try-on using the provided MODEL IMAGE and OUTFIT COLLAGE.
+The MODEL IMAGE is the immutable base image. Do not regenerate or redesign it. Only modify the clothing and necessary accessories.
+MODEL — STRICTLY LOCKED
+Preserve the model exactly as provided:
 
-The clothing must be transferred perfectly onto the model while preserving the exact garment design, silhouette, stitching, seams, embroidery, lace, buttons, zippers, fabric texture, colors, prints, transparency, folds, layers, proportions, branding, accessories, and every tiny construction detail exactly as in the reference garment.
+* identity and face
+* hair and skin
+* body shape and proportions
+* hands, fingers, arms and legs
+* posture and pose
+* head angle
+* arm and leg positions
+* distance between arms and legs
+* camera angle and perspective
+* framing and model position
+* lighting and shadows
+* background and floor
 
-The garment must fit naturally according to realistic tailoring. Follow accurate body contours while respecting the intended cut of the clothing. Preserve oversized, slim-fit, loose-fit, structured, or flowing silhouettes exactly as designed. Fabric must never melt into the body or look artificially stretched.
+DO NOT change the pose, move the arms or legs, change the body, face, hair, camera, lighting or background.
+The clothing must adapt to the existing model and existing pose — never modify the model to fit the clothing.
+OUTFIT COLLAGE ANALYSIS
+First analyze the entire outfit collage and identify every visible wearable item.
+Detect:
 
-The model's identity must remain 100% unchanged.
-Preserve the exact facial structure, eyes, eyebrows, lips, nose, skin tone, hairstyle, body proportions, hands, fingers, nails, posture, and natural anatomy.
+* tops
+* bottoms
+* dresses
+* jumpsuits
+* shoes
+* bags
+* belts
+* necklaces
+* earrings
+* bracelets
+* watches
+* rings
+* sunglasses
+* hats
+* other accessories
 
-Create the feeling of a luxury fashion campaign photographed for Pinterest, Zara, COS, Massimo Dutti, Jacquemus, Revolve, and high-end editorial magazines.
+The clothing images may be flat-lay or photographed on the floor. Understand the actual 3D garment construction, cut and silhouette before applying it to the model.
+Preserve the reference garment's:
 
-POSE:
-Elegant, confident, relaxed luxury fashion pose.
-Natural weight shift.
-Long neck.
-Relaxed shoulders.
-Beautiful hand placement.
-Editorial body language.
-Strong feminine energy.
-Minimal but expensive-looking pose.
-No awkward limbs.
-No exaggerated fashion pose.
+* exact color
+* pattern and print
+* fabric texture
+* silhouette and fit
+* length
+* neckline and sleeves
+* seams and stitching
+* buttons and zippers
+* embroidery, lace and decorative details
+* transparency and layers
+* branding when visible
 
-EXPRESSION:
-Calm.
-Confident.
-Magnetic.
-Sophisticated.
-Slight mysterious expression.
-Soft relaxed lips.
-Natural eyes.
-Luxury editorial emotion.
-No exaggerated smile.
+Do not simplify, redesign, recolor or invent garment details.
+OUTFIT SELECTION
+Do not assume the collage contains only two garments.
+Build the most coherent outfit from the detected items.
+Minimum outfit:
+TOP + BOTTOM + SHOES
+or
+DRESS/JUMPSUIT + SHOES
+If multiple items from the same category exist, select only one that best matches the outfit.
+Do not wear multiple alternative tops, bottoms or shoes simultaneously.
+If accessories are present, add them naturally when compatible with the existing pose.
+MISSING CLOTHING
+Never leave the model unclothed.
+If the collage is missing a category, keep the model's existing white base garment for that category.
+Examples:
 
-CAMERA:
-Medium-format Hasselblad X2D photography.
-80mm portrait lens.
-Eye-level composition.
-Perfect perspective.
-Natural proportions.
-No wide-angle distortion.
-Ultra high dynamic range.
-Professional fashion photography.
+* TOP + SHOES → keep existing white bottom
+* BOTTOM + SHOES → keep existing white top
+* ACCESSORIES ONLY → keep existing white outfit
 
-LIGHTING:
-Large softbox from front-left.
-Large fill light.
-Subtle rim light separating the subject.
-Natural studio shadows.
-Beautiful skin highlights.
-Luxury editorial lighting.
-Soft contrast.
-No harsh shadows.
-No blown highlights.
+Do not invent missing garments.
+If a dress or jumpsuit is present, use it as the primary outfit.
+REALISTIC TRY-ON
+Make the garments look physically worn by the model.
+Use realistic:
 
-BACKGROUND:
-A perfectly seamless premium studio cyclorama with a single solid matte light gray background (#F5F5F5).
+* fabric weight
+* gravity
+* folds
+* tension
+* draping
+* wrinkles
+* body contact
+* garment volume
 
-Completely uniform color across both floor and wall with an invisible infinity curve.
-No gradients.
-No textures.
-No plaster.
-No concrete.
-No architecture.
-No windows.
-No wall panels.
-No shadows cast on the background except a subtle natural contact shadow beneath the model.
-No furniture.
-No decorations.
-No props.
-No reflections.
-No distracting elements.
+Do not make the clothing look pasted onto the body.
+Do not stretch, melt, distort or flatten the garment.
+Preserve the intended silhouette: oversized stays oversized, fitted stays fitted, loose stays loose, structured stays structured.
+IMAGE PRESERVATION
+The final result must look like the original model photograph with the selected garments realistically worn.
+Do not create a new fashion photograph.
+Do not change the composition.
+Do not change the background.
+Do not change the model.
+Do not change the pose.
+Do not change the camera.
+Only replace/apply the relevant clothing and accessory regions.
+Priority order:
 
-The background must remain absolutely identical in every generated image, ensuring perfect consistency across the entire fashion catalog. Only the model pose may change between generations.
-
-The result should resemble the clean, premium e-commerce photography used by Zara, COS, Massimo Dutti, Uniqlo, and luxury fashion brands.
-
-COMPOSITION:
-Centered composition.
-Full-body.
-Perfect symmetry.
-Professional fashion framing.
-Enough negative space.
-Pinterest editorial composition.
-Instagram luxury campaign aesthetic.
-
-FABRIC PHYSICS:
-Physically accurate cloth simulation.
-Natural gravity.
-Realistic folds.
-Luxury fabric weight.
-Correct tension.
-Beautiful draping.
-Rich volume.
-Fine wrinkles only where physically expected.
-
-SKIN:
-Ultra realistic skin pores.
-Natural makeup.
-Healthy skin texture.
-Luxury beauty retouching.
-No plastic skin.
-Natural subsurface scattering.
-
-HAIR:
-Perfectly groomed.
-Natural volume.
-Individual hair strands.
-Luxury hair photography.
-No flyaway artifacts.
-
-COLOR GRADING:
-Luxury editorial color grading.
-Soft warm neutrals.
-Natural skin tones.
-Clean neutral grays.
-Rich whites.
-Gentle contrast.
-Timeless premium aesthetic.
-Premium fashion catalog look.
-
-QUALITY:
-Ultra photorealistic.
-Impossible to distinguish from real photography.
-Award-winning fashion photography.
-Luxury campaign.
-Editorial masterpiece.
-Medium-format realism.
-16-bit color.
-HDR.
-Global illumination.
-Ray-traced lighting.
-Extremely sharp garment details.
-Hyper realistic.
-8K.
-Insanely detailed.
+1. Correctly identify garments
+2. Select the correct outfit
+3. Preserve garment details
+4. Fit garments realistically
+5. Preserve the exact model, pose and image
+6. Preserve the original background and lighting
 
 AVOID:
-low quality, blurry, CGI, cartoon, anime, AI generated look, bad anatomy, extra fingers, missing fingers, deformed hands, duplicate limbs, stretched body, distorted face, asymmetrical eyes, identity drift, different hairstyle, clothing deformation, incorrect garment fit, melted fabric, texture loss, washed colors, oversaturated colors, watermark, logo, text, cropped feet, cropped hands, unrealistic shadows, harsh lighting, background gradients, textured background, architectural background, furniture, decorations, props, inconsistent background color, plastic skin, wax face, over-retouched skin, noise, artifacts, compression artifacts, motion blur`;
+identity drift, new model, face change, hair change, body reshaping, pose change, arm/leg movement, hand deformation, camera change, background change, lighting change, invented clothing, incorrect garment selection, distorted patterns, lost garment details, wrong colors, unnatural fabric, melted clothing, flat texture, extra fingers, missing fingers, deformed anatomy, nudity, cropped hands or feet, CGI, cartoon, anime, artificial fashion pose.`;
 
 /** Kullanıcının yazdığı metni sabit editoryal yönergeyle birleştirir. */
 export function buildPrompt(userPrompt?: string): string {
