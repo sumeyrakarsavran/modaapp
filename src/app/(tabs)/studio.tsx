@@ -142,6 +142,10 @@ export default function Studio() {
   const [locked, setLocked] = useState<Record<string, boolean>>({});
   /** Büyütülerek görüntülenen sanal giydirme */
   const [openTryon, setOpenTryon] = useState<TryOnRecord | null>(null);
+  /** Görüntüleyicide kaçıncı giydirme açık — sayfa kaydırma bunu izliyor. */
+  const openIndex = openTryon ? tryons.findIndex((t) => t.id === openTryon.id) : -1;
+  /** Sayfa genişliği: ekran eksi görüntüleyicinin yatay dolgusu (20+20). */
+  const viewerW = width - 40;
   const [askDeleteTryOn, setAskDeleteTryOn] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null);
   const [shareTryon, setShareTryon] = useState<TryOnRecord | null>(null);
@@ -695,17 +699,43 @@ export default function Studio() {
             <Text style={styles.viewerTitle} numberOfLines={1}>
               {openTryon?.outfitName ?? 'Sanal giydirme'}
             </Text>
+            {tryons.length > 1 ? (
+              <Text style={styles.viewerCount}>
+                {openIndex + 1}/{tryons.length}
+              </Text>
+            ) : null}
             <Pressable onPress={() => setOpenTryon(null)} style={styles.viewerClose}>
               <Ionicons name="close" size={22} color={luxe.onDark} />
             </Pressable>
           </View>
-          {openTryon ? (
-            <Image
-              source={{ uri: openTryon.imageUri }}
-              style={styles.viewerImg}
-              contentFit="contain"
-            />
-          ) : null}
+          {/*
+            Yatay KAYDIRMA: giydirmeler arasında sağa sola geçiliyor. Tek
+            görsel gösterip kapatıp yeniden açmak gerekiyordu.
+            `getItemLayout` + `initialScrollIndex`: dokunulan kareyle açılsın
+            diye ölçü hesaplanmadan konum biliniyor.
+          */}
+          <FlatList
+            data={tryons}
+            keyExtractor={(t) => t.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.viewerImg}
+            initialScrollIndex={Math.max(0, openIndex)}
+            getItemLayout={(_d, i) => ({ length: viewerW, offset: viewerW * i, index: i })}
+            onMomentumScrollEnd={(e) => {
+              const i = Math.round(e.nativeEvent.contentOffset.x / viewerW);
+              const next = tryons[i];
+              if (next && next.id !== openTryon?.id) setOpenTryon(next);
+            }}
+            renderItem={({ item }) => (
+              <Image
+                source={{ uri: item.imageUri }}
+                style={{ width: viewerW, height: '100%', borderRadius: luxeRadius.lg }}
+                contentFit="contain"
+              />
+            )}
+          />
           {openTryon?.prompt ? (
             <Text style={styles.viewerPrompt} numberOfLines={3}>
               “{openTryon.prompt}”
@@ -922,7 +952,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  viewerImg: { flex: 1, width: '100%', borderRadius: luxeRadius.lg },
+  viewerImg: { flex: 1, width: '100%' },
+  viewerCount: {
+    fontFamily: font.label,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: luxe.onDarkSoft,
+  },
   viewerPrompt: {
     fontFamily: font.body,
     color: luxe.onDarkSoft,
