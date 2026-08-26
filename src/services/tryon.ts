@@ -27,13 +27,14 @@ const BASE = 'https://api.fashn.ai/v1';
  * `tryon-max` bir KIYAFET AKTARMA ağı; `prompt` alanı ince ayar kolu, kural kitabı
  * değil. Uzun metinde önemli satırlar gömülüyor. Bu yüzden metin yalnızca en çok
  * hata yapılan altı noktayı emir kipinde söylüyor:
- * manken/poz/zemin sabit · düz çekim 3B'ye çevrilsin · renk-kumaş-desen aynen ·
- * BOY korunsun · üst içeri sokulmasın · kategoriden bir parça, eksik kategoride
- * beyaz iç katman kalsın.
+ * renk-kumaş-desen-BOY aynen (metnin BAŞINDA: model ilk satırlara daha çok
+ * ağırlık veriyor) · düz çekim 3B'ye çevrilsin · üst içeri sokulmasın ·
+ * manken/poz/zemin sabit · kategoriden bir parça, eksik kategoride beyaz iç
+ * katman kalsın.
  *
  * Uzun sürüm git geçmişinde duruyor (bkz. "master prompt" commit'i).
  */
-export const EDITORIAL_PROMPT = `Dress the model in the garments from the collage. Keep the model, face, body, pose, hands, camera, lighting and background exactly as given — change clothing only. The garments are flat-lay photos: rebuild them as worn 3D clothing with natural drape. Keep each garment's exact color, fabric, print and LENGTH — a floor-length dress stays floor-length. Never tuck tops into pants or skirts, leave the hem outside. Use one item per category; if a category is missing, keep the white base garment.`;
+export const EDITORIAL_PROMPT = `Copy the exact garments from the collage onto the model. Reproduce every garment's exact color, fabric, texture, print and LENGTH — never recolor, restyle or swap the material; a floor-length dress stays floor-length. The garments are flat-lay photos: rebuild them as worn 3D clothing with natural drape, keeping the same cut and proportions. Never tuck tops in — leave the hem outside. Keep the model, pose, hands, camera, lighting and background unchanged. Use one item per category; if a category is missing keep the white base garment.`;
 
 /** Kullanıcının yazdığı metni sabit editoryal yönergeyle birleştirir. */
 export function buildPrompt(userPrompt?: string): string {
