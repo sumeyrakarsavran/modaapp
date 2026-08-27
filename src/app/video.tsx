@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,6 +15,7 @@ import {
   startImageToVideo,
   VIDEO_CREDITS,
   type VideoDuration,
+  type VideoOutfitKind,
   type VideoResolution,
 } from '@/services/video';
 import { useStore } from '@/store/useStore';
@@ -32,7 +33,7 @@ import { font, glass, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/lux
  * ve indirilebiliyor — video cihazdaki oynatıcıda açılıyor.
  */
 export default function VideoScreen() {
-  const { tryons, api, addVideo, pendingVideo, setPendingVideo } = useStore();
+  const { tryons, outfits, items, api, addVideo, pendingVideo, setPendingVideo } = useStore();
   const insets = useSafeAreaInsets();
 
   const [tryOnId, setTryOnId] = useState<string | undefined>(tryons[0]?.id);
@@ -47,6 +48,21 @@ export default function VideoScreen() {
 
   const source = tryons.find((t) => t.id === tryOnId);
   const credits = VIDEO_CREDITS[duration][resolution];
+
+  /*
+    Hareket yönergesi KOMBİNE göre seçiliyor: etek/elbisede kumaşın dönerken
+    açılması isteniyor, pantolonda sakin bir adım. Kombin kaydından
+    parçaların alt türlerine bakıyoruz; bilinmiyorsa daha ölçülü olan
+    pantolon yönergesi kullanılıyor.
+  */
+  const kind: VideoOutfitKind = useMemo(() => {
+    const outfit = source?.outfitId ? outfits.find((o) => o.id === source.outfitId) : undefined;
+    const its = (outfit?.itemIds ?? [])
+      .map((id) => items.find((i) => i.id === id))
+      .filter(Boolean) as { category: string; subcategory?: string }[];
+    if (its.some((i) => i.category === 'elbise' || i.subcategory === 'skirt')) return 'flowy';
+    return 'pants';
+  }, [source, outfits, items]);
 
   /** Sonucu al, kalıcı kopyayı sakla, listeye ekle. */
   const finish = async (jobId: string, poster?: string, d = duration, r: string = resolution) => {
@@ -105,7 +121,7 @@ export default function VideoScreen() {
       const b64 = await FileSystem.readAsStringAsync(source.imageUri, { encoding: 'base64' as any });
       const image = `data:image/png;base64,${b64}`;
 
-      jobId = await startImageToVideo(api.fashnKey, image, { duration, resolution });
+      jobId = await startImageToVideo(api.fashnKey, image, { duration, resolution, kind });
       setPendingVideo({
         jobId,
         tryOnId: source.id,
@@ -234,6 +250,12 @@ export default function VideoScreen() {
                 );
               })}
             </ScrollView>
+
+            <Text style={[luxeType.tiny, { marginTop: 10 }]}>
+              {kind === 'flowy'
+                ? 'Etek/elbise yönergesi: dönerken kumaş açılıyor.'
+                : 'Pantolon yönergesi: sakin adım ve hafif dönüş.'}
+            </Text>
 
             <Chips
               label="2 · Süre"
