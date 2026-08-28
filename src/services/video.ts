@@ -37,10 +37,8 @@ export type VideoOutfitKind = 'pants' | 'flowy';
 /**
  * Pantolon/şort gibi ALT giyimli kombinler.
  *
- * Buradaki dinamizm MANKENDE değil KAMERADA: model sakin bir adım atıp
- * duruyor, kamera 90-120 derecelik yaylı bir yörüngede yükselerek dönüyor.
- * Tam tur (360°) ve aşırı yakınlaşma açıkça yasak — kıyafet kadraj dışında
- * kalmasın diye.
+ * Model bir adım öne gelip gövdesini kameraya doğru hafifçe çeviriyor.
+ * (Kamera yörüngeli bir sürüm denendi, kullanıcı bu hâli tercih etti.)
  */
 export const VIDEO_PROMPT_PANTS = `Create a 5-second ultra-premium photorealistic fashion editorial video using the provided reference image.
 
@@ -71,62 +69,22 @@ From approximately 1 to 3 seconds, she takes one slow, elegant step forward. Her
 
 The trousers move naturally with her legs. The fabric responds to gravity and motion with physically accurate folds and subtle movement. The trouser legs maintain their original length and silhouette.
 
-From approximately 3 to 5 seconds, the model settles into a calm, confident editorial pose.
+At approximately 3 seconds, she stops and makes a very subtle turn of her upper body toward the camera.
 
-She does not perform exaggerated movements. She does not dance, spin, or make unnecessary gestures.
+From 3 to 5 seconds, she gives a calm, confident look directly toward the camera. Her expression remains cool, sophisticated, magnetic, and effortless.
 
-She maintains a relaxed, sophisticated posture throughout.
-
-Her expression remains cool, sophisticated, magnetic, and effortless.
-
-Her eyes naturally track and follow the moving camera throughout the shot.
-
-As the camera moves around her, she makes only subtle natural eye and head movements to maintain eye contact with the camera.
-
-She must never unnaturally rotate her entire body to follow the camera.
-
-Her body remains mostly composed while her gaze and head subtly follow the camera.
-
-She makes one natural blink during the video.
+She makes one natural blink.
 
 Her hair moves very slightly with her movement, with realistic individual strands and natural momentum.
 
 CAMERA:
 Professional high-end fashion cinematography.
 
-Begin with a full-body editorial composition so the complete outfit, especially the trousers and shoes, remains clearly visible.
+Begin with a full-body editorial composition so the complete outfit, especially the trousers and shoes, remains visible.
 
-The camera performs a smooth cinematic orbital arc around the model while gradually rising in height.
+The camera performs a very smooth, subtle cinematic dolly-in while maintaining the full outfit in frame.
 
-The camera should move approximately 90–120 degrees around the model, creating a refined three-quarter reveal rather than a full 360-degree rotation.
-
-The camera trajectory should feel like:
-
-LOW ANGLE → FRONT → 3/4 ORBIT → SLIGHT HIGH ANGLE
-
-During the first part of the shot, the camera starts from a slightly lower full-body perspective.
-
-It then smoothly travels around the model in a controlled arc while gradually increasing its height.
-
-As the camera reaches the three-quarter angle, it continues rising very subtly toward a slight elevated angle.
-
-The camera movement must remain smooth, slow, elegant, and cinematic.
-
-The model remains fully visible for the majority of the video.
-
-The camera must preserve a clear view of the entire outfit and must not crop the trousers or shoes unnecessarily.
-
-The orbital movement should reveal the outfit from a slightly different perspective while maintaining accurate garment proportions and silhouette.
-
-The model's eyes naturally follow the camera throughout the orbital movement.
-
-The camera movement should feel like a professional luxury fashion campaign camera operated by a skilled fashion cinematographer.
-
-No sudden camera movements. No dramatic zoom. No handheld shake. No rapid orbit. No excessive camera rotation. No perspective distortion.
-
-Do not perform a full 360-degree camera rotation.
-
-Do not move so close to the model that the full outfit becomes hidden.
+No sudden camera movements. No dramatic zoom. No handheld shake. No excessive camera rotation. No perspective distortion.
 
 The camera should feel like a professional luxury fashion campaign rather than an AI-generated video.
 
@@ -135,21 +93,15 @@ Extremely realistic textile simulation.
 
 The trousers should behave according to their actual material and weight. Natural folds appear around the knees, hips, waistband, and movement points.
 
-The fabric responds naturally to the model's step and subtle body movement.
-
 No fabric melting. No rubber-like fabric. No excessive fluttering. No deformation. No changing garment geometry.
 
 LIGHTING:
 Premium fashion studio lighting. Soft large diffused key light from the front-left. Gentle fill light from the opposite side. Very subtle rim light separating the model from the background. Natural realistic shadows beneath the model and around the clothing. Accurate fabric highlights. Accurate skin tones. No overexposure. No harsh artificial lighting.
 
-Lighting must remain consistent throughout the camera movement.
-
 BACKGROUND:
 Keep the exact same recognizable premium fashion studio environment throughout the entire 5-second video. Warm ivory/off-white architectural studio. Elegant microcement or matte stone floor. Subtle wall texture. Large soft architectural window shadows falling naturally across the background. Minimal luxury interior. Clean editorial environment. No furniture. No props. No people. No text. No logos. No background changes.
 
 The background must remain completely stable and consistent.
-
-The camera movement must not cause the architecture, floor, walls, or shadows to morph, shift, or change.
 
 VISUAL STYLE:
 Pinterest-worthy luxury fashion editorial. High-end contemporary fashion campaign. Effortlessly cool. Sophisticated. Minimal. Expensive-looking. Timeless. Modern European fashion aesthetic.
@@ -160,109 +112,41 @@ CAMERA QUALITY:
 Professional medium-format fashion photography. Hasselblad X2D aesthetic. 80mm lens. Natural perspective. High dynamic range. Extremely detailed fabric. Realistic skin pores. Natural hair strands. Physically accurate shadows. Cinematic depth of field. Subtle realistic motion blur only where physically appropriate. Ultra-photorealistic. 8K-quality detail. Premium editorial color grading.
 
 MOTION PHILOSOPHY:
-Less movement, more attitude.
-
-The camera provides the primary visual dynamism while the model remains controlled, elegant, and sophisticated.
-
-Every movement must feel intentional, elegant, controlled, and expensive.
-
-The model must never look like she is dancing or performing for the camera.
-
-She should look like a professional fashion model naturally moving during an editorial shoot.
-
-The camera orbit must feel smooth, cinematic, physically plausible, and restrained.
-
-The model's gaze should remain naturally connected to the moving camera.
-
-The overall movement should create a subtle sense of energy and luxury without becoming dramatic or distracting from the clothing.
+Less movement, more attitude. Every movement must feel intentional, elegant, controlled, and expensive. The model must never look like she is dancing or performing for the camera. She should look like a professional fashion model naturally moving during an editorial shoot.
 
 MODESTY (ABSOLUTE):
 The body must stay modestly covered in every frame. Never show nipples, areolae, genitals or any intimate area of any person, of any gender. Fabric must never turn sheer, transparent or clingy over those areas, and no garment may slip, open or shift during movement to expose them. If the reference garment is thin, render it opaque enough to keep the body covered.
 
 NEGATIVE PROMPT:
-Do not change the clothing. Do not change garment color. Do not change garment length. Do not shorten trousers. Do not lengthen trousers. Do not change trouser width. Do not change waistband. Do not tuck or untuck the shirt. Do not change the top. Do not remove clothing. Do not add clothing. Do not add accessories. Do not remove accessories. Do not change shoes. Do not change hairstyle. Do not change face. Do not change body proportions. No identity drift. No face morphing. No anatomy distortion. No extra fingers. No missing fingers. No extra limbs. No deformed hands. No warped legs. No floating feet. No foot distortion. No fabric melting. No garment morphing. No texture flickering. No pattern changes. No color shifting. No background transformation. No background flickering. No excessive wind. No exaggerated hair movement. No dancing. No jumping. No fast spinning. No unrealistic walking. No camera shake. No sudden zoom. No excessive camera rotation. No full 360-degree orbit. No fisheye. No wide-angle distortion. No extreme camera angles. No CGI appearance. No cartoon appearance. No plastic skin. No artificial facial expression. No excessive smile. No visible nipples. No see-through clothing. No exposed intimate areas. No nudity. No wardrobe malfunction. No low resolution. No blur. No compression artifacts. No watermark. No text.`;
+Do not change the clothing. Do not change garment color. Do not change garment length. Do not shorten trousers. Do not lengthen trousers. Do not change trouser width. Do not change waistband. Do not tuck or untuck the shirt. Do not change the top. Do not remove clothing. Do not add clothing. Do not add accessories. Do not remove accessories. Do not change shoes. Do not change hairstyle. Do not change face. Do not change body proportions. No identity drift. No face morphing. No anatomy distortion. No extra fingers. No missing fingers. No extra limbs. No deformed hands. No warped legs. No floating feet. No foot distortion. No fabric melting. No garment morphing. No texture flickering. No pattern changes. No color shifting. No background transformation. No background flickering. No excessive wind. No exaggerated hair movement. No dancing. No jumping. No fast spinning. No unrealistic walking. No camera shake. No sudden zoom. No fisheye. No wide-angle distortion. No CGI appearance. No cartoon appearance. No plastic skin. No artificial facial expression. No excessive smile. No visible nipples. No see-through clothing. No exposed intimate areas. No nudity. No wardrobe malfunction. No low resolution. No blur. No compression artifacts. No watermark. No text.`;
 
-/** Etek ya da elbiseli kombinler — kumaşın dökümü öne çıkıyor. */
-export const VIDEO_PROMPT_FLOWY = `Create a 5-second ultra-premium, photorealistic fashion editorial video from the provided reference image.
+/**
+ * Etek ya da elbiseli kombinler — kumaşın dökümü öne çıkıyor: model neşeyle
+ * dönüyor, etek açılıyor. (Ölçülü bir sürüm denendi, kullanıcı bu hâli
+ * tercih etti.)
+ */
+export const VIDEO_PROMPT_FLOWY = `Create a 5-second ultra-photorealistic luxury fashion campaign video from the reference image. Preserve the model's identity, facial features, hairstyle, body proportions, skin tone, clothing design, colors, textures, and all fine details exactly. Do not redesign or replace any element.
 
-The reference image is the absolute source of truth. Preserve the exact model, exact outfit, exact styling, exact proportions, exact colors, exact garment construction, and exact background throughout the entire video.
+The model is wearing a voluminous layered ruffled skirt. She radiates pure joy, confidence, and youthful energy with a bright, genuine smile.
 
-MODEL IDENTITY:
-Preserve the model's face, facial structure, eyes, eyebrows, nose, lips, skin tone, hairstyle, hair color, body proportions, height, hands, fingers, and natural anatomy exactly. No identity drift or facial changes.
+She begins by taking a light playful step, then joyfully spins several times in place. The movement is energetic yet elegant, like a high-end fashion commercial. As she twirls, the large ruffled skirt blooms outward into a dramatic circular shape, with every layer flowing naturally through the air. The fabric ripples beautifully, creating soft waves and realistic motion.
 
-OUTFIT PRESERVATION:
-Preserve the exact skirt or dress from the reference image without any redesign.
+She makes a small joyful jump during one of the spins, causing the skirt to lift and float gracefully before settling naturally. Her long straight hair flies outward with realistic physics, then flows smoothly behind her as she continues spinning. Individual hair strands catch the light and move naturally with momentum.
 
-Keep the exact garment length, waist position, silhouette, skirt volume, hemline, pleats, ruffles, layers, gathers, seams, stitching, buttons, closures, embroidery, lace, prints, colors, fabric texture, transparency, proportions and construction details.
+The camera smoothly circles around her while performing a gentle cinematic push-in, capturing the flowing movement of the skirt from multiple elegant angles. Motion remains fluid, stable, and luxurious.
 
-If the garment is a long dress, it must remain a long dress. If the skirt reaches below the knees or to the ankles, preserve that exact length. Do not shorten the garment during movement.
+Her facial expression is full of happiness and freedom. She laughs softly with sparkling eyes while looking toward the camera for a brief moment before continuing to spin naturally.
 
-Do not tuck, untuck, crop, stretch, shrink, or reinterpret any part of the outfit.
+Lighting is soft, diffused, and premium with a seamless luxury off-white infinity studio background. The atmosphere feels magical, airy, fresh, feminine, elegant, and captivating.
 
-MOVEMENT:
-The model begins in the exact pose from the reference image.
+Every movement follows realistic human biomechanics and natural fabric physics. The skirt has rich volume, soft folds, and beautiful flowing motion. Hair movement is dynamic, weightless, and realistic.
 
-During the first second, she makes a subtle, elegant shift of her weight while maintaining a confident editorial posture.
-
-From approximately 1 to 3 seconds, she takes one graceful step and makes a controlled, elegant quarter-turn toward the camera.
-
-As she turns, the skirt or lower part of the dress responds naturally to her movement. The fabric gently follows her body with realistic inertia and gravity.
-
-The hemline moves naturally and maintains its original length.
-
-If the skirt is voluminous, layered, pleated, or ruffled, the layers separate and flow subtly during the turn, revealing the beautiful construction of the garment without changing its shape.
-
-If the dress is lightweight or flowing, the fabric creates elegant soft waves as she moves.
-
-From approximately 3 to 4 seconds, the model completes the turn and briefly faces the camera. She gives a calm, magnetic, sophisticated look directly into the camera. One natural blink. A very subtle confident facial expression, almost imperceptible, with no exaggerated smile.
-
-During the final second, she slightly turns her head away from the camera while the fabric settles naturally around her body.
-
-The overall movement should feel effortless, graceful, cool, feminine, and extremely sophisticated.
-
-CAMERA:
-Professional luxury fashion campaign cinematography. Start with a full-body composition showing the entire garment from head to toe. Perform a smooth, slow cinematic dolly-in combined with a very subtle lateral camera movement. Keep the complete garment visible throughout the shot.
-
-Do not crop the hemline. Do not crop the shoes. Do not crop the head. Do not zoom too aggressively.
-
-The camera movement should feel expensive and intentional, like a real fashion campaign filmed on a professional cinema camera.
-
-BACKGROUND:
-Keep the exact same premium fashion studio environment from the reference image. The background must remain stable and recognizable throughout all 5 seconds. Warm ivory architectural studio. Elegant matte microcement or stone floor. Soft textured plaster walls. Subtle architectural details. Large soft window-shaped shadows. Minimal European luxury fashion atmosphere.
-
-No new objects. No furniture. No props. No people. No environmental changes. No background morphing.
-
-LIGHTING:
-Maintain consistent premium editorial lighting throughout the video. Large soft diffused key light. Subtle fill light. Gentle rim light around the model. Soft realistic shadows. Natural skin highlights. Beautiful highlights on the fabric. Accurate garment colors. No lighting flicker. No exposure changes. No sudden color shifts.
-
-FABRIC PHYSICS:
-Use physically accurate fabric movement. The skirt or dress must have realistic weight, gravity, inertia, friction, folds, and draping. Fabric should move according to the actual material shown in the reference.
-
-Silk should flow softly. Chiffon should move lightly. Cotton should have natural weight. Denim should remain structured. Tulle should have airy layered movement. Pleated fabric should preserve its pleats. Ruffled fabric should preserve every ruffle layer.
-
-Never make the fabric look rubbery, liquid, melted, frozen, or weightless.
-
-HAIR:
-Preserve the exact hairstyle. Hair moves naturally in response to the model's turn. Only subtle realistic motion. Individual strands move with believable momentum. No dramatic artificial wind.
-
-EXPRESSION & ENERGY:
-The model should feel magnetic rather than cheerful. Elegant. Cool. Confident. Feminine. Mysterious. Effortlessly beautiful. High-fashion presence.
-
-She should look completely comfortable in front of the camera, as if this is a professional luxury campaign. Do not make her overly happy. Do not make her smile broadly. Do not make her look like she is dancing or acting.
-
-The emotional tone is: effortlessly cool luxury fashion.
-
-VISUAL QUALITY:
-Ultra-photorealistic luxury fashion film. Real human movement. Realistic fabric simulation. Realistic skin texture. Natural pores. Individual hair strands. Physically accurate shadows. High dynamic range. Natural depth of field. Cinematic motion blur. Professional editorial retouching. Premium European fashion campaign aesthetic. Pinterest-worthy fashion photography. Luxury magazine quality. Medium-format photography aesthetic. Hasselblad X2D look. 80mm lens. 8K-quality detail.
-
-FINAL IMPRESSION:
-The result should look like a real photograph from a high-end fashion campaign that has been subtly brought to life. Every frame must look professionally photographed. The outfit remains the hero. The model's movement enhances the garment rather than distracting from it.
+Luxury editorial fashion campaign, high-end couture commercial, cinematic slow-motion moments blended with real-time motion, ultra-photorealistic, medium format camera, Hasselblad X2D look, 80mm lens, HDR, realistic global illumination, premium color grading, crisp details, 8K.
 
 MODESTY (ABSOLUTE):
 The body must stay modestly covered in every frame. Never show nipples, areolae, genitals or any intimate area of any person, of any gender. Fabric must never turn sheer, transparent or clingy over those areas, and no garment may slip, open or shift during movement to expose them. If the reference garment is thin, render it opaque enough to keep the body covered.
 
-NEGATIVE PROMPT:
-identity drift, face change, facial morphing, different person, body deformation, anatomy distortion, extra fingers, missing fingers, extra limbs, deformed hands, warped legs, distorted feet, clothing change, garment redesign, garment morphing, wrong garment length, shortened skirt, shortened dress, altered hemline, changed silhouette, changed fabric, changed texture, changed color, missing ruffles, missing pleats, missing layers, melted fabric, rubber fabric, liquid fabric, floating fabric, unrealistic fabric physics, transparent clothing when not present, visible nipples, see-through clothing, exposed intimate areas, nudity, exposed body, wardrobe malfunction, excessive wind, exaggerated hair movement, dancing, jumping, spinning too fast, unnatural walking, exaggerated smile, exaggerated facial expression, background change, background morphing, background flicker, lighting flicker, exposure shift, camera shake, fisheye, wide-angle distortion, excessive zoom, cropped feet, cropped hemline, cropped head, CGI, cartoon, plastic skin, AI artifacts, flickering, jitter, low resolution, blur, watermark, text, logo.`;
+Negative prompt: no identity drift, no clothing changes, no anatomy distortion, no extra limbs, no deformed hands, no AI artifacts, no flickering, no morphing, no unrealistic physics, no camera shake, no low quality, no blur, no visible nipples, no see-through clothing, no exposed intimate areas, no nudity, no wardrobe malfunction, preserve face and outfit exactly.`;
 
 /** Kullanıcının ek notu varsa metnin BAŞINA ekleniyor. */
 export function buildVideoPrompt(kind: VideoOutfitKind, userPrompt?: string): string {
