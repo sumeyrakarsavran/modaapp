@@ -21,7 +21,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Backdrop } from '@/components/Backdrop';
 
 import { Avatar, PostCard, resolveUser, timeAgo } from '@/components/Community';
-import { ProfileButton } from '@/components/ProfileButton';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
 import { PERSONAS } from '@/data/community';
 import { useStore } from '@/store/useStore';
@@ -157,9 +156,6 @@ export default function Community() {
                 <Ionicons name="person-add-outline" size={16} color="#fff" />
                 <Text style={styles.inviteBtnText}>Davet et</Text>
               </Pressable>
-              <View style={{ marginLeft: spacing.sm }}>
-                <ProfileButton />
-              </View>
             </View>
 
             {/* Kullanıcı arama */}
@@ -444,7 +440,11 @@ export default function Community() {
 }
 
 const styles = StyleSheet.create({
-  headRow: { flexDirection: 'row', alignItems: 'center' },
+  /*
+    Başlık satırı Gardırop/Stüdyo ile AYNI hizada: oralarda üst boşluk
+    8, burada liste dolgusundan ötürü başlık 18px aşağıda kalıyordu.
+  */
+  headRow: { flexDirection: 'row', alignItems: 'center', marginTop: -6, marginBottom: 2 },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
