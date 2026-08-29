@@ -3,25 +3,35 @@ import React from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 
 /**
- * Sessiz, döngüde oynayan küçük video — vitrinde GIF gibi duruyor.
+ * Sessiz, döngüde oynayan video.
  *
  * ⚠️ Bu dosya `expo-video`'yu DOĞRUDAN (statik) içeri alıyor: modül eksikse
  * import anında patlıyor. O yüzden çağıran taraf dosyayı try/catch içinde
- * `require` ediyor (bkz. `VideoShowcase`) ve modül yoksa kapak fotoğrafına
+ * `require` ediyor (bkz. `VideoBox`) ve modül yoksa kapak fotoğrafına
  * düşüyor — native modül kuralı (AGENTS.md) böyle korunuyor.
  *
- * Ses KAPALI ve denetimler gizli: kart bir oynatıcı değil, vitrin.
+ * Ses KAPALI: vitrinde de görüntüleyicide de kullanıcının müziğini kesmesin
+ * (FASHN çıktılarında ses parçası yok).
  */
 export function LoopingVideo({
   uri,
   active,
   style,
+  fit = 'cover',
+  controls = false,
   onAspect,
 }: {
   uri: string;
-  /** Kart ekranda görünüyor mu — görünmezken oynatma boşuna pil yakıyor. */
+  /** Ekranda görünüyor mu — görünmezken oynatma boşuna pil yakıyor. */
   active: boolean;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Vitrinde "cover" (kutu videonun oranında, yuvarlama farkı kapansın),
+   * görüntüleyicide "contain" (koyu zeminde tamamı görünsün).
+   */
+  fit?: 'cover' | 'contain';
+  /** Görüntüleyicide oynat/durdur ve ilerleme çubuğu. */
+  controls?: boolean;
   /**
    * Videonun GERÇEK oranı. Kutu kapak fotoğrafının oranıyla çizilirse
    * (video biraz farklı oranda geliyor) kenarlarda siyah şerit kalıyor;
@@ -35,8 +45,9 @@ export function LoopingVideo({
   });
 
   React.useEffect(() => {
+    if (!onAspect) return;
     const report = (t: { size: { width: number; height: number } } | null) => {
-      if (t && t.size.height > 0) onAspect?.(t.size.width / t.size.height);
+      if (t && t.size.height > 0) onAspect(t.size.width / t.size.height);
     };
     // Parça zaten çözülmüş olabilir: önce mevcut değere bakılıyor.
     try {
@@ -58,13 +69,8 @@ export function LoopingVideo({
     <VideoView
       player={player}
       style={style}
-      /*
-        Kutu zaten videonun oranında (`onAspect`); "cover" yuvarlama
-        farkından kalan ince siyah şeridi de kapatıyor. "contain" ile
-        kenarda birkaç piksellik kara bant kalıyordu.
-      */
-      contentFit="cover"
-      nativeControls={false}
+      contentFit={fit}
+      nativeControls={controls}
       /* Vitrin karesi: PiP burada anlamsız. */
       allowsPictureInPicture={false}
     />

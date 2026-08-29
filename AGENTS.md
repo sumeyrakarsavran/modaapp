@@ -202,6 +202,14 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
     `videoTrack.size`). Kapak fotoğrafının oranıyla çizilince kenarda birkaç
     piksellik siyah bant kalıyordu; `contentFit="cover"` yuvarlama farkını da
     kapatıyor.
+  - **`nativeControls` sayfa kaydırmayı YUTUYOR.** Videolar arasında yatay
+    kaydırmayla geçilen görüntüleyicide denetimler açıkken hareket oynatıcıya
+    gidiyor, FlatList hiç kaymıyor (belirti: kaydırınca sayfa değişmiyor,
+    kenardan başlayan hareket geri tuşu sanılıp modal kapanıyor). Vitrinde de
+    görüntüleyicide de denetimler KAPALI; video döngüde oynuyor.
+  - Görüntüleyicide oynatıcı **yalnızca açık sayfada** kuruluyor, diğer sayfalar
+    kapak fotoğrafı; kart da görüntüleyici açıkken duruyor. Her video için ayrı
+    oynatıcı bu cihazda (boş RAM ~144MB) süreç ölümü riski.
   - Vitrin videosu **yalnızca görünürken** oynuyor: kaydırma konumu ref'te tutulup
     yalnızca görünürlük DEĞİŞTİĞİNDE state yazılıyor (her karede yazılırsa
     altındaki yüzlerce görselli ızgara yeniden çiziliyor). Sekme değişince

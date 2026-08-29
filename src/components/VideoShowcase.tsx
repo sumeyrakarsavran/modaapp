@@ -1,24 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
-import { View } from 'react-native';
 
 import { Frame, ShowcaseCard, aspectOf, showcase } from '@/components/ShowcaseCard';
+import { VideoBox } from '@/components/VideoBox';
 import { luxe } from '@/theme/luxe';
-
-/*
-  `expo-video` NATIVE modül. Eski bir derlemede yoksa dosyanın import'u
-  patlar, o yüzden try/catch ile alınıyor: modül yoksa vitrin videonun
-  kapak karesini gösterip oynat rozeti koyuyor, özellik sessizce atlanıyor
-  (AGENTS.md: native modüller dinamik/korumalı çağrılır).
-*/
-let LoopingVideo: typeof import('@/components/LoopingVideo').LoopingVideo | null = null;
-try {
-  LoopingVideo = (require('@/components/LoopingVideo') as typeof import('@/components/LoopingVideo'))
-    .LoopingVideo;
-} catch {
-  LoopingVideo = null;
-}
 
 /**
  * Videonun VİTRİNİ: giydirilmiş kare → hareket eden video.
@@ -95,32 +81,14 @@ export function VideoShowcase({
       }
       result={
         videoUri ? (
-          <View style={showcase.fill}>
-            {/*
-              Kapak videonun ALTINDA duruyor: oynatıcı ilk kareyi çizene
-              kadar kutu boş/siyah kalmasın diye.
-            */}
-            {posterUri ? (
-              <Image
-                source={{ uri: posterUri }}
-                style={[showcase.fill, { position: 'absolute' }]}
-                contentFit="contain"
-                onLoad={(e) => setPosterAspect(aspectOf(e))}
-              />
-            ) : null}
-            {LoopingVideo ? (
-              <LoopingVideo
-                uri={videoUri}
-                active={active}
-                style={showcase.fill}
-                onAspect={onVideoAspect}
-              />
-            ) : (
-              <View style={[showcase.fill, { alignItems: 'center', justifyContent: 'center' }]}>
-                <Ionicons name="play" size={26} color={luxe.onDark} />
-              </View>
-            )}
-          </View>
+          <VideoBox
+            videoUri={videoUri}
+            posterUri={posterUri}
+            active={active}
+            fit="cover"
+            onPosterAspect={setPosterAspect}
+            onVideoAspect={onVideoAspect}
+          />
         ) : (
           <Ionicons name="film-outline" size={26} color={luxe.outlineSoft} />
         )

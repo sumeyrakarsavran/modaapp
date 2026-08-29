@@ -22,6 +22,7 @@ import { ItemThumb } from '@/components/ItemThumb';
 import { ShareModal } from '@/components/ShareModal';
 import { saveImageToDevice } from '@/services/download';
 import { TryOnShowcase } from '@/components/TryOnShowcase';
+import { VideoBox } from '@/components/VideoBox';
 import { VideoShowcase } from '@/components/VideoShowcase';
 import { persistRemoteImage } from '@/services/photoStore';
 import { claimJob, releaseJob, TryOnPendingError, waitForJob } from '@/services/tryon';
@@ -29,7 +30,7 @@ import { TRYON_MODELS } from '@/data/tryonModels';
 import { useStore } from '@/store/useStore';
 import { BETTA_ARCHETYPES } from '@/theme';
 import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
-import type { Category, TryOnRecord, WardrobeItem } from '@/types';
+import type { Category, TryOnRecord, VideoRecord, WardrobeItem } from '@/types';
 import { OUTER_SUBCATEGORY } from '@/types';
 
 type Mode = 'dressme' | 'tryon';
@@ -145,6 +146,8 @@ export default function Studio() {
   /** Büyütülerek görüntülenen sanal giydirme */
   const [openTryon, setOpenTryon] = useState<TryOnRecord | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Büyütülerek İZLENEN video */
+  const [openVideo, setOpenVideo] = useState<VideoRecord | null>(null);
   const [askDeleteVideo, setAskDeleteVideo] = useState<string | null>(null);
   /** Videoyu cihaza indir — giydirme indirmesiyle aynı yol (SAF). */
   const downloadVideo = async (id: string) => {
@@ -175,6 +178,7 @@ export default function Studio() {
 
   /** Görüntüleyicide kaçıncı giydirme açık — sayfa kaydırma bunu izliyor. */
   const openIndex = openTryon ? tryons.findIndex((t) => t.id === openTryon.id) : -1;
+  const openVideoIndex = openVideo ? videos.findIndex((v) => v.id === openVideo.id) : -1;
   /** Sayfa genişliği: ekran eksi görüntüleyicinin yatay dolgusu (20+20). */
   const viewerW = width - 40;
   const [askDeleteTryOn, setAskDeleteTryOn] = useState<string | null>(null);
@@ -550,7 +554,9 @@ export default function Studio() {
             frameUri={videoDemo.frameUri}
             videoUri={videoDemo.videoUri}
             posterUri={videoDemo.posterUri}
-            active={videoVisible && focused}
+            /* Görüntüleyici açıkken kart durur: bu cihazda iki oynatıcıyı
+               aynı anda ayakta tutmak gereksiz bellek. */
+            active={videoVisible && focused && !openVideo}
             status={
               pro
                 ? api.fashnKey
@@ -627,7 +633,7 @@ export default function Studio() {
               {videos.map((v) => (
                 <Pressable
                   key={v.id}
-                  onPress={() => downloadVideo(v.id)}
+                  onPress={() => setOpenVideo(v)}
                   onLongPress={() => setAskDeleteVideo(v.id)}
                   style={[styles.tryonCard, { width: tryonCell }]}
                 >
@@ -656,7 +662,7 @@ export default function Studio() {
             </View>
           )}
           {videos.length ? (
-            <Text style={luxeType.tiny}>İndirmek için dokun, silmek için basılı tut.</Text>
+            <Text style={luxeType.tiny}>İzlemek için dokun, silmek için basılı tut.</Text>
           ) : null}
         </ScrollView>
       ) : (
@@ -924,6 +930,102 @@ export default function Studio() {
                 const id = openTryon?.id;
                 setOpenTryon(null);
                 if (id) setTimeout(() => confirmDeleteTryOn(id), 120);
+              }}
+            >
+              <FinBlob pad={BTN_PAD} variant="button" color="transparent" stroke="rgba(255,255,255,0.45)" />
+              <Ionicons name="trash-outline" size={14} color={luxe.onDark} />
+              <Text style={[styles.viewerBtnText, { color: luxe.onDark }]}>Sil</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/*
+        Videoyu büyütüp İZLE. Giydirme görüntüleyicisiyle aynı dil: yatay
+        kaydırmayla videolar arasında geçiliyor.
+        ⚠️ Oynatıcı YALNIZCA açık sayfada kuruluyor, diğer sayfalar kapak
+        fotoğrafı gösteriyor: her video için ayrı oynatıcı açmak bu cihazda
+        (boş RAM ~144MB) süreç ölümü riski demek.
+      */}
+      <Modal
+        visible={!!openVideo}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={() => setOpenVideo(null)}
+      >
+        <View
+          style={[
+            styles.viewerWrap,
+            { paddingTop: 20 + insets.top, paddingBottom: 20 + insets.bottom },
+          ]}
+        >
+          <View style={styles.viewerHead}>
+            <Text style={styles.viewerTitle} numberOfLines={1}>
+              {openVideo ? `${openVideo.duration} sn · ${openVideo.resolution}` : 'Video'}
+            </Text>
+            {videos.length > 1 ? (
+              <Text style={styles.viewerCount}>
+                {openVideoIndex + 1}/{videos.length}
+              </Text>
+            ) : null}
+            <Pressable onPress={() => setOpenVideo(null)} style={styles.viewerClose}>
+              <Ionicons name="close" size={22} color={luxe.onDark} />
+            </Pressable>
+          </View>
+          <FlatList
+            data={videos}
+            keyExtractor={(v) => v.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.viewerImg}
+            initialScrollIndex={Math.max(0, openVideoIndex)}
+            getItemLayout={(_d, i) => ({ length: viewerW, offset: viewerW * i, index: i })}
+            onMomentumScrollEnd={(e) => {
+              const i = Math.round(e.nativeEvent.contentOffset.x / viewerW);
+              const next = videos[i];
+              if (next && next.id !== openVideo?.id) setOpenVideo(next);
+            }}
+            renderItem={({ item }) => (
+              <View style={{ width: viewerW, height: '100%' }}>
+                {item.id === openVideo?.id ? (
+                  <VideoBox
+                    videoUri={item.videoUri}
+                    posterUri={item.posterUri}
+                    active
+                    fit="contain"
+                    style={{ borderRadius: luxeRadius.lg }}
+                  />
+                ) : item.posterUri ? (
+                  <Image
+                    source={{ uri: item.posterUri }}
+                    style={{ width: '100%', height: '100%', borderRadius: luxeRadius.lg }}
+                    contentFit="contain"
+                  />
+                ) : null}
+              </View>
+            )}
+          />
+          <View style={styles.viewerActions}>
+            <Pressable
+              style={styles.viewerBtn}
+              onPress={() => openVideo && downloadVideo(openVideo.id)}
+              disabled={saving}
+            >
+              <FinBlob shadow pad={BTN_PAD} variant="button" color={luxe.onDark} />
+              <Ionicons name="download-outline" size={14} color={luxe.primary} />
+              <Text style={[styles.viewerBtnText, { color: luxe.primary }]}>
+                {saving ? 'İndiriliyor…' : 'İndir'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.viewerBtn}
+              onPress={() => {
+                const id = openVideo?.id;
+                setOpenVideo(null);
+                if (id) setTimeout(() => setAskDeleteVideo(id), 120);
               }}
             >
               <FinBlob pad={BTN_PAD} variant="button" color="transparent" stroke="rgba(255,255,255,0.45)" />
