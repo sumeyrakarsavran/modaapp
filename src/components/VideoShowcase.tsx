@@ -66,7 +66,7 @@ export function VideoShowcase({
       resultEmpty={!videoUri}
       resultCaption="Video"
       inputs={
-        <Frame label="Giydirilmiş kare" aspect={frameAspect}>
+        <Frame label="Giydirilmiş kare" aspect={frameAspect} center>
           {frameUri ? (
             <Image
               source={{ uri: frameUri }}

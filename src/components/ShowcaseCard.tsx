@@ -125,6 +125,7 @@ export function Frame({
   children,
   square,
   aspect,
+  center,
   onLayout,
 }: {
   label: string;
@@ -132,11 +133,19 @@ export function Frame({
   square?: boolean;
   /** Fotoğrafın kendi oranı — verilmezse 3/4. */
   aspect?: number;
+  /**
+   * Sütunda TEK çerçeve varsa açılıyor. Girdi sütunu satır boyunca uzuyor
+   * (yükseklik sonuç karesinden geliyor); çerçeve varsayılan olarak sütunun
+   * TEPESİNE yapışıyor ve tek başınayken sonucun yanında havada kalıyor.
+   * İki çerçeveli sanal deneme kartında bu gerekmiyor: ikisi yüksekliği
+   * zaten paylaşıyor.
+   */
+  center?: boolean;
   /** Kolaj kare çizildiği için genişliğin ÖLÇÜLMESİ gerekiyor. */
   onLayout?: (width: number) => void;
 }) {
   return (
-    <View style={{ flex: 1 }}>
+    <View style={[{ flex: 1 }, center && { justifyContent: 'center' }]}>
       <View
         style={[styles.frame, square ? { aspectRatio: 1 } : aspect ? { aspectRatio: aspect } : null]}
         onLayout={onLayout ? (e) => onLayout(Math.round(e.nativeEvent.layout.width)) : undefined}
