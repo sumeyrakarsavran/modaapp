@@ -29,6 +29,7 @@ import { Reorderable } from '@/components/Reorderable';
 import { ShareModal } from '@/components/ShareModal';
 import { resizeForProcessing } from '@/services/imageResize';
 import { photoFromParams, pickPhoto, type PickedPhoto } from '@/services/photoPicker';
+import { removeBackgroundLocal } from '@/services/localBgRemove';
 import { persistGarmentPhoto } from '@/services/photoStore';
 import { useStore } from '@/store/useStore';
 import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
@@ -693,11 +694,21 @@ export default function Wardrobe() {
     [filtered],
   );
 
-  /** Selfie ekle — kırpma açık (dikey kadraj), kalıcı kopya saklanır. */
+  /**
+   * Selfie ekle — kırpma açık (dikey kadraj), kalıcı kopya saklanır.
+   *
+   * Fotoğrafın arka planı AYRICA siliniyor ve ikinci bir kopya olarak
+   * saklanıyor: global harita ve topluluk paylaşımı kesilmiş kareyle
+   * çalışıyor. Silme ağır bir adım, o yüzden küçültülmüş kopya üzerinde ve
+   * sırayla (bkz. AGENTS.md fotoğraf akışı); başarısız olursa selfie yine
+   * kaydediliyor, yalnızca kesilmiş kopya olmuyor.
+   */
   const saveSelfiePhoto = async (photo: PickedPhoto) => {
     const small = await resizeForProcessing(photo.uri, photo.width, photo.height, 1400);
     const saved = await persistGarmentPhoto(small).catch(() => small);
-    addSelfie({ imageUri: saved, date: todayISO() });
+    const cut = await removeBackgroundLocal(small).catch(() => null);
+    const cutoutUri = cut ? await persistGarmentPhoto(cut).catch(() => undefined) : undefined;
+    addSelfie({ imageUri: saved, cutoutUri, date: todayISO() });
   };
 
   const takeSelfie = async (fromCamera: boolean) => {

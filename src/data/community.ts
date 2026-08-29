@@ -1,4 +1,4 @@
-import type { Category, CommunityPost, CommunityUser, GarmentSpec } from '@/types';
+import type { Category, CommunityPost, CommunityUser, GarmentSpec, PostPlace } from '@/types';
 
 /**
  * Demo topluluk — 6 betta arketipine karşılık gelen personalar ("kızlar").
@@ -246,6 +246,20 @@ function daysAgoISO(n: number): string {
   d.setDate(d.getDate() - n);
   return d.toISOString();
 }
+
+/**
+ * Persona'ların memleketi — global haritada gönderileri buraya oturuyor.
+ * Gönderiye yer yazmak yerine kişiye yazılıyor: eski kayıtlar da (store'da
+ * `place` alanı olmadan duranlar) haritaya çıksın, migrate gerekmesin.
+ */
+export const PERSONA_HOME: Record<string, PostPlace> = {
+  luna: { lat: 48.8566, lon: 2.3522, city: 'Paris' },
+  'ateş': { lat: 52.52, lon: 13.405, city: 'Berlin' },
+  mira: { lat: 35.6762, lon: 139.6503, city: 'Tokyo' },
+  kai: { lat: 37.5665, lon: 126.978, city: 'Seul' },
+  pupa: { lat: 45.4642, lon: 9.19, city: 'Milano' },
+  bulut: { lat: 41.0082, lon: 28.9784, city: 'İstanbul' },
+};
 
 export const SEED_POSTS: CommunityPost[] = [
   {

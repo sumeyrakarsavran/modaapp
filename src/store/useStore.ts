@@ -371,6 +371,15 @@ export const useStore = create<BettaState>()(
         set((s) => ({
           posts: [
             {
+              /*
+                Yer profildeki şehirden geliyor (hava durumu için zaten
+                seçili) — ayrı bir konum izni istemeye gerek yok ve kaba
+                konum haritada yeterli. Gönderide zaten varsa dokunulmuyor.
+              */
+              place:
+                s.profile.lat != null && s.profile.lon != null
+                  ? { lat: s.profile.lat, lon: s.profile.lon, city: s.profile.city }
+                  : undefined,
               ...post,
               id: uid(),
               userId: 'me',

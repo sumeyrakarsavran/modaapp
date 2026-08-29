@@ -19,6 +19,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Backdrop } from '@/components/Backdrop';
+import { PearlGlobe } from '@/components/PearlGlobe';
 
 import { Avatar, PostCard, resolveUser, timeAgo } from '@/components/Community';
 import { Button, Chip, EmptyState, SectionTitle } from '@/components/UI';
@@ -209,6 +210,15 @@ export default function Community() {
                 );
               })}
             </ScrollView>
+
+            {/*
+              Global sekmesinin başında KÜRE: haritanın kapısı. Yalnızca
+              Global'de — diğer sekmeler zaten daraltılmış bir bakış,
+              küre "hepsi" demek.
+            */}
+            {filter === 'global' ? (
+              <PearlGlobe onPress={() => router.push('/world')} />
+            ) : null}
 
             {/*
               Kişi araçları — arama + Bettalar şeridi — yalnızca "Takip

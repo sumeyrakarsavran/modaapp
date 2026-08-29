@@ -220,6 +220,13 @@ export interface Selfie {
   outfitId?: string; // hangi kombinle çekildi
   note?: string;
   createdAt: string;
+  /**
+   * Arka planı SİLİNMİŞ kopya (şeffaf PNG). Gardıropta fotoğrafın kendisi
+   * gösteriliyor; kesilmiş kopya haritada ve toplulukta kullanılıyor —
+   * global harita ancak kesilmiş karelerle "insan haritada duruyor" gibi
+   * görünüyor. Silme başarısızsa alan boş kalır, akış bozulmaz.
+   */
+  cutoutUri?: string;
 }
 
 export interface Lookbook {
@@ -360,6 +367,18 @@ export interface CommunityOutfitSet {
   cropToContent?: boolean;
 }
 
+/**
+ * Gönderinin çekildiği yer — global harita bunu kullanıyor.
+ * Kaba: şehir merkezi yeter, tam koordinat ne gerekli ne de istenir.
+ */
+export interface PostPlace {
+  lat: number;
+  lon: number;
+  city?: string;
+  /** Ülke adı (Natural Earth yazımı) — verilmezse en yakın ülkeden bulunur. */
+  country?: string;
+}
+
 export interface CommunityPost {
   id: string;
   userId: string; // 'me' veya persona id
@@ -386,6 +405,8 @@ export interface CommunityPost {
   canvasFrame?: { w: number; h: number };
   cropToContent?: boolean;
   imageUri?: string; // selfie/kendi paylaşımı için gerçek görsel
+  /** Harita için yer. Yoksa gönderi haritada görünmez. */
+  place?: PostPlace;
   archetypeId?: string;
   likes: number; // persona beğenileri (benimki hariç)
   likedByMe: boolean;
