@@ -48,9 +48,14 @@ export default function Stylist() {
   const [messages, setMessages] = useState<Msg[]>([
     {
       role: 'assistant',
+      /*
+        Karşılama kullanıcının PLANINI anlatıyor; hangi sağlayıcıyla
+        çalıştığımızı yazmıyoruz. Ayrım gerçek yeteneğe göre: anahtar varsa
+        sohbet edebiliyoruz, yoksa yerel öneri üretiyoruz.
+      */
       content: api.anthropicKey
-        ? 'Merhaba! Ben BETTA stilistin. Gardırobundaki her parçayı biliyorum — bugün nasıl yardımcı olayım?'
-        : 'Merhaba! Ben BETTA stilistin. Şu an yerel moddayım: hava durumuna ve renk uyumuna göre kombin önerebilirim. Ayarlar\'dan Claude API anahtarı eklersen seninle gerçekten sohbet edebilirim.',
+        ? 'Merhaba! Ben BETTA stilistin. Gardırobundaki her parçayı biliyorum — anlat bakalım, bugün ne lazım?'
+        : 'Merhaba! Ben BETTA stilistin. Ücretsiz planda hava durumuna ve renk uyumuna göre gardırobundan kombin çıkarıyorum. Pro ile dilediğin gibi sohbet edip "yarın toplantım var, ne giysem?" diyebilir, kişiye özel öneriler alabilirsin.',
     },
   ]);
   const [input, setInput] = useState('');
@@ -153,7 +158,7 @@ export default function Stylist() {
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={luxeType.display}>AI Stilist</Text>
-          <Text style={styles.state}>{api.anthropicKey ? 'Claude bağlı' : 'Yerel mod'}</Text>
+          <Text style={styles.state}>{api.anthropicKey ? 'Pro' : 'Ücretsiz plan'}</Text>
         </View>
         <Pressable onPress={() => router.back()} style={styles.close} hitSlop={8}>
           <Ionicons name="close" size={20} color={luxe.primary} />
