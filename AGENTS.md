@@ -191,6 +191,21 @@ yapılınca geri dönülecek bir commit olmadığı için **tüm proje dosyalar�
     saklanıyor, yoksa "Sanal giydirmelerim" bir süre sonra kırık görsele döner.
   - Prompt için doküman karakter sınırı YAYINLAMIYOR; metin kısaltılmadan
     gönderiliyor (`EDITORIAL_PROMPT`).
+- **Vitrin kartları tek kabuktan** (`components/ShowcaseCard.tsx`). Sanal deneme
+  ve video kartı aynı bileşeni kullanıyor (girdi solda küçük, sonuç sağda büyük);
+  biri elle ayarlanınca diğeri geride kalmasın diye ayrıştırıldı.
+- **Video oynatma `expo-video` ile** (`components/LoopingVideo.tsx`):
+  - Native modül → **`npx expo run:android` şart**, reload yetmez. Eski bir
+    derlemede modül yoksa import PATLAR; `VideoShowcase` dosyayı try/catch içinde
+    `require` edip kapak fotoğrafına düşüyor.
+  - Kutunun oranı **videonun kendi oranından** geliyor (`videoTrackChange` →
+    `videoTrack.size`). Kapak fotoğrafının oranıyla çizilince kenarda birkaç
+    piksellik siyah bant kalıyordu; `contentFit="cover"` yuvarlama farkını da
+    kapatıyor.
+  - Vitrin videosu **yalnızca görünürken** oynuyor: kaydırma konumu ref'te tutulup
+    yalnızca görünürlük DEĞİŞTİĞİNDE state yazılıyor (her karede yazılırsa
+    altındaki yüzlerce görselli ızgara yeniden çiziliyor). Sekme değişince
+    `useIsFocused` (expo-router) durduruyor — ekran ayakta kalıyor.
 - **Kategoriler modelin grup listesiyle hizalı** (`ust/alt/elbise/ic/ayakkabi/aksesuar`).
   Eski ayrı `dis` kategorisi KALDIRILDI; dış giyim artık `OUTER_SUBCATEGORY`
   (`jacket`) alt türü. Stüdyodaki dış giyim katmanı ve stilistin katmanlama

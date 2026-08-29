@@ -66,7 +66,8 @@
       "./plugins/withAndroidManifestFixes",
       "onnxruntime-react-native",
       "expo-asset",
-      "./plugins/withOnnxruntimePackage"
+      "./plugins/withOnnxruntimePackage",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

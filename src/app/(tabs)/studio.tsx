@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
@@ -22,6 +22,7 @@ import { ItemThumb } from '@/components/ItemThumb';
 import { ShareModal } from '@/components/ShareModal';
 import { saveImageToDevice } from '@/services/download';
 import { TryOnShowcase } from '@/components/TryOnShowcase';
+import { VideoShowcase } from '@/components/VideoShowcase';
 import { persistRemoteImage } from '@/services/photoStore';
 import { claimJob, releaseJob, TryOnPendingError, waitForJob } from '@/services/tryon';
 import { TRYON_MODELS } from '@/data/tryonModels';
@@ -276,6 +277,41 @@ export default function Studio() {
     };
   }, [tryons, outfits, items]);
 
+  /**
+   * Video vitrini: girdi olarak son giydirme karesi, sonuç olarak son video.
+   * Video kendi kaynak karesini biliyor (`posterUri`), o yüzden ikisi eşleşsin
+   * diye girdi öncelikle videonun kapağı.
+   */
+  const videoDemo = useMemo(() => {
+    const v = videos[0];
+    return {
+      frameUri: v?.posterUri ?? tryons[0]?.imageUri,
+      videoUri: v?.videoUri,
+      posterUri: v?.posterUri,
+    };
+  }, [videos, tryons]);
+
+  /*
+    Vitrindeki video yalnızca EKRANDA GÖRÜNÜRKEN oynuyor. Kaydırma her
+    karede state güncellerse altındaki yüzlerce görselli liste yeniden
+    çiziliyor; o yüzden konum ref'te tutuluyor, state sadece görünürlük
+    DEĞİŞTİĞİNDE yazılıyor.
+  */
+  const [videoVisible, setVideoVisible] = useState(false);
+  /* Başka bir sekmeye geçilince ekran ayakta kalıyor: odak yoksa duruyor. */
+  const focused = useIsFocused();
+  const videoBox = useRef({ y: 0, h: 0 });
+  const viewportH = useRef(0);
+  const scrollY = useRef(0);
+  const evalVideoVisible = () => {
+    const { y, h } = videoBox.current;
+    const vh = viewportH.current;
+    if (!h || !vh) return;
+    // Kenardan 40 piksel içeri girince "görünür" sayılıyor.
+    const vis = y < scrollY.current + vh - 40 && y + h > scrollY.current + 40;
+    setVideoVisible((cur) => (cur === vis ? cur : vis));
+  };
+
   const doShareTryOn = (caption: string) => {
     const t = shareTryon;
     if (!t) return;
@@ -476,7 +512,18 @@ export default function Studio() {
       </ScrollView>
 
       {mode === 'tryon' ? (
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36, gap: 14 }}>
+        <ScrollView
+          contentContainerStyle={{ padding: 20, paddingBottom: 36, gap: 14 }}
+          onLayout={(e) => {
+            viewportH.current = e.nativeEvent.layout.height;
+            evalVideoVisible();
+          }}
+          onScroll={(e) => {
+            scrollY.current = e.nativeEvent.contentOffset.y;
+            evalVideoVisible();
+          }}
+          scrollEventThrottle={16}
+        >
           {/* Vitrin: ne yaptığını GÖSTEREREK anlatıyor, girişi de kendisi */}
           <TryOnShowcase
             modelSource={howToDemo.modelSource}
@@ -496,24 +543,30 @@ export default function Studio() {
           />
 
           {/*
-            Video tanıtımı: giydirilmiş kareyi kısa videoya çeviriyor.
-            Kart vitrinin hemen altında — akış "giydir, sonra oynat".
+            Video vitrini: giydirilmiş kare → hareket eden video.
+            Sanal deneme kartıyla AYNI kabuk; akış "giydir, sonra oynat".
           */}
-          <Pressable
-            onPress={() => router.push('/video')}
-            style={({ pressed }) => [styles.videoPromo, pressed && { opacity: 0.9 }]}
-          >
-            <View style={styles.videoIcon}>
-              <Ionicons name="film-outline" size={19} color={luxe.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={luxeType.subtitle}>Videoya çevir</Text>
-              <Text style={luxeType.tiny}>
-                Giydirdiğin kare hareket etsin — 5 ya da 10 saniyelik kısa video.
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={luxe.outline} />
-          </Pressable>
+          <VideoShowcase
+            frameUri={videoDemo.frameUri}
+            videoUri={videoDemo.videoUri}
+            posterUri={videoDemo.posterUri}
+            active={videoVisible && focused}
+            status={
+              pro
+                ? api.fashnKey
+                  ? tryons.length
+                    ? 'Hazır'
+                    : 'Önce bir giydirme gerekli'
+                  : 'API anahtarı gerekli (Ayarlar)'
+                : 'Pro üyelere özel'
+            }
+            ctaLabel={pro ? 'Videoya çevir' : "BETTA Pro'ya geç"}
+            onPress={() => router.push(pro ? '/video' : '/pro')}
+            onLayout={(y, h) => {
+              videoBox.current = { y, h };
+              evalVideoVisible();
+            }}
+          />
 
           {/* Sanal giydirme çıktıları — görseller kalıcı kopya olarak saklanır */}
           <View style={styles.sectionHead}>
@@ -1046,27 +1099,6 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     letterSpacing: 1.2,
     color: luxe.outline,
-  },
-  /** Video tanıtım kartı — vitrinle liste arasında bir satır. */
-  videoPromo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 16,
-    borderRadius: luxeRadius.lg,
-    backgroundColor: '#FFFDFD',
-    borderWidth: 1,
-    borderColor: luxe.outlineSoft,
-  },
-  videoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: glass.fillStrong,
-    borderWidth: 1,
-    borderColor: luxe.outlineSoft,
   },
   videoBlank: {
     width: '100%',
