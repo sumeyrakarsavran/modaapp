@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -102,6 +102,23 @@ export default function Community() {
 
   const commentPost = posts.find((p) => p.id === commentsFor);
 
+  /*
+    Şeritte önce TAKİP ETMEDİKLERİN: şeridin işi keşfettirmek. Takip
+    ettiklerin akışta zaten görünüyor, başa gelmeleri yeri boşa harcıyordu.
+    Kişilerin kendi sırası korunuyor, yalnızca ikiye ayrılıyor.
+  */
+  const focused = useIsFocused();
+  const rail = useMemo(
+    () => [
+      ...PERSONAS.filter((u) => !followedIds.includes(u.id)),
+      ...PERSONAS.filter((u) => followedIds.includes(u.id)),
+    ],
+    // Sıra `followedIds` ile DEĞİL odakla tazeleniyor: rozete basınca
+    // avatarın parmağın altından kayıp gitmesi rahatsız edici.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [focused],
+  );
+
   // Kullanıcı adı araması (@ işareti olsa da olmasa da)
   const q = userQuery.trim().toLowerCase().replace(/^@/, '');
   const searchResults = q
@@ -152,9 +169,15 @@ export default function Community() {
               <View style={{ flex: 1 }}>
                 <Text style={luxeType.display}>Topluluk</Text>
               </View>
-              <Pressable onPress={() => setInviteOpen(true)} style={styles.inviteBtn}>
-                <Ionicons name="person-add-outline" size={16} color="#fff" />
-                <Text style={styles.inviteBtnText}>Davet et</Text>
+              {/* Davet: yuvarlak ikon — geniş koyu hap başlığın yanında
+                  gereğinden fazla yer kaplıyordu (Gardırop'taki dille aynı). */}
+              <Pressable
+                onPress={() => setInviteOpen(true)}
+                style={styles.inviteBtn}
+                hitSlop={8}
+                accessibilityLabel="Davet et"
+              >
+                <Ionicons name="person-add-outline" size={17} color={luxe.onPrimary} />
               </Pressable>
             </View>
 
@@ -229,14 +252,25 @@ export default function Community() {
               </View>
             ) : null}
 
-            {/* Önerilen kullanıcılar */}
-            <SectionTitle title="Bettalar" style={{ marginTop: spacing.lg, marginBottom: spacing.md }} />
+            {/*
+              Bettalar şeridi — KEŞİF sırası: takip etmediklerin başta.
+              Avatar altındaki "Takip et" hapı kaldırıldı; yedi hap yan yana
+              gelince şerit düğme tarlasına dönüyordu. Eylem kayıp değil,
+              avatarın köşesindeki + rozetine taşındı; takip ettiklerinde
+              rozet yok, böylece şerit bir bakışta "kimi takip etmiyorum"u
+              da söylüyor.
+            */}
+            <Text style={[luxeType.label, styles.railLabel]}>Bettalar</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', gap: spacing.md, paddingBottom: spacing.sm }}>
-                {PERSONAS.map((u) => {
+              <View style={{ flexDirection: 'row', gap: 14, paddingBottom: spacing.sm }}>
+                {rail.map((u) => {
                   const followed = followedIds.includes(u.id);
                   return (
-                    <View key={u.id} style={styles.userCard}>
+                    <Pressable
+                      key={u.id}
+                      style={styles.userCard}
+                      onPress={() => router.push({ pathname: '/user/[id]', params: { id: u.id } })}
+                    >
                       {/* İridesan halka — örnekteki gradyan çerçeveli avatar */}
                       <LinearGradient
                         colors={iridescent.soft}
@@ -245,31 +279,23 @@ export default function Community() {
                         style={styles.avatarRing}
                       >
                         <View style={styles.avatarRingInner}>
-                          <Avatar
-                            user={u}
-                            size={60}
-                            onPress={() => router.push({ pathname: '/user/[id]', params: { id: u.id } })}
-                          />
+                          <Avatar user={u} size={54} />
                         </View>
                       </LinearGradient>
+                      {!followed ? (
+                        <Pressable
+                          onPress={() => toggleFollow(u.id)}
+                          style={styles.followBadge}
+                          hitSlop={10}
+                          accessibilityLabel={`${u.name} kişisini takip et`}
+                        >
+                          <Ionicons name="add" size={13} color={luxe.onPrimary} />
+                        </Pressable>
+                      ) : null}
                       <Text style={styles.stylistName} numberOfLines={1}>
                         {u.name}
                       </Text>
-                      <Pressable
-                        onPress={() => toggleFollow(u.id)}
-                        style={styles.miniFollow}
-                      >
-                        <Text
-                          style={{
-                            fontFamily: font.bodyMedium,
-                            fontSize: 11,
-                            color: followed ? luxe.outline : luxe.primary,
-                          }}
-                        >
-                          {followed ? 'Takiptesin' : 'Takip et'}
-                        </Text>
-                      </Pressable>
-                    </View>
+                    </Pressable>
                   );
                 })}
               </View>
@@ -476,16 +502,15 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
+  /** Yuvarlak ikon düğme — Gardırop başlığındaki dille aynı. */
   inviteBtn: {
-    flexDirection: 'row',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
     backgroundColor: luxe.primary,
-    borderRadius: radius.pill,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
   },
-  inviteBtnText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
   filterBar: {
     flexGrow: 0,
     flexShrink: 0,
@@ -500,7 +525,26 @@ const styles = StyleSheet.create({
   filterText: { fontFamily: font.bodyMedium, fontSize: 14, color: luxe.outline },
   filterTextActive: { color: luxe.ink },
   filterUnderline: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, borderRadius: 1 },
-  stylistName: { fontFamily: font.bodyMedium, fontSize: 12.5, color: luxe.ink, marginTop: 2 },
+  railLabel: { marginTop: spacing.lg, marginBottom: spacing.sm },
+  stylistName: { fontFamily: font.bodyMedium, fontSize: 11.5, color: luxe.ink, marginTop: 3 },
+  /**
+   * Takip rozeti: avatarın sağ alt köşesinde küçük +.
+   * Halkanın DIŞINA taşmıyor — Android kutu dışındaki çocuğa dokunuş
+   * göndermiyor (bkz. AGENTS.md), rozet basılamaz hale gelirdi.
+   */
+  followBadge: {
+    position: 'absolute',
+    right: 5,
+    top: 39,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: luxe.primary,
+    borderWidth: 2,
+    borderColor: luxe.surface,
+  },
   /** Gradyan halka: dış katman geçiş, iç katman beyaz boşluk. */
   avatarRing: { padding: 2, borderRadius: 999 },
   avatarRingInner: { padding: 2, borderRadius: 999, backgroundColor: luxe.surface },
@@ -508,7 +552,7 @@ const styles = StyleSheet.create({
     Kart çerçevesi YOK — örnekteki stilist şeridi sadece halkalı avatar ve ad.
     Kutu içine alınca şerit ağır bir kart dizisine dönüşüyordu.
   */
-  userCard: { width: 86, alignItems: 'center', gap: 4 },
+  userCard: { width: 72, alignItems: 'center', gap: 2 },
   miniFollow: {
     backgroundColor: glass.fillStrong,
     borderWidth: 1,
