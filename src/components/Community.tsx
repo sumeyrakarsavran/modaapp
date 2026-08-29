@@ -314,13 +314,58 @@ export function PostCard({
   const arch = getArchetype(post.archetypeId);
   const likeCount = post.likes + (post.likedByMe ? 1 : 0);
 
+  /*
+    Etiketler KUTUSUZ: tür + stil + kombin sayısı tek bir sessiz satırda
+    birleşiyor. Üç hap yan yana dururken kartın altı düğme tarlası gibi
+    görünüyordu, oysa bu üçü bilgi — dokunulacak şey değil.
+  */
+  const meta = [
+    KIND_LABEL[post.kind],
+    arch?.styleName,
+    post.outfitSets && post.outfitSets.length > 4
+      ? `+${post.outfitSets.length - 4} kombin`
+      : null,
+  ].filter(Boolean);
+
   return (
     <View style={styles.card}>
       {/*
-        Kart düzeni örnek (5)'ten: görselin ALTINA binen koyu perdenin üstünde
-        kullanıcı satırı (avatar + ad + @kullanıcı · süre), altında ayrı bir
-        panelde italik açıklama ve etkileşim satırı.
+        Kart düzeni SADE: üstte ince bir künye satırı, ortada tam genişlik
+        görsel, altta açıklama + etkileşim.
+
+        Önceki düzende künye görselin ÜSTÜNE biniyordu; okunsun diye koyu bir
+        perde, avatara beyaz halka ve düğmeye camlı daire gerekiyordu — üç
+        katman sırf bir satır yazı için. Künye görselin dışına çıkınca hepsi
+        gereksiz kaldı ve görsel tam boy nefes alıyor.
       */}
+      <View style={styles.head}>
+        <Pressable style={styles.userRow} onPress={onOpenUser}>
+          <Avatar user={user} size={30} />
+          <View style={{ flexShrink: 1 }}>
+            <Text style={styles.userName} numberOfLines={1}>
+              {user.name}
+            </Text>
+            <Text style={styles.userMeta} numberOfLines={1}>
+              @{user.username} · {timeAgo(post.createdAt)}
+            </Text>
+          </View>
+        </Pressable>
+        {user.isMe ? (
+          onDelete ? (
+            <Pressable onPress={onDelete} hitSlop={10}>
+              <Ionicons name="trash-outline" size={17} color={luxe.outline} />
+            </Pressable>
+          ) : null
+        ) : (
+          /* Takip: dolu hap değil sessiz yazı — kart bir ilan panosu değil. */
+          <Pressable onPress={onToggleFollow} hitSlop={10}>
+            <Text style={[styles.followLink, followed && { color: luxe.outline }]}>
+              {followed ? 'Takiptesin' : 'Takip et'}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
       <View style={styles.media}>
         {post.outfitSets?.length ? (
           /*
@@ -372,81 +417,30 @@ export function PostCard({
             bare
           />
         )}
-
-        {/* Görselin altına inen koyu perde — üstündeki beyaz yazı okunsun */}
-        <LinearGradient
-          colors={['transparent', 'rgba(23,23,26,0.15)', 'rgba(23,23,26,0.6)']}
-          locations={[0.55, 0.78, 1]}
-          style={styles.mediaScrim}
-          pointerEvents="none"
-        />
-
-        {/* Kullanıcı satırı — perdenin üstünde, sol altta */}
-        <View style={styles.mediaFoot} pointerEvents="box-none">
-          <Pressable style={styles.userRow} onPress={onOpenUser}>
-            <View style={styles.avatarRing}>
-              <Avatar user={user} size={34} />
-            </View>
-            <View style={{ flexShrink: 1 }}>
-              <Text style={styles.userName} numberOfLines={1}>
-                {user.name}
-              </Text>
-              <Text style={styles.userMeta} numberOfLines={1}>
-                @{user.username} · {timeAgo(post.createdAt)}
-              </Text>
-            </View>
-          </Pressable>
-          {user.isMe ? (
-            onDelete ? (
-              <Pressable style={styles.mediaBtn} onPress={onDelete} hitSlop={6}>
-                <Ionicons name="trash-outline" size={16} color={luxe.onDark} />
-              </Pressable>
-            ) : null
-          ) : (
-            <Pressable style={styles.mediaBtn} onPress={onToggleFollow} hitSlop={6}>
-              <Ionicons
-                name={followed ? 'checkmark' : 'person-add-outline'}
-                size={16}
-                color={luxe.onDark}
-              />
-            </Pressable>
-          )}
-        </View>
       </View>
 
-      {/* Alt panel: italik açıklama + etiketler + etkileşimler */}
+      {/* Alt panel: açıklama, sonra künye ve etkileşim AYNI satırda */}
       <View style={styles.body}>
         <Text style={styles.caption}>{post.caption}</Text>
 
-        <View style={styles.tagRow}>
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{KIND_LABEL[post.kind]}</Text>
+        <View style={styles.footRow}>
+          <Text style={styles.metaText} numberOfLines={1}>
+            {meta.join(' · ')}
+          </Text>
+          <View style={styles.actionRow}>
+            <Pressable onPress={onToggleLike} style={styles.actionBtn} hitSlop={8}>
+              <Ionicons
+                name={post.likedByMe ? 'heart' : 'heart-outline'}
+                size={18}
+                color={post.likedByMe ? luxe.primary : luxe.outline}
+              />
+              <Text style={styles.actionText}>{likeCount.toLocaleString('tr-TR')}</Text>
+            </Pressable>
+            <Pressable onPress={onOpenComments} style={styles.actionBtn} hitSlop={8}>
+              <Ionicons name="chatbubble-outline" size={16} color={luxe.outline} />
+              <Text style={styles.actionText}>{post.comments.length}</Text>
+            </Pressable>
           </View>
-          {arch ? (
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{arch.styleName}</Text>
-            </View>
-          ) : null}
-          {post.outfitSets && post.outfitSets.length > 4 ? (
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>+{post.outfitSets.length - 4} kombin</Text>
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.actionRow}>
-          <Pressable onPress={onToggleLike} style={styles.actionBtn} hitSlop={6}>
-            <Ionicons
-              name={post.likedByMe ? 'heart' : 'heart-outline'}
-              size={20}
-              color={post.likedByMe ? luxe.primary : luxe.outline}
-            />
-            <Text style={styles.actionText}>{likeCount.toLocaleString('tr-TR')}</Text>
-          </Pressable>
-          <Pressable onPress={onOpenComments} style={styles.actionBtn} hitSlop={6}>
-            <Ionicons name="chatbubble-outline" size={18} color={luxe.outline} />
-            <Text style={styles.actionText}>{post.comments.length}</Text>
-          </Pressable>
         </View>
       </View>
     </View>
@@ -494,44 +488,25 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...luxeShadow.card,
   },
-  /** Görsel katmanı — perde ve kullanıcı satırı bunun üstüne biniyor. */
+  /** Görsel: tam genişlik, üstünde artık hiçbir katman yok. */
   media: { width: '100%' },
-  mediaScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, top: 0 },
-  mediaFoot: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 16,
+  /** Künye satırı — görselin ÜSTÜNDE, kartın açık zemininde. */
+  head: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
-  /** Beyaz halka: avatar koyu perdenin üstünde kaybolmasın. */
-  avatarRing: {
-    padding: 2,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.9)',
-  },
-  userName: { fontFamily: font.bodyMedium, fontSize: 13.5, color: luxe.onDark },
-  userMeta: { fontFamily: font.body, fontSize: 10.5, color: luxe.onDarkSoft, marginTop: 2 },
-  mediaBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
   },
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  userName: { fontFamily: font.bodyMedium, fontSize: 13.5, color: luxe.ink },
+  userMeta: { fontFamily: font.body, fontSize: 10.5, color: luxe.outline, marginTop: 1 },
+  followLink: { fontFamily: font.bodyMedium, fontSize: 12.5, color: luxe.primary },
   setGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 },
   /** İki sütun: yüzde genişlik — sabit piksel kapsayıcıya sığmıyordu. */
   setCell: { width: '48%' },
-  body: { padding: 18 },
+  body: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 },
   caption: {
     fontFamily: font.body,
     fontStyle: 'italic',
@@ -539,21 +514,21 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: luxe.inkSoft,
   },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
-  tag: {
-    borderRadius: luxeRadius.pill,
-    backgroundColor: 'rgba(232,227,240,0.6)',
-    borderWidth: 1,
-    borderColor: luxe.outlineSoft,
-    paddingHorizontal: 11,
-    paddingVertical: 4,
+  /** Künye ve etkileşim aynı satırda: iki ayrı satır kartı uzatıyordu. */
+  footRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 10,
   },
-  tagText: {
+  metaText: {
+    flexShrink: 1,
     fontFamily: font.label,
     fontSize: 9,
     letterSpacing: 1.1,
     textTransform: 'uppercase',
-    color: luxe.primary,
+    color: luxe.outline,
   },
   mediaImg: {
     width: '100%',
@@ -614,6 +589,7 @@ const styles = StyleSheet.create({
     borderTopColor: luxe.outlineSoft,
   },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 18 },
-  actionText: { fontSize: 13.5, fontWeight: '700', color: luxe.inkSoft },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  actionText: { fontFamily: font.bodyMedium, fontSize: 12.5, color: luxe.inkSoft },
 });
+
