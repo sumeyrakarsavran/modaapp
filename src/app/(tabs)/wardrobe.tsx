@@ -1279,7 +1279,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 12,
+    /*
+      Alt boşluk Stüdyo'dan DAHA DAR: buradaki ikon düğmesi 48dp, Stüdyo'nun
+      başlığı 40dp. Aradaki 8dp bölüm sekmelerini aşağı itiyordu; iki ekranın
+      sekme satırı aynı hizada dursun diye pay burada kısılıyor.
+    */
+    paddingBottom: 4,
     gap: 10,
   },
   sectionTabsBar: {
