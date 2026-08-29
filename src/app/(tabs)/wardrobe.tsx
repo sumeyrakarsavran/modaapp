@@ -445,7 +445,12 @@ function Rack({
   const dragItem = order.find((it) => it.id === dragId);
 
   return (
-    <View style={{ marginBottom: 20 }}>
+    /*
+      Kategoriler arası boşluk, aynı kategorideki iki raf arasındaki boşlukla
+      AYNI olsun diye ek pay yok: ayrımı zaten bölüm başlığı yapıyor, üstüne
+      20dp koyunca "Hepsi" görünümü kopuk duruyordu.
+    */
+    <View>
       <View style={styles.rackHead}>
         <Text style={styles.rackTitle}>{title}</Text>
         <Text style={styles.rackCount}>{items.length} PARÇA</Text>
