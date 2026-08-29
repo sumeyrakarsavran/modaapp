@@ -181,126 +181,6 @@ export default function Community() {
               </Pressable>
             </View>
 
-            {/* Kullanıcı arama */}
-            <View style={styles.searchBox}>
-              <Ionicons name="search" size={16} color={luxe.outline} />
-              <TextInput
-                value={userQuery}
-                onChangeText={setUserQuery}
-                placeholder="@kullanıcıadı ile arkadaşlarını bul…"
-                placeholderTextColor={luxe.outline}
-                style={styles.searchInput}
-                autoCapitalize="none"
-              />
-              {userQuery ? (
-                <Pressable onPress={() => setUserQuery('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={16} color={luxe.outline} />
-                </Pressable>
-              ) : null}
-            </View>
-            {userQuery ? (
-              <View style={{ marginTop: spacing.sm }}>
-                {searchResults.length === 0 ? (
-                  <View style={styles.noResult}>
-                    <Text style={luxeType.caption}>"@{q}" bulunamadı.</Text>
-                    <Text style={[luxeType.tiny, { marginTop: 4 }]}>
-                      Arkadaşın henüz BETTA'da olmayabilir — davet kodunu gönder, katıldığında
-                      kullanıcı adıyla bulup takip edebilirsin. Senin adresin: @
-                      {profile.username || 'betta'}
-                    </Text>
-                    <Button
-                      small
-                      title="Davet gönder"
-                      onPress={() => setInviteOpen(true)}
-                      style={{ marginTop: spacing.sm, alignSelf: 'flex-start' }}
-                    />
-                  </View>
-                ) : (
-                  searchResults.map((u) => {
-                    const followed = followedIds.includes(u.id);
-                    return (
-                      <Pressable
-                        key={u.id}
-                        style={styles.resultRow}
-                        onPress={() => router.push({ pathname: '/user/[id]', params: { id: u.id } })}
-                      >
-                        <Avatar user={u} size={44} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[luxeType.subtitle, { fontSize: 15 }]}>{u.name}</Text>
-                          <Text style={luxeType.tiny}>
-                            @{u.username} · {(u.followers / 1000).toFixed(1)}b takipçi
-                          </Text>
-                        </View>
-                        <Pressable
-                          onPress={() => toggleFollow(u.id)}
-                          style={[styles.miniFollow, followed && { backgroundColor: luxe.bg }]}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 11.5,
-                              fontWeight: '700',
-                              color: followed ? luxe.inkSoft : '#fff',
-                            }}
-                          >
-                            {followed ? 'Takiptesin' : 'Takip et'}
-                          </Text>
-                        </Pressable>
-                      </Pressable>
-                    );
-                  })
-                )}
-              </View>
-            ) : null}
-
-            {/*
-              Bettalar şeridi — KEŞİF sırası: takip etmediklerin başta.
-              Avatar altındaki "Takip et" hapı kaldırıldı; yedi hap yan yana
-              gelince şerit düğme tarlasına dönüyordu. Eylem kayıp değil,
-              avatarın köşesindeki + rozetine taşındı; takip ettiklerinde
-              rozet yok, böylece şerit bir bakışta "kimi takip etmiyorum"u
-              da söylüyor.
-            */}
-            <Text style={[luxeType.label, styles.railLabel]}>Bettalar</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', gap: 14, paddingBottom: spacing.sm }}>
-                {rail.map((u) => {
-                  const followed = followedIds.includes(u.id);
-                  return (
-                    <Pressable
-                      key={u.id}
-                      style={styles.userCard}
-                      onPress={() => router.push({ pathname: '/user/[id]', params: { id: u.id } })}
-                    >
-                      {/* İridesan halka — örnekteki gradyan çerçeveli avatar */}
-                      <LinearGradient
-                        colors={iridescent.soft}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.avatarRing}
-                      >
-                        <View style={styles.avatarRingInner}>
-                          <Avatar user={u} size={54} />
-                        </View>
-                      </LinearGradient>
-                      {!followed ? (
-                        <Pressable
-                          onPress={() => toggleFollow(u.id)}
-                          style={styles.followBadge}
-                          hitSlop={10}
-                          accessibilityLabel={`${u.name} kişisini takip et`}
-                        >
-                          <Ionicons name="add" size={13} color={luxe.onPrimary} />
-                        </Pressable>
-                      ) : null}
-                      <Text style={styles.stylistName} numberOfLines={1}>
-                        {u.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
-
             {/*
               Filtreler örnek (6)'daki gibi ALTI ÇİZİLİ SEKME: hap dizisi
               sayfada zaten arama + stilist şeridiyle birlikte düğme tarlası
@@ -329,6 +209,136 @@ export default function Community() {
                 );
               })}
             </ScrollView>
+
+            {/*
+              Kişi araçları — arama + Bettalar şeridi — yalnızca "Takip
+              ettiklerim" sekmesinde. Üstte sabit dururken sayfa kalabalık
+              görünüyor ve akış ekranın altında kalıyordu; kimi takip
+              edeceğine karar verdiğin yer zaten bu sekme.
+            */}
+            {filter === 'takip' ? (
+              <View style={styles.followTools}>
+              {/* Kullanıcı arama */}
+              <View style={styles.searchBox}>
+                <Ionicons name="search" size={16} color={luxe.outline} />
+                <TextInput
+                  value={userQuery}
+                  onChangeText={setUserQuery}
+                  placeholder="@kullanıcıadı ile arkadaşlarını bul…"
+                  placeholderTextColor={luxe.outline}
+                  style={styles.searchInput}
+                  autoCapitalize="none"
+                />
+                {userQuery ? (
+                  <Pressable onPress={() => setUserQuery('')} hitSlop={8}>
+                    <Ionicons name="close-circle" size={16} color={luxe.outline} />
+                  </Pressable>
+                ) : null}
+              </View>
+              {userQuery ? (
+                <View style={{ marginTop: spacing.sm }}>
+                  {searchResults.length === 0 ? (
+                    <View style={styles.noResult}>
+                      <Text style={luxeType.caption}>"@{q}" bulunamadı.</Text>
+                      <Text style={[luxeType.tiny, { marginTop: 4 }]}>
+                        Arkadaşın henüz BETTA'da olmayabilir — davet kodunu gönder, katıldığında
+                        kullanıcı adıyla bulup takip edebilirsin. Senin adresin: @
+                        {profile.username || 'betta'}
+                      </Text>
+                      <Button
+                        small
+                        title="Davet gönder"
+                        onPress={() => setInviteOpen(true)}
+                        style={{ marginTop: spacing.sm, alignSelf: 'flex-start' }}
+                      />
+                    </View>
+                  ) : (
+                    searchResults.map((u) => {
+                      const followed = followedIds.includes(u.id);
+                      return (
+                        <Pressable
+                          key={u.id}
+                          style={styles.resultRow}
+                          onPress={() => router.push({ pathname: '/user/[id]', params: { id: u.id } })}
+                        >
+                          <Avatar user={u} size={44} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[luxeType.subtitle, { fontSize: 15 }]}>{u.name}</Text>
+                            <Text style={luxeType.tiny}>
+                              @{u.username} · {(u.followers / 1000).toFixed(1)}b takipçi
+                            </Text>
+                          </View>
+                          <Pressable
+                            onPress={() => toggleFollow(u.id)}
+                            style={[styles.miniFollow, followed && { backgroundColor: luxe.bg }]}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11.5,
+                                fontWeight: '700',
+                                color: followed ? luxe.inkSoft : '#fff',
+                              }}
+                            >
+                              {followed ? 'Takiptesin' : 'Takip et'}
+                            </Text>
+                          </Pressable>
+                        </Pressable>
+                      );
+                    })
+                  )}
+                </View>
+              ) : null}
+
+              {/*
+                Bettalar şeridi — KEŞİF sırası: takip etmediklerin başta.
+                Avatar altındaki "Takip et" hapı kaldırıldı; yedi hap yan yana
+                gelince şerit düğme tarlasına dönüyordu. Eylem kayıp değil,
+                avatarın köşesindeki + rozetine taşındı; takip ettiklerinde
+                rozet yok, böylece şerit bir bakışta "kimi takip etmiyorum"u
+                da söylüyor.
+              */}
+              <Text style={[luxeType.label, styles.railLabel]}>Bettalar</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: 'row', gap: 14, paddingBottom: spacing.sm }}>
+                  {rail.map((u) => {
+                    const followed = followedIds.includes(u.id);
+                    return (
+                      <Pressable
+                        key={u.id}
+                        style={styles.userCard}
+                        onPress={() => router.push({ pathname: '/user/[id]', params: { id: u.id } })}
+                      >
+                        {/* İridesan halka — örnekteki gradyan çerçeveli avatar */}
+                        <LinearGradient
+                          colors={iridescent.soft}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.avatarRing}
+                        >
+                          <View style={styles.avatarRingInner}>
+                            <Avatar user={u} size={54} />
+                          </View>
+                        </LinearGradient>
+                        {!followed ? (
+                          <Pressable
+                            onPress={() => toggleFollow(u.id)}
+                            style={styles.followBadge}
+                            hitSlop={10}
+                            accessibilityLabel={`${u.name} kişisini takip et`}
+                          >
+                            <Ionicons name="add" size={13} color={luxe.onPrimary} />
+                          </Pressable>
+                        ) : null}
+                        <Text style={styles.stylistName} numberOfLines={1}>
+                          {u.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+              </View>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
@@ -471,6 +481,8 @@ const styles = StyleSheet.create({
     8, burada liste dolgusundan ötürü başlık 18px aşağıda kalıyordu.
   */
   headRow: { flexDirection: 'row', alignItems: 'center', marginTop: -6, marginBottom: 2 },
+  /** Sekmenin altındaki kişi araçları — akıştan ince bir çizgiyle ayrılıyor. */
+  followTools: { marginTop: -spacing.sm, marginBottom: spacing.md },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -525,7 +537,7 @@ const styles = StyleSheet.create({
   filterText: { fontFamily: font.bodyMedium, fontSize: 14, color: luxe.outline },
   filterTextActive: { color: luxe.ink },
   filterUnderline: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, borderRadius: 1 },
-  railLabel: { marginTop: spacing.lg, marginBottom: spacing.sm },
+  railLabel: { marginTop: spacing.md, marginBottom: spacing.sm },
   stylistName: { fontFamily: font.bodyMedium, fontSize: 11.5, color: luxe.ink, marginTop: 3 },
   /**
    * Takip rozeti: avatarın sağ alt köşesinde küçük +.
