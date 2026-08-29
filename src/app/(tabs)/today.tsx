@@ -22,7 +22,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Backdrop } from '@/components/Backdrop';
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
-import { GlassCard } from '@/components/GlassCard';
+import { GlassCard as BaseGlassCard } from '@/components/GlassCard';
 import { ItemThumb } from '@/components/ItemThumb';
 import { OutfitCollage } from '@/components/OutfitCollage';
 import { ProfileButton } from '@/components/ProfileButton';
@@ -31,8 +31,29 @@ import { localSuggest, type SuggestedOutfit } from '@/services/stylist';
 import { weatherEmoji, weatherLabel } from '@/services/weather';
 import { useStore } from '@/store/useStore';
 import { getArchetype } from '@/theme';
-import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
+/*
+  DENEME: Bugün ekranı "İnci Küre" paletini kullanıyor (bkz. theme/pearl.ts).
+  Renkler alias ile devralınıyor — ölçek, tipografi ve düzen aynı kaldığı için
+  ekranın geri kalanında tek satır değişmiyor, geri dönüş de tek satır.
+  Diğer ekranlar `luxe` ile çalışmaya devam ediyor.
+*/
+import { font, luxeRadius } from '@/theme/luxe';
+import {
+  pearl as luxe,
+  pearlGlass as glass,
+  pearlIridescent as iridescent,
+  pearlShadow as luxeShadow,
+  pearlType as luxeType,
+} from '@/theme/pearl';
 import { todayISO } from '@/types';
+
+/**
+ * Bugün'ün kart dili tek yerden: inci paletinde kartlar lavantaya çalıyor.
+ * (Diğer ekranlar `GlassCard`'ı varsayılan haliyle kullanmaya devam ediyor.)
+ */
+const GlassCard = (p: React.ComponentProps<typeof BaseGlassCard>) => (
+  <BaseGlassCard variant="pearl" {...p} />
+);
 
 const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 
@@ -296,7 +317,7 @@ export default function Today() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: luxe.bg }} edges={['top']}>
-      <Backdrop />
+      <Backdrop variant="pearl" />
 
       {/* Üst çubuk: avatar · marka · ayarlar */}
       <View style={styles.header}>
@@ -378,22 +399,24 @@ export default function Today() {
                 style={[styles.day, active && styles.dayActive]}
               >
                 {active ? (
-                  <FinBlob shadow color={luxe.primaryContainer} gradient={iridescent.soft} />
+                  /* Seçili gün: ışıltılı bakır — görseldeki metalin kendisi.
+                     Koyu olduğu için üstündeki yazı kreme dönüyor. */
+                  <FinBlob shadow color={luxe.copper} gradient={iridescent.copper} />
                 ) : (
                   /* Zemin kutuya değil İÇ dikdörtgene: kutu gölge payı kadar
                      büyük, zemini kutuya verince kart şişik görünüyor. */
                   <View style={styles.dayPlain} pointerEvents="none" />
                 )}
-                <Text style={[styles.dayName, active && { color: luxe.primary }]}>
+                <Text style={[styles.dayName, active && { color: luxe.onCopper }]}>
                   {DAY_NAMES[d.getDay()]}
                 </Text>
-                <Text style={[styles.dayNum, active && { color: luxe.primary }]}>
+                <Text style={[styles.dayNum, active && { color: luxe.onCopper }]}>
                   {d.getDate()}
                 </Text>
                 {w ? (
                   <>
                     <Text style={{ fontSize: 11 }}>{weatherEmoji(w.weatherCode)}</Text>
-                    <Text style={[styles.dayTemp, active && { color: luxe.primary }]}>
+                    <Text style={[styles.dayTemp, active && { color: luxe.onCopper }]}>
                       {w.tempMax}°<Text style={styles.dayTempMin}> {w.tempMin}°</Text>
                     </Text>
                   </>
@@ -406,7 +429,14 @@ export default function Today() {
                 <View
                   style={[
                     styles.planDot,
-                    { backgroundColor: planned ? luxe.primary : 'transparent' },
+                    /* Bakır zeminde koyu nokta kayboluyor: seçiliyken krem. */
+                    {
+                      backgroundColor: planned
+                        ? active
+                          ? luxe.onCopper
+                          : luxe.primary
+                        : 'transparent',
+                    },
                   ]}
                 />
               </Pressable>

@@ -22,15 +22,30 @@ import { luxeRadius, luxeShadow } from '@/theme/luxe';
 export function GlassCard({
   children,
   tint,
+  variant = 'default',
   style,
 }: {
   children: React.ReactNode;
   /** Vurgulu kart — pudra mora çalar. */
   tint?: boolean;
+  /**
+   * `pearl` — inci küre paleti (şimdilik Bugün). Kart zemini LAVANTAYA
+   * çalıyor: kum rengi sayfanın üstünde kartlar soğuk parıltıyla ayrılıyor,
+   * görseldeki inci gövdenin krem zemine göre durduğu gibi.
+   */
+  variant?: 'default' | 'pearl';
   style?: StyleProp<ViewStyle>;
 }) {
+  const pearlSkin = variant === 'pearl';
   return (
-    <View style={[styles.card, tint && styles.cardTint, style]}>
+    <View
+      style={[
+        styles.card,
+        tint && styles.cardTint,
+        pearlSkin && (tint ? styles.pearlTint : styles.pearlCard),
+        style,
+      ]}
+    >
       {/*
         Hacim (3B) hissi: köşegen bir ışık geçişi — sol üstte aydınlık, sağ
         altta tona çalan. Kartın KENDİ zemini değil AYRI katman ve kırpma
@@ -39,9 +54,13 @@ export function GlassCard({
       */}
       <LinearGradient
         colors={
-          tint
-            ? ['rgba(255,255,255,0.94)', 'rgba(229,221,242,0.5)']
-            : ['rgba(255,255,255,0.97)', 'rgba(220,235,236,0.34)']
+          pearlSkin
+            ? tint
+              ? ['rgba(255,253,255,0.96)', 'rgba(214,206,238,0.55)']
+              : ['rgba(255,253,255,0.97)', 'rgba(226,220,242,0.42)']
+            : tint
+              ? ['rgba(255,255,255,0.94)', 'rgba(229,221,242,0.5)']
+              : ['rgba(255,255,255,0.97)', 'rgba(220,235,236,0.34)']
         }
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.9, y: 1 }}
@@ -103,6 +122,9 @@ const styles = StyleSheet.create({
     ...luxeShadow.card,
   },
   cardTint: { backgroundColor: '#F2EFF7' },
+  /* İnci paleti: zemin krem, kart leylak — ayrım renkten geliyor, çizgiden değil. */
+  pearlCard: { backgroundColor: '#FBF8FD', borderColor: 'rgba(255,253,255,0.92)' },
+  pearlTint: { backgroundColor: '#F1ECF9', borderColor: 'rgba(255,253,255,0.92)' },
   shaped: {
     marginHorizontal: -BLOB_SHADOW_PAD,
     marginVertical: -BLOB_SHADOW_PAD,
