@@ -3,7 +3,6 @@ import { View, type ViewStyle } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { iridescent } from '@/theme/luxe';
-import { pearl, pearlIridescent } from '@/theme/pearl';
 
 /**
  * Sayfa zemini: fildişi yüzeyin iki ucundan sızan İRİDESAN ışık — sol üstte
@@ -17,41 +16,8 @@ import { pearl, pearlIridescent } from '@/theme/pearl';
  *
  * Ortak bileşen: Bugün ve Gardırop aynı zemini paylaşıyor, yoksa ekranlar
  * arası geçişte zemin tonu atlıyordu.
- *
- * `variant="pearl"` — inci küre paleti (şimdilik yalnızca Bugün). Orada ışık
- * KÖŞEDEN değil ORTADAN geliyor: görselde küre kendi halesinin içinde
- * duruyor, kenarlar sıcak kuma düşüyor. Köşe parıltıları o havayı vermiyordu.
  */
-export function Backdrop({ variant = 'iridescent' }: { variant?: 'iridescent' | 'pearl' }) {
-  if (variant === 'pearl') {
-    return (
-      <View style={fill} pointerEvents="none">
-        <Svg style={fill}>
-          <Defs>
-            {/* Merkez hale: görseldeki en açık nokta */}
-            <RadialGradient id="pearlGlow" cx="50%" cy="34%" r="72%">
-              <Stop offset="0" stopColor={pearl.bgGlow} stopOpacity="1" />
-              <Stop offset="0.55" stopColor={pearl.bgGlow} stopOpacity="0.55" />
-              <Stop offset="1" stopColor={pearl.bgEdge} stopOpacity="0.9" />
-            </RadialGradient>
-            {/* Şeftali metal parıltısı — sol üst */}
-            <RadialGradient id="pearlWarm" cx="18%" cy="12%" r="52%">
-              <Stop offset="0" stopColor={pearlIridescent.full[1]} stopOpacity="0.16" />
-              <Stop offset="1" stopColor={pearlIridescent.full[1]} stopOpacity="0" />
-            </RadialGradient>
-            {/* Soğuk leylak parıltısı — sağ alt; inci etkisi bu karşıtlıkta */}
-            <RadialGradient id="pearlCool" cx="88%" cy="86%" r="55%">
-              <Stop offset="0" stopColor={pearlIridescent.full[2]} stopOpacity="0.20" />
-              <Stop offset="1" stopColor={pearlIridescent.full[2]} stopOpacity="0" />
-            </RadialGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#pearlGlow)" />
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#pearlWarm)" />
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#pearlCool)" />
-        </Svg>
-      </View>
-    );
-  }
+export function Backdrop() {
   return (
     <View style={fill} pointerEvents="none">
       <Svg style={fill}>
