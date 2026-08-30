@@ -604,6 +604,16 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
         </View>
       </SafeAreaView>
 
+      {/*
+        Boş bölge: harita bomboş görünüyorsa sebebi söylenmeli — kullanıcı
+        "çalışmıyor mu?" diye düşünmesin.
+      */}
+      {markers.length === 0 ? (
+        <View style={styles.emptyWrap} pointerEvents="none">
+          <Text style={styles.emptyText}>Bu bölgede paylaşım yok — uzaklaş ya da gez</Text>
+        </View>
+      ) : null}
+
       {/* Alt sol: haritaya kendi selfie'ni bırak */}
       <View style={styles.addWrap} pointerEvents="box-none">
         <Pressable style={styles.addBtn} onPress={() => setSheet(true)} disabled={busy}>
@@ -690,6 +700,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  emptyWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '46%',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontFamily: font.body,
+    fontSize: 12.5,
+    color: 'rgba(255,255,255,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    overflow: 'hidden',
   },
   addWrap: { position: 'absolute', left: 16, bottom: 34, gap: 8, alignItems: 'flex-start' },
   addBtn: {

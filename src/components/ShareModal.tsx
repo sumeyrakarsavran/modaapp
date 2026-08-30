@@ -28,6 +28,17 @@ interface CityRow {
 }
 const CITIES = (cityData as { cities: CityRow[] }).cities;
 
+/** Aksan ve Türkçe harf farklarını siler: "İzmir" ile "izmir" aynı olsun. */
+const norm = (v: string) =>
+  v
+    .replace(/İ/g, 'i')
+    .replace(/I/g, 'i')
+    .replace(/ı/g, 'i')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim();
+
 /**
  * Toplulukta paylaşırken kendi metnini yazabildiğin modal.
  *
@@ -69,11 +80,29 @@ export function ShareModal({
     );
   }, [visible, defaultCaption, profile.city, profile.lat, profile.lon]);
 
-  /** Şehir arama — harita ile aynı listeden (585 şehir). */
+  /**
+   * Şehir arama — HARİTAYLA AYNI listeden (585 şehir).
+   *
+   * Serbest metne izin YOK: elle yazılan "Bodrum"/"istbl" haritada bir yere
+   * denk gelmiyor ve gönderi haritada hiç çıkmıyordu. Kullanıcı yazarken
+   * eşleşenler altta beliriyor, seçim ancak DOKUNARAK yapılıyor.
+   *
+   * Eşleştirme aksana ve Türkçe/İngilizce yazıma takılmıyor: "istanbul",
+   * "İstanbul", "Istanbul" aynı sonucu veriyor. Önce başlayanlar, sonra
+   * içinde geçenler; ikisi de nüfusa göre sıralı.
+   */
   const matches = React.useMemo(() => {
-    const q = cityQuery.trim().toLocaleLowerCase('tr');
+    const q = norm(cityQuery);
     if (q.length < 2) return [];
-    return CITIES.filter((c) => c.n.toLocaleLowerCase('tr').startsWith(q)).slice(0, 8);
+    const starts: CityRow[] = [];
+    const has: CityRow[] = [];
+    for (const c of CITIES) {
+      const n = norm(c.n);
+      if (n.startsWith(q)) starts.push(c);
+      else if (n.includes(q)) has.push(c);
+      if (starts.length >= 8) break;
+    }
+    return [...starts, ...has].slice(0, 8);
   }, [cityQuery]);
 
   // Alt boşluk: klavye AÇIKKEN insets.bottom ekleme — KeyboardAvoidingView'in
@@ -167,7 +196,11 @@ export function ShareModal({
                   <Text style={[luxeType.tiny, { marginTop: 8 }]}>
                     Bulunamadı — şehrin adını Türkçe ya da İngilizce dene.
                   </Text>
-                ) : null}
+                ) : (
+                  <Text style={[luxeType.tiny, { marginTop: 8 }]}>
+                    Haritada yer alması için listeden bir şehre dokun.
+                  </Text>
+                )}
               </>
             )}
           </ScrollView>
