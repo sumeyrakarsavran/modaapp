@@ -22,7 +22,6 @@ import {
   COUNTRIES,
   WORLD_H,
   WORLD_W,
-  COUNTRY_BOX,
   cachedCountryPath,
   latToY,
   lonToX,
@@ -109,13 +108,11 @@ interface Marker {
 export default function World() {
   const { posts, profile, sharePost, addSelfie } = useStore();
   const { width, height } = useWindowDimensions();
-  /*
-    Harita tam ekran çiziliyor (sistem çubuklarının ALTINA da uzanıyor), o
-    yüzden alttaki düğmeler kendi güvenli alan payını almalı — yoksa
-    gezinme çubuğunun arkasında yarım kalıyorlar (cihazda görüldü).
-  */
+  /* Harita tam ekran; alttaki düğmeler kendi güvenli alan payını alıyor. */
   const insets = useSafeAreaInsets();
 
+  /* Sınırlar bir kez: 177 yol her karede üretilecek şey değil. */
+  const paths = useMemo(() => COUNTRIES.map(cachedCountryPath), []);
 
   /* ————— Kaydırma ve yakınlaştırma —————
      Değerler ref'te tutuluyor, PanResponder BİR KEZ kuruluyor (bkz. AGENTS.md:
@@ -158,28 +155,6 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
    * için zaten seçili), persona gönderileri kendi memleketlerinden geliyor.
    * Konumu bilinmeyen gönderi haritaya çıkmıyor — uydurma nokta koymuyoruz.
    */
-  /*
-    Yalnızca GÖRÜNEN ülkeler çiziliyor. Hepsini vermek yakınlaşınca haritayı
-    geç oturtuyordu; sınır kutusu testi ucuz, yol dizeleri de önbellekli.
-  */
-  const paths = useMemo(() => {
-    /* Pay kadar dışarısı da çiziliyor (bkz. padX/padY): 1.3 katı pencere. */
-    const halfLon = (((width * 1.3) / view.z) * 360) / WORLD_W / 2;
-    const halfLat = (((height * 1.3) / view.z) * 180) / WORLD_H / 2;
-    const l = view.lon - halfLon;
-    const r = view.lon + halfLon;
-    const t = view.lat + halfLat;
-    const b = view.lat - halfLat;
-    const out: string[] = [];
-    for (const c of COUNTRIES) {
-      const box = COUNTRY_BOX.get(c);
-      if (!box) continue;
-      if (box[2] < l || box[0] > r || box[3] < b || box[1] > t) continue;
-      out.push(cachedCountryPath(c));
-    }
-    return out;
-  }, [view, width, height]);
-
   /** Yersiz eski gönderilerin dağıtımı — sıra sabit kalsın diye tek seferde. */
   const spread = useMemo(() => {
     const map = new Map<string, (typeof SPREAD_CITIES)[number]>();
@@ -276,27 +251,8 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
     }));
   }, [posts, placeOf, view, width, height]);
 
-  /** En son işlenen konum — hareket sırasında ne kadar uzaklaştığımızı ölçer. */
-  const committed = useRef({ x: 0, y: 0, z: START_ZOOM, at: 0 });
-
-  /*
-    ————— KESKİN KATMANIN GÖRÜNÜRLÜĞÜ —————
-    Parmak ekrandayken keskin katman KAPANIYOR; geriye yalnızca tek seferlik
-    çizilmiş dünya dokusu kalıyor, yani hareket "kaliteden önceki" hâliyle
-    aynı hafiflikte. Parmak kalkınca görünüm işlenip katman geri açılıyor.
-
-    Kapatma `opacity` ile ve Animated üzerinden yapılıyor: React yeniden
-    çizim YAPMIYOR — durum değişkeniyle yapsaydık hareketin başında bir
-    kare takılırdı.
-  */
-  const sharp = useRef(new Animated.Value(1)).current;
-  const hideSharp = React.useCallback(() => sharp.setValue(0), [sharp]);
-  const showSharp = React.useCallback(() => {
-    Animated.timing(sharp, { toValue: 1, duration: 160, useNativeDriver: true }).start();
-  }, [sharp]);
   const commitView = React.useCallback(() => {
     const { x, y, z } = state.current;
-    committed.current = { x, y, z, at: Date.now() };
     setView((v) => {
       const lon = xToLon((width / 2 - x) / z);
       const lat = yToLat((height / 2 - y) / z);
@@ -309,8 +265,8 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
 
   /** Görünen pencereye düşen, kademesi uygun, en kalabalık şehirler. */
   const cities = useMemo(() => {
-    const halfLon = (((width * 1.3) / view.z) * 360) / WORLD_W / 2;
-    const halfLat = (((height * 1.3) / view.z) * 180) / WORLD_H / 2;
+    const halfLon = ((width / view.z) * 360) / WORLD_W / 2;
+    const halfLat = ((height / view.z) * 180) / WORLD_H / 2;
     const tier = cityTierFor(view.z);
     const near: City[] = [];
     for (const c of CITIES) {
@@ -355,13 +311,17 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
   });
 
   /*
-    Ekran = dünya × yakınlık + konum. Katman ekran boyunda ve sol üstten
-    ölçekleniyor, o yüzden ayrıca merkez telafisi gerekmiyor.
+    ⚠️ RN'de `scale` görünümün MERKEZİ etrafında çalışıyor, sol üst köşesi
+    etrafında değil. Matematik "ekran = konum + dünya × yakınlık" varsayıyor;
+    aradaki fark merkez × (1 − yakınlık) kadar sabit bir kayma ve düzeltmezsen
+    yakınlaştıkça harita ekrandan kayıyor (cihazda görüldü: dünya görünümünde
+    Afrika'yı istedik, Amerika geldi). Durum "istenen" uzayda tutuluyor,
+    düzeltme yalnızca göze giden değere uygulanıyor.
   */
   const apply = React.useCallback(
     (x: number, y: number, z: number) => {
       state.current = { x, y, z };
-      pan.setValue({ x, y });
+      pan.setValue({ x: x - (WORLD_W / 2) * (1 - z), y: y - (WORLD_H / 2) * (1 - z) });
       zoom.setValue(z);
     },
     [pan, zoom],
@@ -414,7 +374,6 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
           // birikip harita fırlıyor (Canvas'ta ölçüldü).
           if (g.active) return;
           g.active = true;
-          hideSharp();
           g.startX = state.current.x;
           g.startY = state.current.y;
           g.startZ = state.current.z;
@@ -453,29 +412,21 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
             g.startDist = 0; // tek parmağa döndük
             apply(g.startX + gs.dx, g.startY + gs.dy, state.current.z);
           }
-          /*
-            ⚠️ Hareket SIRASINDA yeniden çizim YOK. Denendi: her tazelemede
-            SVG baştan kuruluyor ve harita titriyordu. Boşluk sorununu
-            alttaki dünya katmanı çözüyor (aşağıya bak), o yüzden buna
-            gerek de kalmadı.
-          */
         },
         onPanResponderRelease: () => {
           gesture.current.active = false;
           gesture.current.startDist = 0;
           commitView();
-          showSharp();
         },
         onPanResponderTerminate: () => {
           gesture.current.active = false;
           gesture.current.startDist = 0;
           commitView();
-          showSharp();
         },
       }),
     // Algılayıcı BİR KEZ kurulur; güncel değerler ref'ten okunuyor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [apply, commitView, hideSharp, showSharp, width, height],
+    [apply, commitView],
   );
 
   /*
@@ -526,143 +477,64 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
     setView({ lon, lat, z });
   };
 
-  /*
-    ————— ÇİZİM KATMANI —————
-    Harita EKRAN boyunda çiziliyor: SVG'nin `viewBox`'ı görünen pencereye
-    kuruluyor, yani sınırlar her yakınlıkta ekran çözünürlüğünde çiziliyor.
-
-    Önce dünya (1600×800) tek parça çizilip haritayla birlikte büyütülüyordu;
-    büyüyen şey VEKTÖR değil onun bir kere çizilmiş görüntüsü olduğu için
-    yaklaşınca sınırlar bulanıklaşıyordu (cihazda görüldü). Tüm dünyayı
-    yakınlık oranında büyük çizmek de olmaz: 6 kat yakınlıkta 9600×4800
-    piksellik yüzey bu telefonun belleğini aşar.
-
-    Parmak hareket ederken katman bir bütün olarak kaydırılıp ölçekleniyor
-    (ucuz), parmak kalkınca görünüm işlenip yeniden çiziliyor (keskin).
-  */
-  const z0 = view.z;
-  /*
-    PAY: katman ekrandan biraz BÜYÜK çiziliyor. Tam ekran boyunda çizilince
-    kaydırırken kenardan boş alan giriyor ve harita ancak parmak kalkınca
-    doluyordu — "geç yükleniyor" bu. Pay kadar dışarısı hazır bekliyor.
-    Pay büyüdükçe bellek de büyüyor (katman donanım dokusuna alınıyor), o
-    yüzden ölçülü: her kenarda ekranın %15'i.
-  */
-  const padX = width * 0.15;
-  const padY = height * 0.15;
-  const layerW = width + padX * 2;
-  const layerH = height + padY * 2;
-  /** Görünen pencerenin sol üst köşesi (dünya birimi). */
-  const originX = lonToX(view.lon) - width / (2 * z0);
-  const originY = latToY(view.lat) - height / (2 * z0);
-  /** Dünya noktasını bu katmandaki piksele çevirir (pay dahil). */
-  const sx = (lon: number) => (lonToX(lon) - originX) * z0 + padX;
-  const sy = (lat: number) => (latToY(lat) - originY) * z0 + padY;
-
-  /* Canlı hareket: işlenmiş görünüme GÖRE fark. */
-  const t0x = width / 2 - lonToX(view.lon) * z0;
-  const t0y = height / 2 - latToY(view.lat) * z0;
-  const k = Animated.divide(zoom, z0);
-  const liveX = Animated.subtract(pan.x, Animated.multiply(k, t0x));
-  const liveY = Animated.subtract(pan.y, Animated.multiply(k, t0y));
-
-  /* Kaba dünya: TEK SEFER çizilen tam harita. Yolları hiç değişmiyor. */
-  const worldPaths = useMemo(() => COUNTRIES.map(cachedCountryPath), []);
-
   return (
     <View style={styles.screen}>
-      {/*
-        ————— ALT KATMAN: bütün dünya —————
-        Bir kez çiziliyor, bir daha hiç yeniden kurulmuyor; kaydırma ve
-        yakınlaştırma yalnızca dönüşümle oluyor, yani JS hiç çalışmıyor.
-        İşi: harita ASLA boş kalmasın. Üstteki keskin katman yalnızca
-        görünen pencereyi çiziyor; kaydırırken kenardan giren yeri bu
-        katman dolduruyor (aynı renkler, sadece daha kaba).
-      */}
+      {/* Harita katmanı: dünya tek bir görünüm, hareket onun üstünde */}
       <Animated.View
-        pointerEvents="none"
-        renderToHardwareTextureAndroid
+        {...responder.panHandlers}
+        /*
+          TEK katman, TEK dönüşüm: kaydırma ve yakınlaştırma boyunca React
+          hiçbir şey yeniden çizmiyor, harita ile kıyafetler aynı koordinat
+          sisteminde olduğu için de birbirinden kaymıyor.
+
+          Denenip GERİ ALINANLAR (aynı hataya düşülmesin):
+          - Ekran penceresini ayrı bir keskin katmana çizmek: sınırlar
+            netleşiyor ama her tazelemede dönüşüm değiştiği için katmanlar
+            kayıyor ve büyüt/küçültte takılıyor.
+          - Katmanı donanım dokusuna almak: hareket ucuzluyor ama bu kez
+            şehir yazıları ve kıyafet fotoğrafları da dokudan büyütülüyor,
+            hepsi bulanıklaşıyor.
+          Sınırların yakınlaşınca yumuşaması bu tasarımın bilinen bedeli.
+        */
         style={[
-          styles.layer,
+          styles.world,
           {
-            left: 0,
-            top: 0,
             width: WORLD_W,
             height: WORLD_H,
-            transformOrigin: 'top left',
             transform: [{ translateX: pan.x }, { translateY: pan.y }, { scale: zoom }],
           },
         ]}
       >
-        <Svg width={WORLD_W} height={WORLD_H} viewBox={`0 0 ${WORLD_W} ${WORLD_H}`}>
-          {worldPaths.map((d, i) => (
-            <Path key={i} d={d} fill="#332B30" stroke="rgba(255,255,255,0.13)" strokeWidth={0.7} />
+        {/*
+          Kara parçaları tek SVG. Ölçek görünüme uygulandığı için yollar
+          yeniden çizilmiyor — kaydırma ve yakınlaştırma bedavaya geliyor.
+        */}
+        <Svg width={WORLD_W} height={WORLD_H} style={styles.map}>
+          {paths.map((d, i) => (
+            <Path key={i} d={d} fill="#332B30" stroke="rgba(255,255,255,0.13)" strokeWidth={0.6} />
           ))}
         </Svg>
-      </Animated.View>
 
-      {/*
-        ————— ORTA KATMAN: keskin pencere —————
-        Yalnızca görünen alanı, ekran çözünürlüğünde çiziyor. Parmak
-        ekrandayken görünmüyor (bkz. `sharp`), o yüzden hareketin maliyeti
-        yok; parmak kalkınca yeni pencereyle çizilip geri geliyor.
-      */}
-      {z0 >= 1.5 ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.layer,
-            {
-              left: -padX,
-              top: -padY,
-              width: layerW,
-              height: layerH,
-              opacity: sharp,
-              transformOrigin: `${padX}px ${padY}px`,
-              transform: [{ translateX: liveX }, { translateY: liveY }, { scale: k }],
-            },
-          ]}
-        >
-          <Svg
-            width={layerW}
-            height={layerH}
-            viewBox={`${originX - padX / z0} ${originY - padY / z0} ${layerW / z0} ${layerH / z0}`}
-          >
-            {paths.map((d, i) => (
-              <Path
-                key={i}
-                d={d}
-                fill="#332B30"
-                stroke="rgba(255,255,255,0.16)"
-                strokeWidth={1}
-                vectorEffect="non-scaling-stroke"
-              />
-            ))}
-          </Svg>
-        </Animated.View>
-      ) : null}
-
-      {/*
-        ————— ÜST KATMAN: şehirler ve kombinler —————
-        Hareket ederken de görünüyor (harita boş kalmasın), içinde SVG yok:
-        birkaç yazı ve görsel, dönüşümle taşınması ucuz.
-      */}
-      <Animated.View
-        {...responder.panHandlers}
-        style={[
-          styles.layer,
-          {
-            left: -padX,
-            top: -padY,
-            width: layerW,
-            height: layerH,
-            transformOrigin: `${padX}px ${padY}px`,
-            transform: [{ translateX: liveX }, { translateY: liveY }, { scale: k }],
-          },
-        ]}
-      >
+        {/*
+          Şehirler: nokta + ad. Sokak dokusu YOK — kullanıcı "sokak sokak
+          gerekmez, şehirler olsun" dedi ve karo haritası hem ağ hem bellek
+          demekti. Etiketler haritayla büyümüyor (ters ölçek), yoksa
+          yakınlaşınca ekranı yazı kaplıyor.
+        */}
         {cities.map((c) => (
-          <View key={`${c.n}-${c.c}`} style={[styles.city, { left: sx(c.x), top: sy(c.y) }]} pointerEvents="none">
+          <View
+            key={`${c.n}-${c.c}`}
+            style={[
+              styles.city,
+              {
+                left: lonToX(c.x),
+                top: latToY(c.y),
+                transformOrigin: 'top center',
+                transform: [{ scale: 1 / view.z }],
+              },
+            ]}
+            pointerEvents="none"
+          >
             <View style={styles.cityDot} />
             <Text style={styles.cityName} numberOfLines={1}>
               {c.n}
@@ -671,13 +543,31 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
         ))}
 
         {markers.map((m) => {
+          /*
+            ⚠️ KALİTE. Kutu, EKRAN pikseli boyunda yerleşiyor ve `1/yakınlık`
+            ile küçültülüyor. Doğrudan dünya biriminde (küçük) yerleştirip
+            haritayla büyütmek fotoğrafı bulanıklaştırıyordu: küçük kutuya
+            çizilen görüntü sonra ölçekle büyütülüyordu (cihazda görüldü —
+            "yaklaştıkça kalitesi azalıyor"). Böyle çizim tam çözünürlükte
+            yapılıp KÜÇÜLTÜLÜYOR, yani hep keskin.
+            `transformOrigin` alt-orta: ölçek değişse de ayaklar koordinatta.
+          */
           const w = m.size;
           const h = w * 1.25;
+          const k = 1 / view.z;
           return (
             <View
               key={m.key}
-              /* Kutunun ALTI koordinatta: fotoğraf haritanın üstünde duruyor. */
-              style={[styles.marker, { left: sx(m.lon) - w / 2, top: sy(m.lat) - h, width: w }]}
+              style={[
+                styles.marker,
+                {
+                  left: lonToX(m.lon) - w / 2,
+                  top: latToY(m.lat) - h,
+                  width: w,
+                  transformOrigin: 'bottom center',
+                  transform: [{ scale: k }],
+                },
+              ]}
             >
               <Pressable
                 /* Her kare bir GÖNDERİ: dokununca toplulukta göründüğü
@@ -705,6 +595,11 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
                   />
                 )}
               </Pressable>
+              {/*
+                Karenin altına şehir adı YAZILMIYOR: haritanın kendi şehir
+                etiketi zaten orada duruyor ve ikisi üst üste binip "NEW
+                YORK New York" gibi okunuyordu (cihazda görüldü).
+              */}
             </View>
           );
         })}
@@ -773,7 +668,8 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
 const styles = StyleSheet.create({
   /* Koyu zemin: arka planı silinmiş kareler ancak koyu suyun üstünde parlıyor. */
   screen: { flex: 1, backgroundColor: '#121014', overflow: 'hidden' },
-  layer: { position: 'absolute' },
+  world: { position: 'absolute', left: 0, top: 0 },
+  map: { position: 'absolute', left: 0, top: 0 },
   marker: { position: 'absolute', alignItems: 'center' },
   /** Şehir: küçük nokta + adı. Nokta koordinatın TAM üstünde. */
   city: { position: 'absolute', alignItems: 'center', width: 170, marginLeft: -85, marginTop: -3 },
