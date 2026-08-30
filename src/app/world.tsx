@@ -529,6 +529,15 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
     <View style={styles.screen}>
       <Animated.View
         {...responder.panHandlers}
+        /*
+          ⚠️ KAYDIRIRKEN DONMA. Katmanın içinde bir SVG var ve Android'de
+          dönüşüm değişince RNSVG vektörü YENİDEN çiziyor — her karede.
+          Donanım dokusuna alınca katman bir kez çizilip GPU'da kaydırılıyor,
+          hareket akıcı oluyor. Bedeli hareket boyunca hafif yumuşama;
+          parmak kalkınca görünüm işlenip yeniden keskin çiziliyor.
+        */
+        renderToHardwareTextureAndroid
+        shouldRasterizeIOS
         style={[
           styles.layer,
           {
