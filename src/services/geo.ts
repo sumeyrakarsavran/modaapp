@@ -23,6 +23,40 @@ export interface CountryShape {
 
 export const COUNTRIES = (world as { countries: CountryShape[] }).countries;
 
+/**
+ * Ülke sınır kutuları — görünen pencereye düşmeyen ülkeyi hiç çizmemek için.
+ * 169 ülkenin hepsini her yeniden çizimde SVG'ye vermek, yakınlaşınca
+ * haritanın geç oturmasına yol açıyordu (cihazda görüldü: "kaydırıp
+ * büyütünce geç yükleniyor"). Şehir ölçeğinde ekranda 2-5 ülke kalıyor.
+ */
+export const COUNTRY_BOX = new Map<CountryShape, [number, number, number, number]>();
+for (const c of COUNTRIES) {
+  let minX = 180,
+    maxX = -180,
+    minY = 90,
+    maxY = -90;
+  for (const ring of c.p) {
+    for (const [x, y] of ring) {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  COUNTRY_BOX.set(c, [minX, minY, maxX, maxY]);
+}
+
+/** Yol dizeleri PAHALI: ülke başına bir kez üretilip saklanıyor. */
+const PATH_CACHE = new Map<CountryShape, string>();
+export function cachedCountryPath(c: CountryShape): string {
+  let d = PATH_CACHE.get(c);
+  if (d == null) {
+    d = countryPath(c);
+    PATH_CACHE.set(c, d);
+  }
+  return d;
+}
+
 /* ————————————————————— Eşdikdörtgen ————————————————————— */
 
 /**
@@ -43,15 +77,31 @@ export const latToY = (lat: number) => ((90 - lat) / 180) * WORLD_H;
 export const xToLon = (x: number) => (x / WORLD_W) * 360 - 180;
 export const yToLat = (y: number) => 90 - (y / WORLD_H) * 180;
 
-/** Ülke halkalarını tek bir SVG yol dizesine çevirir (eşdikdörtgen). */
+/**
+ * Ülke halkalarını tek bir SVG yol dizesine çevirir (eşdikdörtgen).
+ *
+ * ⚠️ TARİH ÇİZGİSİ. Rusya, Fiji gibi ülkelerin halkaları 180°'den geçiyor:
+ * ardışık iki köşe +179 ve −179 olunca eşdikdörtgen izdüşümde aralarına
+ * haritayı boydan boya kesen bir çizgi çiziliyor (cihazda görüldü —
+ * "Kanada'dan da geçen uzun çizikler"). Böyle bir sıçramada halka
+ * KESİLİYOR: yeni parça yeni bir `M` ile başlıyor.
+ */
 export function countryPath(country: CountryShape): string {
   let d = '';
   for (const ring of country.p) {
-    for (let i = 0; i < ring.length; i++) {
-      const [lon, lat] = ring[i];
-      d += `${i === 0 ? 'M' : 'L'}${lonToX(lon).toFixed(1)} ${latToY(lat).toFixed(1)}`;
+    let prevLon: number | null = null;
+    let open = false;
+    for (const [lon, lat] of ring) {
+      const jumped = prevLon != null && Math.abs(lon - prevLon) > 180;
+      if (jumped) {
+        if (open) d += 'Z';
+        open = false;
+      }
+      d += `${open ? 'L' : 'M'}${lonToX(lon).toFixed(1)} ${latToY(lat).toFixed(1)}`;
+      open = true;
+      prevLon = lon;
     }
-    d += 'Z';
+    if (open) d += 'Z';
   }
   return d;
 }
