@@ -437,20 +437,11 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
             apply(g.startX + gs.dx, g.startY + gs.dy, state.current.z);
           }
           /*
-            Payın SONUNA gelmeden bir kez daha çiz: parmak kalkmadan da
-            harita doluyor. Çok sık çizmemek için hem mesafe hem süre
-            eşiği var — yeniden çizim ucuz ama bedavaya değil.
+            ⚠️ Hareket SIRASINDA yeniden çizim YOK. Denendi: her tazelemede
+            SVG baştan kuruluyor ve harita titriyordu. Boşluk sorununu
+            alttaki dünya katmanı çözüyor (aşağıya bak), o yüzden buna
+            gerek de kalmadı.
           */
-          const c = committed.current;
-          const now = Date.now();
-          if (now - c.at > 140) {
-            const far =
-              Math.abs(state.current.x - c.x) > width * 0.1 ||
-              Math.abs(state.current.y - c.y) > height * 0.1 ||
-              state.current.z / c.z > 1.25 ||
-              state.current.z / c.z < 0.8;
-            if (far) commitView();
-          }
         },
         onPanResponderRelease: () => {
           gesture.current.active = false;
@@ -556,19 +547,48 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
   const liveX = Animated.subtract(pan.x, Animated.multiply(k, t0x));
   const liveY = Animated.subtract(pan.y, Animated.multiply(k, t0y));
 
+  /* Kaba dünya: TEK SEFER çizilen tam harita. Yolları hiç değişmiyor. */
+  const worldPaths = useMemo(() => COUNTRIES.map(cachedCountryPath), []);
+
   return (
     <View style={styles.screen}>
+      {/*
+        ————— ALT KATMAN: bütün dünya —————
+        Bir kez çiziliyor, bir daha hiç yeniden kurulmuyor; kaydırma ve
+        yakınlaştırma yalnızca dönüşümle oluyor, yani JS hiç çalışmıyor.
+        İşi: harita ASLA boş kalmasın. Üstteki keskin katman yalnızca
+        görünen pencereyi çiziyor; kaydırırken kenardan giren yeri bu
+        katman dolduruyor (aynı renkler, sadece daha kaba).
+      */}
+      <Animated.View
+        pointerEvents="none"
+        renderToHardwareTextureAndroid
+        style={[
+          styles.layer,
+          {
+            left: 0,
+            top: 0,
+            width: WORLD_W,
+            height: WORLD_H,
+            transformOrigin: 'top left',
+            transform: [{ translateX: pan.x }, { translateY: pan.y }, { scale: zoom }],
+          },
+        ]}
+      >
+        <Svg width={WORLD_W} height={WORLD_H} viewBox={`0 0 ${WORLD_W} ${WORLD_H}`}>
+          {worldPaths.map((d, i) => (
+            <Path key={i} d={d} fill="#332B30" stroke="rgba(255,255,255,0.13)" strokeWidth={0.7} />
+          ))}
+        </Svg>
+      </Animated.View>
+
       <Animated.View
         {...responder.panHandlers}
         /*
-          ⚠️ KAYDIRIRKEN DONMA. Katmanın içinde bir SVG var ve Android'de
-          dönüşüm değişince RNSVG vektörü YENİDEN çiziyor — her karede.
-          Donanım dokusuna alınca katman bir kez çizilip GPU'da kaydırılıyor,
-          hareket akıcı oluyor. Bedeli hareket boyunca hafif yumuşama;
-          parmak kalkınca görünüm işlenip yeniden keskin çiziliyor.
+          Bu katmanda yalnızca görünen ülkeler + etiketler var (uzakta hiç
+          harita yok), o yüzden donanım dokusuna alınmıyor: doku her
+          tazelemede yeniden üretiliyor ve asıl maliyet o oluyordu.
         */
-        renderToHardwareTextureAndroid
-        shouldRasterizeIOS
         style={[
           styles.layer,
           {
@@ -582,25 +602,30 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
           },
         ]}
       >
-        <Svg
-          width={layerW}
-          height={layerH}
-          viewBox={`${originX - padX / z0} ${originY - padY / z0} ${layerW / z0} ${layerH / z0}`}
-        >
-          {paths.map((d, i) => (
-            <Path
-              key={i}
-              d={d}
-              fill="#332B30"
-              stroke="rgba(255,255,255,0.16)"
-              /* Kalınlık EKRAN pikselinde sabit: `viewBox` her yakınlıkta
-                 değiştiği için orana bölmek gerekmiyor ve yol düğümlerinin
-                 tek değişen özelliği kalmıyor. */
-              strokeWidth={1}
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-        </Svg>
+        {/*
+          Keskin pencere YALNIZCA yakınken. Uzakta alt katmanın çözünürlüğü
+          zaten yetiyor ve orada bütün ülkeler görünür olduğu için ikinci
+          bir tam harita boşuna yük.
+        */}
+        {z0 >= 1.5 ? (
+          <Svg
+            width={layerW}
+            height={layerH}
+            viewBox={`${originX - padX / z0} ${originY - padY / z0} ${layerW / z0} ${layerH / z0}`}
+          >
+            {paths.map((d, i) => (
+              <Path
+                key={i}
+                d={d}
+                fill="#332B30"
+                stroke="rgba(255,255,255,0.16)"
+                /* Kalınlık EKRAN pikselinde sabit. */
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </Svg>
+        ) : null}
 
         {cities.map((c) => (
           <View key={`${c.n}-${c.c}`} style={[styles.city, { left: sx(c.x), top: sy(c.y) }]} pointerEvents="none">
