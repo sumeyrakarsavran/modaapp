@@ -163,8 +163,9 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
     geç oturtuyordu; sınır kutusu testi ucuz, yol dizeleri de önbellekli.
   */
   const paths = useMemo(() => {
-    const halfLon = ((width / view.z) * 360) / WORLD_W / 2;
-    const halfLat = ((height / view.z) * 180) / WORLD_H / 2;
+    /* Pay kadar dışarısı da çiziliyor (bkz. padX/padY): 1.3 katı pencere. */
+    const halfLon = (((width * 1.3) / view.z) * 360) / WORLD_W / 2;
+    const halfLat = (((height * 1.3) / view.z) * 180) / WORLD_H / 2;
     const l = view.lon - halfLon;
     const r = view.lon + halfLon;
     const t = view.lat + halfLat;
@@ -275,8 +276,11 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
     }));
   }, [posts, placeOf, view, width, height]);
 
+  /** En son işlenen konum — hareket sırasında ne kadar uzaklaştığımızı ölçer. */
+  const committed = useRef({ x: 0, y: 0, z: START_ZOOM, at: 0 });
   const commitView = React.useCallback(() => {
     const { x, y, z } = state.current;
+    committed.current = { x, y, z, at: Date.now() };
     setView((v) => {
       const lon = xToLon((width / 2 - x) / z);
       const lat = yToLat((height / 2 - y) / z);
@@ -289,8 +293,8 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
 
   /** Görünen pencereye düşen, kademesi uygun, en kalabalık şehirler. */
   const cities = useMemo(() => {
-    const halfLon = ((width / view.z) * 360) / WORLD_W / 2;
-    const halfLat = ((height / view.z) * 180) / WORLD_H / 2;
+    const halfLon = (((width * 1.3) / view.z) * 360) / WORLD_W / 2;
+    const halfLat = (((height * 1.3) / view.z) * 180) / WORLD_H / 2;
     const tier = cityTierFor(view.z);
     const near: City[] = [];
     for (const c of CITIES) {
@@ -432,6 +436,21 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
             g.startDist = 0; // tek parmağa döndük
             apply(g.startX + gs.dx, g.startY + gs.dy, state.current.z);
           }
+          /*
+            Payın SONUNA gelmeden bir kez daha çiz: parmak kalkmadan da
+            harita doluyor. Çok sık çizmemek için hem mesafe hem süre
+            eşiği var — yeniden çizim ucuz ama bedavaya değil.
+          */
+          const c = committed.current;
+          const now = Date.now();
+          if (now - c.at > 140) {
+            const far =
+              Math.abs(state.current.x - c.x) > width * 0.1 ||
+              Math.abs(state.current.y - c.y) > height * 0.1 ||
+              state.current.z / c.z > 1.25 ||
+              state.current.z / c.z < 0.8;
+            if (far) commitView();
+          }
         },
         onPanResponderRelease: () => {
           gesture.current.active = false;
@@ -446,7 +465,7 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
       }),
     // Algılayıcı BİR KEZ kurulur; güncel değerler ref'ten okunuyor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [apply, commitView],
+    [apply, commitView, width, height],
   );
 
   /*
@@ -512,11 +531,23 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
     (ucuz), parmak kalkınca görünüm işlenip yeniden çiziliyor (keskin).
   */
   const z0 = view.z;
+  /*
+    PAY: katman ekrandan biraz BÜYÜK çiziliyor. Tam ekran boyunda çizilince
+    kaydırırken kenardan boş alan giriyor ve harita ancak parmak kalkınca
+    doluyordu — "geç yükleniyor" bu. Pay kadar dışarısı hazır bekliyor.
+    Pay büyüdükçe bellek de büyüyor (katman donanım dokusuna alınıyor), o
+    yüzden ölçülü: her kenarda ekranın %15'i.
+  */
+  const padX = width * 0.15;
+  const padY = height * 0.15;
+  const layerW = width + padX * 2;
+  const layerH = height + padY * 2;
+  /** Görünen pencerenin sol üst köşesi (dünya birimi). */
   const originX = lonToX(view.lon) - width / (2 * z0);
   const originY = latToY(view.lat) - height / (2 * z0);
-  /** Dünya noktasını bu katmandaki piksele çevirir. */
-  const sx = (lon: number) => (lonToX(lon) - originX) * z0;
-  const sy = (lat: number) => (latToY(lat) - originY) * z0;
+  /** Dünya noktasını bu katmandaki piksele çevirir (pay dahil). */
+  const sx = (lon: number) => (lonToX(lon) - originX) * z0 + padX;
+  const sy = (lat: number) => (latToY(lat) - originY) * z0 + padY;
 
   /* Canlı hareket: işlenmiş görünüme GÖRE fark. */
   const t0x = width / 2 - lonToX(view.lon) * z0;
@@ -541,14 +572,21 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
         style={[
           styles.layer,
           {
-            width,
-            height,
-            transformOrigin: 'top left',
+            left: -padX,
+            top: -padY,
+            width: layerW,
+            height: layerH,
+            /* Ölçek çapası EKRANIN sol üstü — pay kadar içeride. */
+            transformOrigin: `${padX}px ${padY}px`,
             transform: [{ translateX: liveX }, { translateY: liveY }, { scale: k }],
           },
         ]}
       >
-        <Svg width={width} height={height} viewBox={`${originX} ${originY} ${width / z0} ${height / z0}`}>
+        <Svg
+          width={layerW}
+          height={layerH}
+          viewBox={`${originX - padX / z0} ${originY - padY / z0} ${layerW / z0} ${layerH / z0}`}
+        >
           {paths.map((d, i) => (
             <Path
               key={i}
@@ -676,7 +714,7 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
 const styles = StyleSheet.create({
   /* Koyu zemin: arka planı silinmiş kareler ancak koyu suyun üstünde parlıyor. */
   screen: { flex: 1, backgroundColor: '#121014', overflow: 'hidden' },
-  layer: { position: 'absolute', left: 0, top: 0 },
+  layer: { position: 'absolute' },
   marker: { position: 'absolute', alignItems: 'center' },
   /** Şehir: küçük nokta + adı. Nokta koordinatın TAM üstünde. */
   city: { position: 'absolute', alignItems: 'center', width: 170, marginLeft: -85, marginTop: -3 },
