@@ -278,6 +278,22 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
 
   /** En son işlenen konum — hareket sırasında ne kadar uzaklaştığımızı ölçer. */
   const committed = useRef({ x: 0, y: 0, z: START_ZOOM, at: 0 });
+
+  /*
+    ————— KESKİN KATMANIN GÖRÜNÜRLÜĞÜ —————
+    Parmak ekrandayken keskin katman KAPANIYOR; geriye yalnızca tek seferlik
+    çizilmiş dünya dokusu kalıyor, yani hareket "kaliteden önceki" hâliyle
+    aynı hafiflikte. Parmak kalkınca görünüm işlenip katman geri açılıyor.
+
+    Kapatma `opacity` ile ve Animated üzerinden yapılıyor: React yeniden
+    çizim YAPMIYOR — durum değişkeniyle yapsaydık hareketin başında bir
+    kare takılırdı.
+  */
+  const sharp = useRef(new Animated.Value(1)).current;
+  const hideSharp = React.useCallback(() => sharp.setValue(0), [sharp]);
+  const showSharp = React.useCallback(() => {
+    Animated.timing(sharp, { toValue: 1, duration: 160, useNativeDriver: true }).start();
+  }, [sharp]);
   const commitView = React.useCallback(() => {
     const { x, y, z } = state.current;
     committed.current = { x, y, z, at: Date.now() };
@@ -398,6 +414,7 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
           // birikip harita fırlıyor (Canvas'ta ölçüldü).
           if (g.active) return;
           g.active = true;
+          hideSharp();
           g.startX = state.current.x;
           g.startY = state.current.y;
           g.startZ = state.current.z;
@@ -447,16 +464,18 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
           gesture.current.active = false;
           gesture.current.startDist = 0;
           commitView();
+          showSharp();
         },
         onPanResponderTerminate: () => {
           gesture.current.active = false;
           gesture.current.startDist = 0;
           commitView();
+          showSharp();
         },
       }),
     // Algılayıcı BİR KEZ kurulur; güncel değerler ref'ten okunuyor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [apply, commitView, width, height],
+    [apply, commitView, hideSharp, showSharp, width, height],
   );
 
   /*
@@ -582,32 +601,28 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
         </Svg>
       </Animated.View>
 
-      <Animated.View
-        {...responder.panHandlers}
-        /*
-          Bu katmanda yalnızca görünen ülkeler + etiketler var (uzakta hiç
-          harita yok), o yüzden donanım dokusuna alınmıyor: doku her
-          tazelemede yeniden üretiliyor ve asıl maliyet o oluyordu.
-        */
-        style={[
-          styles.layer,
-          {
-            left: -padX,
-            top: -padY,
-            width: layerW,
-            height: layerH,
-            /* Ölçek çapası EKRANIN sol üstü — pay kadar içeride. */
-            transformOrigin: `${padX}px ${padY}px`,
-            transform: [{ translateX: liveX }, { translateY: liveY }, { scale: k }],
-          },
-        ]}
-      >
-        {/*
-          Keskin pencere YALNIZCA yakınken. Uzakta alt katmanın çözünürlüğü
-          zaten yetiyor ve orada bütün ülkeler görünür olduğu için ikinci
-          bir tam harita boşuna yük.
-        */}
-        {z0 >= 1.5 ? (
+      {/*
+        ————— ORTA KATMAN: keskin pencere —————
+        Yalnızca görünen alanı, ekran çözünürlüğünde çiziyor. Parmak
+        ekrandayken görünmüyor (bkz. `sharp`), o yüzden hareketin maliyeti
+        yok; parmak kalkınca yeni pencereyle çizilip geri geliyor.
+      */}
+      {z0 >= 1.5 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.layer,
+            {
+              left: -padX,
+              top: -padY,
+              width: layerW,
+              height: layerH,
+              opacity: sharp,
+              transformOrigin: `${padX}px ${padY}px`,
+              transform: [{ translateX: liveX }, { translateY: liveY }, { scale: k }],
+            },
+          ]}
+        >
           <Svg
             width={layerW}
             height={layerH}
@@ -619,14 +634,33 @@ const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
                 d={d}
                 fill="#332B30"
                 stroke="rgba(255,255,255,0.16)"
-                /* Kalınlık EKRAN pikselinde sabit. */
                 strokeWidth={1}
                 vectorEffect="non-scaling-stroke"
               />
             ))}
           </Svg>
-        ) : null}
+        </Animated.View>
+      ) : null}
 
+      {/*
+        ————— ÜST KATMAN: şehirler ve kombinler —————
+        Hareket ederken de görünüyor (harita boş kalmasın), içinde SVG yok:
+        birkaç yazı ve görsel, dönüşümle taşınması ucuz.
+      */}
+      <Animated.View
+        {...responder.panHandlers}
+        style={[
+          styles.layer,
+          {
+            left: -padX,
+            top: -padY,
+            width: layerW,
+            height: layerH,
+            transformOrigin: `${padX}px ${padY}px`,
+            transform: [{ translateX: liveX }, { translateY: liveY }, { scale: k }],
+          },
+        ]}
+      >
         {cities.map((c) => (
           <View key={`${c.n}-${c.c}`} style={[styles.city, { left: sx(c.x), top: sy(c.y) }]} pointerEvents="none">
             <View style={styles.cityDot} />
