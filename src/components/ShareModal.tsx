@@ -14,9 +14,27 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BTN_PAD, FinBlob } from '@/components/FinBlob';
+import cityData from '@/data/cities.json';
+import { useStore } from '@/store/useStore';
 import { font, luxe, luxeRadius, luxeType } from '@/theme/luxe';
+import type { PostPlace } from '@/types';
 
-/** Toplulukta paylaşırken kendi metnini yazabildiğin modal. */
+interface CityRow {
+  n: string;
+  c: string;
+  x: number;
+  y: number;
+  p: number;
+}
+const CITIES = (cityData as { cities: CityRow[] }).cities;
+
+/**
+ * Toplulukta paylaşırken kendi metnini yazabildiğin modal.
+ *
+ * ŞEHİR ZORUNLU: global harita paylaşımları yere oturtuyor, yersiz gönderi
+ * haritada hiç görünmüyor. Profilde şehir varsa (hava durumu için zaten
+ * seçili) hazır geliyor, yoksa paylaşmadan önce seçtiriliyor.
+ */
 export function ShareModal({
   visible,
   defaultCaption,
@@ -26,18 +44,37 @@ export function ShareModal({
 }: {
   visible: boolean;
   defaultCaption: string;
-  onShare: (caption: string) => void;
+  onShare: (caption: string, place: PostPlace) => void;
   onClose: () => void;
   preview?: React.ReactNode;
 }) {
   const [text, setText] = useState(defaultCaption);
+  const profile = useStore((s) => s.profile);
+  const [place, setPlace] = useState<PostPlace | null>(null);
+  const [cityQuery, setCityQuery] = useState('');
+  const [picking, setPicking] = useState(false);
   const insets = useSafeAreaInsets();
   const [keyboardUp, setKeyboardUp] = useState(false);
 
-  // Modal her açıldığında öneri metnini tazele
+  // Modal her açıldığında öneri metnini ve yeri tazele
   useEffect(() => {
-    if (visible) setText(defaultCaption);
-  }, [visible, defaultCaption]);
+    if (!visible) return;
+    setText(defaultCaption);
+    setCityQuery('');
+    setPicking(false);
+    setPlace(
+      profile.city && profile.lat != null && profile.lon != null
+        ? { lat: profile.lat, lon: profile.lon, city: profile.city }
+        : null,
+    );
+  }, [visible, defaultCaption, profile.city, profile.lat, profile.lon]);
+
+  /** Şehir arama — harita ile aynı listeden (585 şehir). */
+  const matches = React.useMemo(() => {
+    const q = cityQuery.trim().toLocaleLowerCase('tr');
+    if (q.length < 2) return [];
+    return CITIES.filter((c) => c.n.toLocaleLowerCase('tr').startsWith(q)).slice(0, 8);
+  }, [cityQuery]);
 
   // Alt boşluk: klavye AÇIKKEN insets.bottom ekleme — KeyboardAvoidingView'in
   // eklediği klavye yüksekliği alt çubuğu zaten kapsıyor, yoksa çift sayılır.
@@ -89,14 +126,64 @@ export function ShareModal({
               maxLength={280}
             />
             <Text style={styles.counter}>{text.length}/280</Text>
+
+            {/* Yer: haritada nereye düşeceği */}
+            <Text style={[luxeType.label, { marginTop: 14 }]}>Şehir</Text>
+            {place && !picking ? (
+              <View style={styles.placeRow}>
+                <Ionicons name="location-outline" size={15} color={luxe.primary} />
+                <Text style={styles.placeText}>{place.city}</Text>
+                <Pressable onPress={() => setPicking(true)} hitSlop={8}>
+                  <Text style={styles.changeText}>Değiştir</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <TextInput
+                  value={cityQuery}
+                  onChangeText={setCityQuery}
+                  placeholder="Şehir ara…"
+                  placeholderTextColor={luxe.outline}
+                  style={[styles.input, { minHeight: 0, marginTop: 6 }]}
+                  autoCapitalize="words"
+                />
+                {matches.map((c) => (
+                  <Pressable
+                    key={`${c.n}-${c.c}`}
+                    style={styles.cityRow}
+                    onPress={() => {
+                      setPlace({ lat: c.y, lon: c.x, city: c.n });
+                      setPicking(false);
+                      setCityQuery('');
+                    }}
+                  >
+                    <Ionicons name="location-outline" size={15} color={luxe.outline} />
+                    <Text style={styles.cityRowText}>
+                      {c.n} <Text style={{ color: luxe.outline }}>· {c.c}</Text>
+                    </Text>
+                  </Pressable>
+                ))}
+                {cityQuery.trim().length >= 2 && matches.length === 0 ? (
+                  <Text style={[luxeType.tiny, { marginTop: 8 }]}>
+                    Bulunamadı — şehrin adını Türkçe ya da İngilizce dene.
+                  </Text>
+                ) : null}
+              </>
+            )}
           </ScrollView>
 
           <Pressable
             style={({ pressed }) => [styles.shareBtn, pressed && { opacity: 0.85 }]}
-            onPress={() => onShare(text.trim() || defaultCaption)}
+            disabled={!place}
+            onPress={() => place && onShare(text.trim() || defaultCaption, place)}
           >
-            <FinBlob shadow pad={BTN_PAD} variant="button" color={luxe.primary} />
-            <Text style={styles.shareText}>Paylaş</Text>
+            <FinBlob
+              shadow
+              pad={BTN_PAD}
+              variant="button"
+              color={place ? luxe.primary : luxe.primarySoft}
+            />
+            <Text style={styles.shareText}>{place ? 'Paylaş' : 'Önce şehir seç'}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -147,6 +234,23 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: 4,
   },
+  placeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 8,
+  },
+  placeText: { flex: 1, fontFamily: font.bodyMedium, fontSize: 14.5, color: luxe.ink },
+  changeText: { fontFamily: font.bodyMedium, fontSize: 12.5, color: luxe.primary },
+  cityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: luxe.outlineSoft,
+  },
+  cityRowText: { fontFamily: font.body, fontSize: 14, color: luxe.ink },
   shareBtn: {
     marginTop: 16,
     paddingVertical: 13 + BTN_PAD,

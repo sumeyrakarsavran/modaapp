@@ -39,6 +39,7 @@ import {
   subcategoriesOf,
   todayISO,
   type Category,
+  type PostPlace,
   type Selfie,
   type WardrobeItem,
 } from '@/types';
@@ -732,14 +733,18 @@ export default function Wardrobe() {
     setAskDeleteSelfie(s);
   };
 
-  const doShareSelfie = (caption: string) => {
+  const doShareSelfie = (caption: string, place?: PostPlace) => {
     const s = shareSelfieOpen;
     if (!s) return;
     sharePost({
       kind: 'selfie',
       caption,
+      /* Şehir paylaşım kutusunda seçiliyor — global harita bunu kullanıyor. */
+      place,
       garments: [],
-      imageUri: s.imageUri,
+      /* Haritada "insan haritada duruyor" görüntüsü ancak KESİLMİŞ kareyle
+         oluyor; varsa arka planı silinmiş kopya gönderiliyor. */
+      imageUri: s.cutoutUri ?? s.imageUri,
       archetypeId: useStore.getState().profile.bettaArchetypeId,
     });
     setShareSelfieOpen(null);

@@ -30,7 +30,7 @@ import { TRYON_MODELS } from '@/data/tryonModels';
 import { useStore } from '@/store/useStore';
 import { BETTA_ARCHETYPES } from '@/theme';
 import { font, glass, iridescent, luxe, luxeRadius, luxeShadow, luxeType } from '@/theme/luxe';
-import type { Category, TryOnRecord, VideoRecord, WardrobeItem } from '@/types';
+import type { Category, PostPlace, TryOnRecord, VideoRecord, WardrobeItem } from '@/types';
 import { OUTER_SUBCATEGORY } from '@/types';
 
 type Mode = 'dressme' | 'tryon';
@@ -316,12 +316,14 @@ export default function Studio() {
     setVideoVisible((cur) => (cur === vis ? cur : vis));
   };
 
-  const doShareTryOn = (caption: string) => {
+  const doShareTryOn = (caption: string, place?: PostPlace) => {
     const t = shareTryon;
     if (!t) return;
     sharePost({
       kind: 'tryon',
       caption,
+      /* Şehir paylaşım kutusunda seçiliyor: global harita bunu kullanıyor. */
+      place,
       garments: [],
       imageUri: t.imageUri,
       archetypeId: useStore.getState().profile.bettaArchetypeId,

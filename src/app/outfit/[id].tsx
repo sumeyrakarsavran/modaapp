@@ -273,10 +273,11 @@ export default function OutfitDetail() {
           />
         }
         onClose={() => setShareOpen(false)}
-        onShare={(caption) => {
+        onShare={(caption, place) => {
           sharePost({
             kind: 'kombin',
             caption,
+            place,
             garments: its.map((i) => ({
               category: i.category,
               // Alt tür de gidiyor: yoksa ceket düz "üst" gibi çiziliyordu ve

@@ -28,7 +28,7 @@ import { LookbookIcon } from '@/components/LookbookIcon';
 import { useStore } from '@/store/useStore';
 import { radius, spacing } from '@/theme';
 import { font, glass, luxe, luxeRadius, luxeType } from '@/theme/luxe';
-import type { CommunityOutfitSet, GarmentSpec, WardrobeItem } from '@/types';
+import type { CommunityOutfitSet, GarmentSpec, PostPlace, WardrobeItem } from '@/types';
 
 export default function LookbookDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -101,10 +101,11 @@ export default function LookbookDetail() {
     .filter((s) => s.garments.length > 0);
 
 
-  const doShare = (caption: string) => {
+  const doShare = (caption: string, place?: PostPlace) => {
     sharePost({
       kind: 'lookbook',
       caption,
+      place,
       // Eski kartlar/istemciler için düz liste de dolduruluyor (ilk kombin)
       garments: outfitSets[0]?.garments ?? [],
       outfitSets,

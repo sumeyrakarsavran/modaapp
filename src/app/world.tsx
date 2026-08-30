@@ -16,7 +16,6 @@ import Svg, { Path } from 'react-native-svg';
 
 import { ActionSheet } from '@/components/ActionSheet';
 import { FluidSpecCollage } from '@/components/Community';
-import { OutfitCollage } from '@/components/OutfitCollage';
 import cityData from '@/data/cities.json';
 import { PERSONA_HOME } from '@/data/community';
 import {
@@ -37,22 +36,43 @@ import { persistGarmentPhoto } from '@/services/photoStore';
 import { useStore } from '@/store/useStore';
 import { font, luxe, luxeType } from '@/theme/luxe';
 import { todayISO } from '@/types';
-import type { CommunityPost, Outfit, WardrobeItem } from '@/types';
+import type { CommunityPost } from '@/types';
 
 /**
  * GLOBAL STİL HARİTASI — hangi ülkede ne giyiliyor.
  *
- * Her ülkeden EN ÇOK BEĞENİLEN tek gönderi haritada duruyor ve beğeni
- * sayısıyla büyüyor. Hepsini basmak haritayı kolaja çeviriyordu; "ülkenin
- * o anki görünüşü" tek bir kare olunca harita okunuyor.
+ * Haritada YALNIZCA toplulukta paylaşılanlar var. Paylaşılmamış kombin
+ * global haritada görünmüyor; kendi kombinin de ancak paylaştığında
+ * çıkıyor ve dokununca gönderi olarak açılıyor.
  *
  * Neden kendi haritamız: `react-native-maps` native modül + API anahtarı
  * demek. Burada sınırlar zaten elimizde (Natural Earth, kamu malı) ve
  * stilize çizim uygulamanın diline daha yakın duruyor.
  */
 
-/** Beğeniyi piksele çeviren ölçek — kök alınıyor ki 3000 beğeni ekranı yutmasın. */
-const markerSize = (likes: number) => 60 + Math.sqrt(Math.max(0, likes)) * 4.5;
+/**
+ * HARİTA DÜZENİ — kaç kare, hangisi, ne kadar büyük.
+ *
+ * Üç kural birlikte çalışıyor:
+ * 1. BÖLGE BİRİNCİSİ. Harita bir ızgaraya bölünüyor; her gözden yalnızca en
+ *    çok beğenilen kare çıkıyor. Göz boyu EKRANDA sabit (~130px), yani
+ *    dünya görünümünde bir göz koca bir bölge, yakınlaştıkça şehir oluyor —
+ *    "yaklaştıkça o bölgenin birincileri" kendiliğinden geliyor.
+ * 2. SIRALAMA. Kazananlar beğeniye göre sıralanıp en fazla 40 tanesi
+ *    çiziliyor; harita kalabalıklaşmıyor.
+ * 3. BOYUT. Birinci en büyük, sonrakiler kademeli olarak küçülüyor
+ *    (sıraya göre ~%100 → %58). Taban boy yakınlaştıkça büyüyor ama
+ *    ekranı kapatmayacak kadar.
+ */
+const MAX_MARKERS = 40;
+/** İki kare arasındaki en küçük EKRAN mesafesi — üst üste binmesinler. */
+const CELL_PX = 96;
+
+/** Taban boy (ekran pikseli): uzakta ölçülü, yaklaşınca büyüyor. */
+const baseSize = (z: number) => Math.min(150, Math.max(72, 72 * Math.pow(z, 0.18)));
+/** Sıraya göre küçülme: birinci tam boy, sonuncusu ~%58. */
+const rankScale = (i: number, n: number) =>
+  n <= 1 ? 1 : 1 - 0.42 * Math.pow(i / (n - 1), 0.7);
 
 const MIN_ZOOM = 0.55;
 const MAX_ZOOM = 22;
@@ -75,13 +95,49 @@ const cityTierFor = (z: number) => (z < 1.4 ? 0 : z < 4 ? 1 : 2);
 /** Aynı anda ekranda duracak en fazla etiket — üstü hem kalabalık hem ağır. */
 const CITY_LIMIT = 55;
 
+interface Marker {
+  key: string;
+  post: CommunityPost;
+  lon: number;
+  lat: number;
+  city?: string;
+  country: string;
+  size: number;
+}
+
+export default function World() {
+  const { posts, profile, sharePost, addSelfie } = useStore();
+  const { width, height } = useWindowDimensions();
+
+  /* Sınırlar bir kez: 177 yol her karede üretilecek şey değil. */
+  const paths = useMemo(() => COUNTRIES.map(countryPath), []);
+
+  /* ————— Kaydırma ve yakınlaştırma —————
+     Değerler ref'te tutuluyor, PanResponder BİR KEZ kuruluyor (bkz. AGENTS.md:
+     prop'u bağımlılığa koyunca hareketin ortasında yeni algılayıcı doğuyor ve
+     dx sıfırlanıyor). Ekran = konum + dünya × yakınlık. */
+  const zoom = useRef(new Animated.Value(START_ZOOM)).current;
+  const pan = useRef(new Animated.ValueXY()).current;
+  const state = useRef({ x: 0, y: 0, z: START_ZOOM });
+
+  /*
+    Şehir etiketleri için "işlenmiş görünüm". Kaydırma sırasında state
+    yazılmıyor (yazsak her karede 700 şehir yeniden süzülür ve harita
+    kasardı) — parmak kalkınca bir kez güncelleniyor, aradaki kısa boşluk
+    fark edilmiyor.
+  */
+  const [view, setView] = React.useState({ lon: 28.98, lat: 41.01, z: START_ZOOM });
+
 /**
- * DEMO yerleşimi: kullanıcının kendi son kombinleri dünyaya dağıtılıyor.
- * Harita boşken ne yaptığı anlaşılmıyor; uydurma model fotoğrafı koymak
- * yerine kullanıcının GERÇEK kombinleri gösteriliyor. Gerçek bir gönderi
- * aynı ülkeye düşerse demo kare yerini ona bırakıyor.
+ * Yeri OLMAYAN eski paylaşımlar için şehir dağılımı.
+ *
+ * Artık paylaşırken şehir zorunlu; ama bu kural gelmeden önce paylaşılan
+ * gönderilerde yer yok ve hepsi tek noktaya yığılıyor. Kullanıcı "farklı
+ * şehirler seçmişim gibi yapabilirsin" dedi: bu eski gönderiler sırayla
+ * bu şehirlere dağıtılıyor. Yeni paylaşımlar kendi şehriyle geliyor,
+ * buraya hiç uğramıyor.
  */
-const DEMO_CITIES = [
+const SPREAD_CITIES: { city: string; lat: number; lon: number }[] = [
   { city: 'Paris', lat: 48.8566, lon: 2.3522 },
   { city: 'Milano', lat: 45.4642, lon: 9.19 },
   { city: 'Londra', lat: 51.5074, lon: -0.1278 },
@@ -92,123 +148,107 @@ const DEMO_CITIES = [
   { city: 'Dubai', lat: 25.2048, lon: 55.2708 },
 ];
 
-/** Kimlikten türeyen sabit "beğeni" — demo kareler farklı boylarda dursun. */
-const seedLikes = (id: string) => {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return 40 + (h % 320);
-};
-
-interface Marker {
-  key: string;
-  post?: CommunityPost;
-  /** Demo kare: kullanıcının kendi kombini. */
-  outfit?: { items: WardrobeItem[]; layout?: Outfit['layout'] };
-  lon: number;
-  lat: number;
-  city?: string;
-  country: string;
-  size: number;
-}
-
-export default function World() {
-  const { posts, profile, outfits, items, sharePost, addSelfie } = useStore();
-  const { width, height } = useWindowDimensions();
-
-  /* Sınırlar bir kez: 177 yol her karede üretilecek şey değil. */
-  const paths = useMemo(() => COUNTRIES.map(countryPath), []);
-
-  /**
-   * Gönderinin YERİ. Kendi gönderilerin profildeki şehirden (hava durumu
+/**
+ * Gönderinin YERİ. Kendi gönderilerin profildeki şehirden (hava durumu
    * için zaten seçili), persona gönderileri kendi memleketlerinden geliyor.
    * Konumu bilinmeyen gönderi haritaya çıkmıyor — uydurma nokta koymuyoruz.
    */
+  /** Yersiz eski gönderilerin dağıtımı — sıra sabit kalsın diye tek seferde. */
+  const spread = useMemo(() => {
+    const map = new Map<string, (typeof SPREAD_CITIES)[number]>();
+    let i = 0;
+    for (const p of [...posts].reverse()) {
+      if (p.place || p.userId !== 'me') continue;
+      map.set(p.id, SPREAD_CITIES[i % SPREAD_CITIES.length]);
+      i++;
+    }
+    return map;
+  }, [posts]);
+
   const placeOf = React.useCallback(
     (p: CommunityPost) => {
       if (p.place) return p.place;
-      if (p.userId === 'me') {
-        return profile.lat != null && profile.lon != null
-          ? { lat: profile.lat, lon: profile.lon, city: profile.city }
-          : undefined;
-      }
+      if (p.userId === 'me') return spread.get(p.id);
       return PERSONA_HOME[p.userId];
     },
-    [profile.lat, profile.lon, profile.city],
+    [spread],
   );
 
+  /**
+   * Görünen kareler. `view` işlendiğinde (parmak kalkınca) hesaplanıyor:
+   * kaydırma sırasında 40 kareyi yeniden seçmek haritayı kasardı.
+   */
   const markers = useMemo<Marker[]>(() => {
-    const best = new Map<string, Marker>();
+    /* Adaylar: gerçek gönderiler + demo olarak dağıtılmış kendi kombinlerin. */
+    type Cand = {
+      key: string;
+      likes: number;
+      lon: number;
+      lat: number;
+      city?: string;
+      post: CommunityPost;
+    };
+    const cands: Cand[] = [];
+
     for (const post of posts) {
-      // Görseli olmayan gönderi haritada bir şey anlatmıyor
       if (!post.imageUri && !post.garments?.length && !post.outfitSets?.length) continue;
       const place = placeOf(post);
       if (!place) continue;
-      const country =
-        place.country ?? nearestCountry(place.lon, place.lat)?.name ?? `${place.lat},${place.lon}`;
-      const likes = post.likes + (post.likedByMe ? 1 : 0);
-      const cur = best.get(country);
-      const curLikes = cur?.post ? cur.post.likes + (cur.post.likedByMe ? 1 : 0) : -1;
-      if (likes > curLikes) {
-        best.set(country, {
-          key: post.id,
-          post,
-          lon: place.lon,
-          lat: place.lat,
-          city: place.city,
-          country,
-          size: markerSize(likes),
-        });
-      }
+      cands.push({
+        key: post.id,
+        likes: post.likes + (post.likedByMe ? 1 : 0),
+        lon: place.lon,
+        lat: place.lat,
+        city: place.city,
+        post,
+      });
     }
 
-    /* Demo: son 8 kombin, gerçek gönderi olmayan şehirlere. */
-    outfits.slice(0, DEMO_CITIES.length).forEach((o, i) => {
-      const spot = DEMO_CITIES[i];
-      const country = nearestCountry(spot.lon, spot.lat)?.name ?? spot.city;
-      if (best.has(country)) return;
-      const outfitItems = o.itemIds
-        .map((id) => items.find((it) => it.id === id))
-        .filter(Boolean) as WardrobeItem[];
-      if (!outfitItems.length) return;
-      best.set(country, {
-        key: `demo-${o.id}`,
-        outfit: { items: outfitItems, layout: o.layout },
-        lon: spot.lon,
-        lat: spot.lat,
-        city: spot.city,
-        country,
-        size: markerSize(seedLikes(o.id)),
-      });
-    });
+    /* Görünen pencere + bir ekran pay: kenardan girenler hazır dursun. */
+    const halfLon = (((width * 1.5) / view.z) * 360) / WORLD_W / 2;
+    const halfLat = (((height * 1.5) / view.z) * 180) / WORLD_H / 2;
 
-    return [...best.values()];
-  }, [posts, placeOf, outfits, items]);
+    /*
+      Seçim: ÖNCE en çok beğenilen. Sırayla ilerlerken, daha önce
+      yerleştirilmiş bir karenin dibine düşen aday atlanıyor — böylece her
+      bölgenin birincisi kendiliğinden çıkıyor, kalan yerleri de sıradaki
+      kombinler dolduruyor. Izgaraya bölmek denendi: bir gözde iki iyi
+      kombin varsa ikincisi hiç görünmüyordu.
+    */
+    const inView = cands.filter(
+      (c) => Math.abs(c.lon - view.lon) <= halfLon && Math.abs(c.lat - view.lat) <= halfLat,
+    );
+    inView.sort((a, b) => b.likes - a.likes);
 
-  /* ————— Kaydırma ve yakınlaştırma —————
-     Değerler ref'te tutuluyor, PanResponder BİR KEZ kuruluyor (bkz. AGENTS.md:
-     prop'u bağımlılığa koyunca hareketin ortasında yeni algılayıcı doğuyor ve
-     dx sıfırlanıyor). Ekran = konum + dünya × yakınlık. */
-  const zoom = useRef(new Animated.Value(START_ZOOM)).current;
-  const pan = useRef(new Animated.ValueXY()).current;
-  const state = useRef({ x: 0, y: 0, z: START_ZOOM });
+    /** İki kare arasındaki en küçük mesafe (ekran pikseli → derece). */
+    const gapLon = ((CELL_PX / view.z) * 360) / WORLD_W;
+    const gapLat = ((CELL_PX / view.z) * 180) / WORLD_H;
+    const chosen: Cand[] = [];
+    for (const c of inView) {
+      if (
+        chosen.some(
+          (o) => Math.abs(o.lon - c.lon) < gapLon && Math.abs(o.lat - c.lat) < gapLat,
+        )
+      ) {
+        continue;
+      }
+      chosen.push(c);
+      if (chosen.length >= MAX_MARKERS) break;
+    }
 
-  /** Açılış: kullanıcının konumu ekranın ortasında. */
-  const start = useMemo(() => {
-    const lon = profile.lon ?? 28.98;
-    const lat = profile.lat ?? 41.01;
-    return {
-      x: width / 2 - lonToX(lon) * START_ZOOM,
-      y: height / 2 - latToY(lat) * START_ZOOM,
-    };
-  }, [profile.lon, profile.lat, width, height]);
+    const ranked = chosen;
+    const base = baseSize(view.z);
+    return ranked.map((c, i) => ({
+      key: c.key,
+      post: c.post,
+      lon: c.lon,
+      lat: c.lat,
+      city: c.city,
+      country: '',
+      size: base * rankScale(i, ranked.length),
+    }));
+  }, [posts, placeOf, view, width, height]);
 
-  /*
-    Şehir etiketleri için "işlenmiş görünüm". Kaydırma sırasında state
-    yazılmıyor (yazsak her karede 700 şehir yeniden süzülür ve harita
-    kasardı) — parmak kalkınca bir kez güncelleniyor, aradaki kısa boşluk
-    fark edilmiyor.
-  */
-  const [view, setView] = React.useState({ lon: 28.98, lat: 41.01, z: START_ZOOM });
   const commitView = React.useCallback(() => {
     const { x, y, z } = state.current;
     setView((v) => {
@@ -263,6 +303,9 @@ export default function World() {
     startDist: 0,
     anchorX: 0,
     anchorY: 0,
+    lastTapAt: 0,
+    lastTapX: 0,
+    lastTapY: 0,
   });
 
   /*
@@ -282,9 +325,17 @@ export default function World() {
     [pan, zoom],
   );
 
+  /** Açılış: kullanıcının konumu ekranın ortasında. */
   React.useEffect(() => {
-    apply(start.x, start.y, START_ZOOM);
-  }, [start, apply]);
+    const lon = profile.lon ?? 28.98;
+    const lat = profile.lat ?? 41.01;
+    apply(
+      width / 2 - lonToX(lon) * START_ZOOM,
+      height / 2 - latToY(lat) * START_ZOOM,
+      START_ZOOM,
+    );
+    setView({ lon, lat, z: START_ZOOM });
+  }, [profile.lon, profile.lat, width, height, apply]);
 
   const responder = useMemo(
     () =>
@@ -294,6 +345,29 @@ export default function World() {
         onPanResponderGrant: (e) => {
           const t = e.nativeEvent.touches;
           const g = gesture.current;
+          /*
+            ÇİFT DOKUNUŞ = yakınlaş. İki parmak her zaman elverişli değil
+            (tek elle gezerken) ve haritalarda beklenen davranış bu.
+            Dokunulan nokta sabit kalıyor: parmağın altındaki şehir kaçmasın.
+          */
+          if (t.length === 1) {
+            const now = Date.now();
+            const { pageX, pageY } = t[0];
+            const near =
+              Math.abs(pageX - g.lastTapX) < 40 && Math.abs(pageY - g.lastTapY) < 40;
+            if (now - g.lastTapAt < 320 && near) {
+              const z = Math.min(MAX_ZOOM, state.current.z * 1.9);
+              const wx = (pageX - state.current.x) / state.current.z;
+              const wy = (pageY - state.current.y) / state.current.z;
+              apply(pageX - wx * z, pageY - wy * z, z);
+              commitView();
+              g.lastTapAt = 0;
+              return;
+            }
+            g.lastTapAt = now;
+            g.lastTapX = pageX;
+            g.lastTapY = pageY;
+          }
           // Başlangıç BİR KEZ donuyor: grant ikinci kez çalışırsa hareket
           // birikip harita fırlıyor (Canvas'ta ölçüldü).
           if (g.active) return;
@@ -350,7 +424,7 @@ export default function World() {
       }),
     // Algılayıcı BİR KEZ kurulur; güncel değerler ref'ten okunuyor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [apply, commitView],
   );
 
   /*
@@ -363,13 +437,6 @@ export default function World() {
     Bedeli: parmak kalkana kadar işaretçiler haritayla birlikte büyüyor,
     sonra yerine oturuyor. Gerçek haritalarda da böyle.
   */
-  const zk = view.z;
-  /** Ekranda görünmesi istenen boy → dünya birimine çevriliyor. */
-  const onScreen = (size: number) =>
-    (size * Math.min(1.15, Math.max(0.4, 0.42 * Math.pow(zk, 0.18)))) / zk;
-  const labelPx = Math.min(13, Math.max(9, 11)) / zk;
-  const dotPx = 5 / zk;
-
   /*
     Haritaya selfie ekleme. Arka plan SİLİNİYOR: harita ancak kesilmiş
     karelerle "insan haritada duruyor" gibi görünüyor. Kare aynı zamanda
@@ -441,44 +508,58 @@ export default function World() {
         {cities.map((c) => (
           <View
             key={`${c.n}-${c.c}`}
-            style={[styles.city, { left: lonToX(c.x), top: latToY(c.y), marginTop: -dotPx / 2 }]}
+            style={[
+              styles.city,
+              {
+                left: lonToX(c.x),
+                top: latToY(c.y),
+                transformOrigin: 'top center',
+                transform: [{ scale: 1 / view.z }],
+              },
+            ]}
             pointerEvents="none"
           >
-            <View
-              style={[
-                styles.cityDot,
-                { width: dotPx, height: dotPx, borderRadius: dotPx / 2 },
-              ]}
-            />
-            <Text
-              style={[styles.cityName, { fontSize: labelPx, marginTop: labelPx * 0.25 }]}
-              numberOfLines={1}
-            >
+            <View style={styles.cityDot} />
+            <Text style={styles.cityName} numberOfLines={1}>
               {c.n}
             </Text>
           </View>
         ))}
 
         {markers.map((m) => {
-          const w = onScreen(m.size);
+          /*
+            ⚠️ KALİTE. Kutu, EKRAN pikseli boyunda yerleşiyor ve `1/yakınlık`
+            ile küçültülüyor. Doğrudan dünya biriminde (küçük) yerleştirip
+            haritayla büyütmek fotoğrafı bulanıklaştırıyordu: küçük kutuya
+            çizilen görüntü sonra ölçekle büyütülüyordu (cihazda görüldü —
+            "yaklaştıkça kalitesi azalıyor"). Böyle çizim tam çözünürlükte
+            yapılıp KÜÇÜLTÜLÜYOR, yani hep keskin.
+            `transformOrigin` alt-orta: ölçek değişse de ayaklar koordinatta.
+          */
+          const w = m.size;
           const h = w * 1.25;
+          const k = 1 / view.z;
           return (
             <View
               key={m.key}
-              /* Kutunun ALTI koordinatta: fotoğraf haritanın üstünde duruyor. */
-              style={[styles.marker, { left: lonToX(m.lon) - w / 2, top: latToY(m.lat) - h, width: w }]}
+              style={[
+                styles.marker,
+                {
+                  left: lonToX(m.lon) - w / 2,
+                  top: latToY(m.lat) - h,
+                  width: w,
+                  transformOrigin: 'bottom center',
+                  transform: [{ scale: k }],
+                },
+              ]}
             >
               <Pressable
-                onPress={() =>
-                  m.post
-                    ? router.push({ pathname: '/post/[id]', params: { id: m.post.id } })
-                    : undefined
-                }
+                /* Her kare bir GÖNDERİ: dokununca toplulukta göründüğü
+                   haliyle açılıyor — senin kombinin de olsa. */
+                onPress={() => router.push({ pathname: '/post/[id]', params: { id: m.post.id } })}
                 style={{ width: w, height: h }}
               >
-                {m.outfit ? (
-                  <OutfitCollage items={m.outfit.items} size={w} layout={m.outfit.layout} bare />
-                ) : m.post?.imageUri ? (
+                {m.post.imageUri ? (
                   <Image
                     source={{ uri: m.post.imageUri }}
                     style={styles.shot}
@@ -488,24 +569,21 @@ export default function World() {
                 ) : (
                   <FluidSpecCollage
                     garments={
-                      m.post?.outfitSets?.[0]?.garments?.length
+                      m.post.outfitSets?.[0]?.garments?.length
                         ? m.post.outfitSets[0].garments
-                        : (m.post?.garments ?? [])
+                        : m.post.garments
                     }
-                    frame={m.post?.canvasFrame}
-                    cropToContent={m.post?.cropToContent}
+                    frame={m.post.canvasFrame}
+                    cropToContent={m.post.cropToContent}
                     bare
                   />
                 )}
               </Pressable>
-              {m.city ? (
-                <Text
-                  style={[styles.markerCity, { fontSize: labelPx * 0.85 }]}
-                  numberOfLines={1}
-                >
-                  {m.city}
-                </Text>
-              ) : null}
+              {/*
+                Karenin altına şehir adı YAZILMIYOR: haritanın kendi şehir
+                etiketi zaten orada duruyor ve ikisi üst üste binip "NEW
+                YORK New York" gibi okunuyordu (cihazda görüldü).
+              */}
             </View>
           );
         })}
@@ -520,7 +598,7 @@ export default function World() {
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>Global stil</Text>
             <Text style={styles.sub}>
-              {markers.length} ülkeden en beğenilen kombin · yakınlaştırmak için iki parmak
+              {markers.length} paylaşım · çift dokun ya da iki parmakla yakınlaş
             </Text>
           </View>
         </View>
@@ -568,9 +646,14 @@ const styles = StyleSheet.create({
   map: { position: 'absolute', left: 0, top: 0 },
   marker: { position: 'absolute', alignItems: 'center' },
   /** Şehir: küçük nokta + adı. Nokta koordinatın TAM üstünde. */
-  city: { position: 'absolute', alignItems: 'center', width: 160, marginLeft: -80 },
-  cityDot: { backgroundColor: 'rgba(255,255,255,0.55)' },
-  cityName: { fontFamily: font.bodyMedium, color: 'rgba(255,255,255,0.62)' },
+  city: { position: 'absolute', alignItems: 'center', width: 170, marginLeft: -85, marginTop: -3 },
+  cityDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.55)' },
+  cityName: {
+    fontFamily: font.bodyMedium,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.62)',
+    marginTop: 3,
+  },
   shot: { width: '100%', height: '100%' },
   /**
    * Fotoğrafın altındaki şehir adı.

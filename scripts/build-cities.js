@@ -28,12 +28,39 @@ const TIERS = [
 const seen = new Set();
 const out = [];
 
+/*
+  Ad normalizasyonu: GeoNames'te aynı yer birden çok yazımla geçebiliyor
+  (İzmir/Izmir, Bursa/Bursa Province) ve harita üstünde aynı ad iki kez
+  yazılıyordu (cihazda görüldü). Aksan ve büyük/küçük harf atılıp
+  karşılaştırılıyor.
+*/
+const norm = (n) =>
+  n
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/ı/g, 'i')
+    .toLowerCase()
+    .trim();
+
+/** İki nokta neredeyse aynı yerde mi (aynı şehrin ilçesi/mahallesi). */
+const TOO_CLOSE = 0.35; // derece ≈ 35 km
+
 for (const { tier, world, home } of TIERS) {
   for (const c of cities) {
     const limit = c.country === HOME ? home : world;
     if (c.population < limit) continue;
-    const key = `${c.name}|${c.country}`;
+    const key = `${norm(c.name)}|${c.country}`;
     if (seen.has(key)) continue;
+    // Yakındaki daha kalabalık bir şehir zaten alındıysa bunu atla:
+    // "İstanbul" yanına "Bahçelievler" yazmanın anlamı yok.
+    const [lon, lat] = c.loc.coordinates;
+    if (
+      out.some(
+        (o) => Math.abs(o.x - lon) < TOO_CLOSE && Math.abs(o.y - lat) < TOO_CLOSE,
+      )
+    ) {
+      continue;
+    }
     seen.add(key);
     out.push({
       n: c.name,
